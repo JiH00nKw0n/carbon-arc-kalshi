@@ -27,9 +27,10 @@
 | Phase | 산출물 | 상태 | 비고 |
 |---|---|---|---|
 | **0 (automated v2)** | **`scripts/auto/`, `docs/verification_pairs_macro.md`, 754 검증쌍** | **완료** | **본 repo 핵심 deliverable** |
-| 1 (sample EDA) | `outputs/eda/PHASE1_REPORT.md` | 완료 | sample n=20, CA0049×UMich r=−0.79 (statistical evidence X, pipeline sanity only) |
+| 1 (sample EDA) | `outputs/eda/PHASE1_REPORT.md` | 완료 | sample n=20, CA0049×UMich r=−0.79 (statistical evidence X, pipeline sanity only; COVID 빼면 r=−0.19) |
 | 2 (scenario design) | `docs/leadlag_scenarios.md` (S1-S4) | 완료, 백테스트 design | 실행 미완 |
 | 3 (LLM unstructured PoC) | `prompts/ca_row_to_text.md`, `docs/llm_cost.md`, `scripts/phase3_smoke_test.py` | smoke test 성공 | Sonnet 4.6 cached 예산 ~$1.5-2k/yr |
+| **E (framework 가격 조사)** | **`scripts/auto/s_e_price_all.py`, `docs/framework_prices.md`** | **완료** | $50 promo 활용 계획 — 14/35 데이터셋이 단독 $50 이내 (282 페어), CA0056 7y = $19.30 단일 anchor 추천 |
 
 진행 상세는 `RESEARCH_PROGRESS.md` 참조.
 
@@ -43,6 +44,7 @@ scripts/auto/                         ← Phase 0 자동 검증쌍 추출
   s_c_mechanism_verify.py             Haiku 4.5 verify → connected=true 754
   s_d_v1_diff.py                      (legacy) v1 수작업 39쌍과의 diff — 비교용
   s_report.py                         docs/verification_pairs_macro.md 생성
+  s_e_price_all.py                    CarbonArc framework 가격 조회 (35 dataset × 1y/3y/5y)
 
 scripts/                              ← Phase 1/3 (EDA + LLM PoC)
   phase1_0_fetch_samples.py           CarbonArc 무료 sample 100행 fetch
@@ -54,6 +56,7 @@ scripts/                              ← Phase 1/3 (EDA + LLM PoC)
 docs/
   verification_pairs_macro.md         ← Phase 0 최종 리포트
   ca_datasets_in_verification_pairs.md 754 페어에 등장한 35 CA + 샘플 row
+  framework_prices.md                 ← Stage E 가격표 (754 페어 × CarbonArc cost)
   macro_matching_rules.md             Stage A2 alias 사전
   leadlag_scenarios.md                Phase 2 백테스트 S1-S4 디자인
   llm_cost.md                         Phase 3 비용 envelope
@@ -99,9 +102,10 @@ python3 scripts/auto/s_b_timing.py                                   # _explore/
 python3 scripts/auto/s_c_mechanism_verify.py --model claude-haiku-4-5 --workers 12
 python3 scripts/auto/s_d_v1_diff.py
 python3 scripts/auto/s_report.py                                      # docs/verification_pairs_macro.md 생성
+python3 scripts/auto/s_e_price_all.py                                 # docs/framework_prices.md (CarbonArc 가격, promo 차감 X)
 ```
 
-런타임: Stage A·B 합쳐 < 1분, Stage C 는 5,664 페어 × 12 workers ≈ 15-20분. Haiku 비용 ~$2-5.
+런타임: Stage A·B 합쳐 < 1분, Stage C 는 5,664 페어 × 12 workers ≈ 15-20분. Haiku 비용 ~$2-5. Stage E 는 35 dataset × 3 windows ≈ 3분, $0.
 
 ## 결과 검토 포인트
 
