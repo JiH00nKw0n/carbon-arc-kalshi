@@ -1,10 +1,12 @@
 # CA0030 Clickstream × UMich Sentiment — 첫 풀패널 분석
 
+> ⚠️ **후속 multi-macro 검증에서 본 분석의 결론이 흔들림.** 같은 CA0030 데이터를 Retail Sales / NFP 와도 검증한 결과, 그쪽은 정반대 방향 (macro leads CA, lag −1, positive r=+0.7) 이 더 강함. UMich 만의 lag +1 negative 는 sentiment-specific 패턴이거나 단순 trend artifact 일 가능성. 자세히는 `docs/analysis_ca0030_multi_macro.md`.
+
 > 2026-05-15 첫 framework 구매 ($4.99, CA0030 5y monthly US) 직후 anchor 페어 검증.
 > 데이터: `outputs/auto/ca0030_clickstream_us_monthly_5y.csv` (gitignored).
 > 구매 기록: `docs/purchase_log.md`.
 
-**한 줄 결론**: 풀패널에서 CA leads UMich 의 negative 상관 패턴이 raw / MoM Δ / YoY / linear-detrended 4가지 방식 모두에서 lag +1 에 일관되게 나타남. **하지만 이 분석은 여러 methodological 빈틈을 갖고 있어서, 확정 시그널이 아니라 "framework 한 번 더 본 가치가 있다" 수준의 sanity 단서로 해석해야 함**.
+**한 줄 결론**: 풀패널에서 CA leads UMich 의 negative 상관 패턴이 raw / MoM Δ / YoY / linear-detrended 4가지 방식 모두에서 lag +1 에 일관되게 나타남. **하지만 이 분석은 여러 methodological 빈틈을 갖고 있어서, 확정 시그널이 아니라 "framework 한 번 더 본 가치가 있다" 수준의 sanity 단서로 해석해야 함**. (그리고 multi-macro 후속 검증에서 그 단서마저도 약함이 드러남 — 위 ⚠️ 참조.)
 
 ---
 

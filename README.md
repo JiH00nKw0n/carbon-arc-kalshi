@@ -45,14 +45,38 @@
 
 핵심 deliverable: **`docs/verification_pairs_macro.md`** (754 페어 ranked) + **`docs/framework_prices.md`** (각 페어의 CarbonArc 구매 가격).
 
-## 단, "검증쌍" ≠ "alpha 시그널"
+## 단, "검증쌍" ≠ "alpha 시그널" — 두 번 확인한 사실
 
-이 repo 의 754 페어는 **검증 *후보*** 일 뿐. 실제 lead-lag 가 통계적으로 유의한지는 full panel 데이터로 백테스트 해야 함. 무료 100행 sample 로 시도했더니:
+이 repo 의 754 페어는 **검증 *후보*** 일 뿐. 두 차례 실증 시도 결과 모두 *자세히 보면 시그널이 약해진다*:
 
-- CA0049 Pharmacy × UMich Sentiment monthly **r = −0.79** (n=20) — 처음엔 의미 있어 보였음
-- COVID 핵심 3개월 (2020-03~05) 빼면 r = **−0.19** 로 무너짐 → COVID 가 양쪽 시리즈에 동시 충격 → spurious common-shock
+**(1) Phase 1 — 무료 100행 sample EDA (CA0049 × UMich, n=20)**
 
-→ Phase 1 EDA 리포트는 "pipeline + structural-fit demo, **not statistical evidence**" 라고 명시. 본격적 검증은 framework 구매 ($50 promo 보유) 후의 후속 작업.
+| 윈도우 | r at lag +1 |
+|---|---:|
+| Raw 2016-2021 | **−0.79** ← 첫인상 |
+| COVID 3개월 (2020-03/04/05) 제외 | **−0.19** ← 무너짐 |
+
+COVID 가 양쪽 시리즈 (제약 청구 폭증 + sentiment 폭락) 에 동시 충격 → spurious common-shock. 리포트 본문 자체가 "pipeline + structural-fit demo, **not statistical evidence**" 라고 명시.
+
+**(2) Phase 5 — 첫 framework 구매 (CA0030 Clickstream 5y monthly US, $4.99, n=63)**
+
+UMich anchor 페어만 봤을 때: 4 detrending method 모두 lag +1 에서 negative 상관 (r ≈ −0.34 ~ −0.59). 첫인상은 "sample EDA 보다 robust 한 시그널" — 상세 `docs/analysis_ca0030_umich.md`.
+
+**(3) Phase 5 후속 — Multi-macro 일관성 검증 (같은 데이터, 추가 비용 0)**
+
+같은 CA0030 데이터로 UMich 외 매크로도 봤더니 **결과가 뒤집힘** — 상세 `docs/analysis_ca0030_multi_macro.md`:
+
+| CA0030 (SUM) × | YoY % change best |r| | 방향 |
+|---|---|---|
+| UMich Sentiment | 0.50 at lag +1 | CA leads, negative |
+| Retail Sales | **0.75 at lag −1** | **Macro leads CA**, positive |
+| NFP | **0.68 at lag −1** | **Macro leads CA**, positive |
+
+Retail Sales / NFP 의 경우 **매크로가 CA0030 을 1개월 leads** — lead-lag 가설의 *정반대* 방향. 그것도 \|r\| 가 UMich (0.5) 보다 더 큼 (0.7).
+
+해석: CA0030 의 5y 동안 5.17x panel 성장이 *경기 좋을 때 가속*되는 onboarding artifact — 즉 CA 의 변동은 경제의 *결과*, 원인이 아님. UMich 만 다른 부호 나온 건 UMich 도 같은 기간 79→53 으로 하락 추세라 단순 trend 노이즈 잔여일 가능성.
+
+**→ 핵심 함의**: 754 페어의 `lead_window_days` 는 *publication timing* (CA 가 매크로 발표 *후* 무엇이 일찍 출시되는가) 이지, *데이터 lead* (CA 변동이 매크로 변동을 leads) 가 아님. **두 개념은 다름**. 후자는 페어별 실증 데이터로만 입증 가능.
 
 ## Phase 별 상태
 
@@ -60,9 +84,10 @@
 |---|---|---|---|
 | **0 (automated v2)** | **`scripts/auto/`, `docs/verification_pairs_macro.md`, 754 검증쌍** | **완료** | **본 repo 핵심** |
 | 1 (sample EDA) | `outputs/eda/PHASE1_REPORT.md` | 완료, sanity만 | sample n=20, r=−0.79 가 COVID 제외 시 r=−0.19 로 무너짐 |
-| 2 (scenario design) | `docs/leadlag_scenarios.md` (S1-S4) | 완료, 디자인만 | 백테스트 실행은 framework 구매 후 |
+| 2 (scenario design) | `docs/leadlag_scenarios.md` (S1-S4) | 완료, 디자인만 | 백테스트 실행 미완 |
 | 3 (LLM unstructured PoC) | `prompts/ca_row_to_text.md`, `docs/llm_cost.md`, `scripts/phase3_smoke_test.py` | smoke test 성공 | Sonnet 4.6 cached 예산 ~$1.5-2k/yr |
-| **E (framework 가격 조사)** | **`scripts/auto/s_e_price_all.py`, `docs/framework_prices.md`** | **완료** | $50 promo 활용 계획. 14/35 데이터셋이 단독 $50 이내 (282 페어 cover), **CA0056 7y monthly = $19.30** 단일 anchor 추천 |
+| E (framework 가격 조사) | `scripts/auto/s_e_price_all.py`, `docs/framework_prices.md` | 완료 | 35 CA 가격 매트릭스. 14개 데이터셋이 단독 $50 이내 (282 페어) |
+| **5 (첫 구매 + 검증)** | **`docs/purchase_log.md`, `docs/analysis_ca0030_umich.md`, `docs/analysis_ca0030_multi_macro.md`** | **진행 중** | **CA0030 Clickstream 5y $4.99 구매**. UMich 만 lag +1 negative; Retail Sales / NFP 는 lag −1 positive (**매크로가 CA 를 leads**). 즉 CA0030 panel-growth 가 경제 변수의 결과인 듯 — lead-lag 가설 미입증. promo 잔액 $45.01 |
 
 총괄 진행 로그는 `RESEARCH_PROGRESS.md`.
 
@@ -89,6 +114,9 @@ docs/
   verification_pairs_macro.md         ← Phase 0 최종 리포트 (TL;DR + 754 페어 top-30)
   ca_datasets_in_verification_pairs.md 754 페어에 등장한 35 CA + 샘플 row
   framework_prices.md                 ← Stage E 가격표 (754 페어 × CarbonArc cost)
+  purchase_log.md                     ← Phase 5 구매 기록 (실제 promo 차감된 거래만)
+  analysis_ca0030_umich.md            ← Phase 5 첫 분석 (UMich anchor) + 자체 비판
+  analysis_ca0030_multi_macro.md      ← Phase 5 후속 — Retail Sales / NFP 까지 봤더니 가설이 흔들림
   macro_matching_rules.md             Stage A2 alias 사전 (BLS/BEA/Census 공식 약어)
   leadlag_scenarios.md                Phase 2 백테스트 S1-S4 디자인 (LightGBM + SHAP)
   llm_cost.md                         Phase 3 비용 envelope
@@ -149,17 +177,29 @@ python3 scripts/auto/s_e_price_all.py                                 # docs/fra
 
 ## Limitations
 
-- CA 무료 sample 은 토픽당 100행 — Phase 1 EDA 의 통계는 sanity 시그널 수준 (CA0049 monthly n=20, COVID 빼면 r=−0.19).
-- Stage B `lead_window_days = macro_cadence − ca_lag` 는 *typical cadence* 가정 (monthly = 30d 등). Kalshi 시장별 정확한 expected_expiration_time 은 API 추가 호출 필요.
+- Stage B `lead_window_days` 는 *publication timing* 만 측정 — CA 가 매크로 발표 *후* 며칠 더 일찍 publish 되는가. **데이터 lead** (CA 변동이 매크로 변동을 시간순으로 leads) 는 별개 개념이며 페어별 실증 데이터로만 확인 가능. Phase 5 multi-macro 분석이 이 두 개념의 차이를 드러냄.
 - Stage C 는 페어 단위 LLM 1회 호출, temperature=0 이지만 prompt-sensitive. 재실행 variance 는 직접 확인 안 함.
-- **754 페어는 검증 *후보***. 실측 lead-lag 와 trade-able edge 는 framework 구매 후 백테스트로만 확인 가능.
+- **Phase 5 의 CA0030 결과** — `docs/analysis_ca0030_multi_macro.md`:
+  - UMich 안 양의 lead (negative r at lag +1) 이 다른 매크로 (Retail Sales, NFP) 에서 재현 안 됨 → trend artifact 가능성
+  - Panel 5y 동안 5.17x 성장이 macro-leads-CA 패턴 만들고 있음 (경기 좋을 때 panel onboarding 가속)
+  - 즉 CA0030 (clickstream) 은 panel-growth 가 dominant → economic lead 검증의 *깨끗한* 테스트 베드 아님
+  - Card transaction (CA0056) 처럼 panel-growth 영향이 적은 데이터셋이 더 적절
+- 754 페어는 검증 *후보*. Trade-able edge 는 panel-growth confound 가 적은 데이터셋 (Card / Commodity) 의 framework 구매 + OOS 백테스트로만 입증 가능.
 
-## Next steps (제안)
+## Next steps
 
-1. **CA0056 7y monthly framework 구매 ($19.30, $30.70 promo 잔존)** → Census Retail Sales 와 cross-checked 백테스트, COVID 분리 가능한 84 monthly obs 확보
-2. 결과 보고 promo 잔액으로 **CA0077 commodity 1y ($22.96)** 또는 **CA0030 Clickstream 5y ($4.99)** 추가 구매
-3. Phase 2 `leadlag_scenarios.md` S1-S4 백테스트 디자인 실행 (LightGBM + SHAP)
-4. Borderline 46 페어 수동 triage 또는 Sonnet 재실행으로 두 모델 합의 페어만 남기기
+**즉시 가능 (추가 비용 0)** — 같은 CA0030 데이터로:
+1. UMich 의 다른 sub-index 와 cross-check (Conference Board Consumer Confidence, UMich inflation expectations) — UMich-specific 패턴인지 확인
+2. Mobile aggregation 단독 재분석 (Desktop 의 panel growth 영향 적음)
+3. Granger-causality test 로 lead 방향 통계 검증
+
+**다음 framework 구매 결정** ($45.01 promo 남음):
+- 최우선 후보: **CA0056 Card Spend US 7y monthly $19.30** — Phase 0b 의 다른 anchor 페어 (KXUSRETAIL). Card transaction 은 panel onboarding 영향이 적을 것 (사용자 수가 아니라 거래 금액) → lead-lag 가설의 더 깨끗한 테스트.
+- CA0030 결과가 confound 의 직접 증거이므로 panel-growth 적은 데이터셋에서 가설 재검증 우선.
+
+**검증 파이프라인 자체 보완**:
+- Borderline 46 페어 수동 triage 또는 Sonnet 재실행으로 두 모델 합의 페어만 남기기
+- Phase 2 `leadlag_scenarios.md` 의 S1-S4 백테스트 디자인 실행 — 단, lead 방향 검증 결과 반영 후
 
 ## License & Note
 
