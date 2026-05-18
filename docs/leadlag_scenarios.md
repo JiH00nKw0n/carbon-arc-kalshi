@@ -5,15 +5,13 @@
 > *separately and jointly* lift forecast accuracy on Kalshi macro &
 > company-event markets.
 
-This design lives at the *blueprint* level — we don't have purchased CA
-data yet; the harness is built so the only switch when data arrives is
-the `LOAD_CA_FEATURES` step.
+**상태 (2026-05-18)**: blueprint 단계. Phase 5 에서 CA0030/0056/0034 framework 3개 구매했지만 본 4-scenario 백테스트는 *아직 미실행*. Phase 5 의 lag corr 결과 (`docs/analysis_per_dataset.md`) 가 시그널 방향 / 데이터셋 적합성 명확히 한 후 본 디자인으로 evaluation 진행 예정. 그 사이는 `LOAD_CA_FEATURES` step 만 활성화하면 됨.
 
 ---
 
 ## 1. Scope & target markets
 
-### Track A — Macro (primary thesis from Jack Haverty's note + Phase 0 join)
+### Track A — Macro (primary lead-lag thesis + Phase 0 join)
 
 | Kalshi ticker | Macro release (truth) | CA features (when bought) | Phase 0 lead window |
 |---|---|---|---|
@@ -128,7 +126,7 @@ Gradient Boosted Trees (LightGBM)
 
 Why GBT, not deep nets:
 - Sample size (Kalshi market-closes) is small relative to feature dim.
-- Jihoon's note in Slack explicitly asks for "interpretable ML to capture
+- Methodology requirement: "interpretable ML to capture
   non-linear patterns while still understanding drivers". GBT + SHAP fits exactly.
 
 Holdout for ablations: drop one feature group at a time, report Brier delta.
@@ -163,7 +161,7 @@ For internal review:
 4. **CA dataset publication timestamps**: lag_str strings are vendor docs.
    Need to confirm "T+5 Days" = data-end + 5 vs ingestion + 5. This
    determines actual lead window vs Kalshi market close.
-5. **Sumin's 3 items** — recompile against this framework once shared.
+5. **추가 의제 항목 (collab partner 측 요청)** — 공유되면 본 framework 와 매핑.
 
 ---
 

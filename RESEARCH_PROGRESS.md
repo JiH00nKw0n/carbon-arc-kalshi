@@ -1,82 +1,64 @@
-# CarbonArc × Kalshi Research — Progress Report
+# CarbonArc × Kalshi Research — Progress Tracker
 
-_Last updated 2026-05-14_
+_Last updated 2026-05-18_
 
-This file tracks the EDA/feasibility study spawned by the 2026-05-14
-CarbonArc collab meeting + Jack Haverty's macro lead-lag note + Jihoon's
-linear-first methodology agreement. Plan lives at
-`~/.claude/plans/lazy-mixing-simon.md`.
+> 진행 로그. 자세한 분석/결과는 `README.md` 와 `docs/` 를 참조. 이 파일은 *연표* + *현재 wip* 위주.
 
-## TL;DR
+## 현재 상태 (한 줄)
 
-- **All four phases completed** end-to-end using free 100-row CarbonArc samples + free MCP data.
-- **Phase 0 GATE PASSED** (39 CA × release × Kalshi pairs with ≥ 5-day lead; criterion was ≥ 3). Strongest lead windows: **CA009/CA0040/CA0056 → Core PCE at 25-27 days**; CA0030/CA009 → UMich at 15 days.
-- **Phase 1 GATE PASSED** with two CA0049 sample pairs hitting `|r| ≥ 0.3` on monthly data. Standout: **CA0049 Pharmacy Claims → UMich Sentiment, r = −0.79 at +1 month CA-lead**. Caveat: 20 monthly obs, single-brand sample, COVID overlap.
-- **Phase 2** design doc written: 4-scenario {Kalshi-only / +CA / +LLM / +CA+LLM}, LightGBM + SHAP, forward-walk evaluation, Brier + lead-time PnL metrics.
-- **Phase 3** LLM pipeline designed: `prompts/ca_row_to_text.md` + `docs/llm_cost.md` (~$1.5-2k/year reduced envelope on Sonnet 4.6 with caching). End-to-end smoke test runs successfully: CA0030 row → template summary → kalshi_search → UMich market → candlesticks → PNG plot.
+754 후보 페어 추출 완료 → 3 framework 구매 ($44.41 / $50 promo) → 13 macros × 3 dataset lag corr 검증 → **데이터셋 측정 단위 (사용자 수 vs 거래 금액 vs 거래 건수) 가 lead-lag 결과 방향을 좌우**. 다음: 검증 깊이 (Granger / detrend / OOS).
 
-## What we did and where it lives
+## 연표
 
-### Phase 0 — Inventory & lead-window join
-
-| Artifact | Path |
-|---|---|
-| 20 CA datasets × frequency + lag string | `outputs/release_calendar.csv` |
-| 10,161 Kalshi series (530 Economics) | `outputs/kalshi_series_all.csv`, `outputs/kalshi_macro_series.csv` |
-| Curated 66 Kalshi macro tickers ↔ release names | `outputs/kalshi_curated_macro.csv` |
-| 1,225 US/UK/EU/CN macro release dates 2025-11 → 2026-08 | `outputs/macro_releases.csv` |
-| **Final join: 69 candidate pairs, 39 with ≥5d lead** | `outputs/leadlag_candidates.csv` |
-
-### Phase 1 — Sample-based feasibility EDA
-
-- Top-candidate samples fetched per topic: `outputs/samples/*.csv` (+ `_index.csv`).
-- Single-day sampling discovered for CA0056/0028/0030/0054 — these excluded from time-series EDA.
-- Usable samples: **CA0049 Pharmacy (2016-2021, Medline)**, **CA0077 Commodities (1995-2025, mixed)**, **CA0053 Job Movements (2005-2014, 2K Games)**.
-- FRED truth cached: `outputs/fred/*.json` (RETAIL_SALES, MICHIGAN_SENTIMENT, NFP).
-- Report + summary CSV: `outputs/eda/PHASE1_REPORT.md`, `phase1_summary.csv`.
-- Plots: `outputs/eda/CA0049_*.png`, `outputs/eda/CA0077_*.png`.
-
-### Phase 2 — 4-scenario design
-
-- `docs/leadlag_scenarios.md` — primary scope, feature engineering per scenario, splits/metrics, LightGBM + SHAP rationale.
-
-### Phase 3 — LLM unstructured pipeline
-
-- `prompts/ca_row_to_text.md` — system + few-shot prompt to convert a single CA row into a one-sentence summary suitable as `kalshi_search` query.
-- `docs/llm_cost.md` — annual budget envelope (Sonnet 4.6 cached): naive $14.5k, realistic $1.5-2k after caching + Haiku swaps in Stage 3.
-- `scripts/phase3_smoke_test.py` — runnable E2E demo. Output: `outputs/smoke/smoke_KXUMICHOVR-26DEC18-T65.0.png`.
-
-## Reproduce in one command
-
-```bash
-python3 scripts/phase0_1_release_calendar.py
-python3 scripts/phase0_2_kalshi_inventory.py
-python3 scripts/phase0_3_curated_kalshi.py
-python3 scripts/phase0_4_macro_releases.py
-python3 scripts/phase0_5_leadlag_candidates.py
-python3 scripts/phase1_0_fetch_samples.py
-python3 scripts/build_fred_cache.py
-python3 scripts/phase1_eda.py
-python3 scripts/phase3_smoke_test.py
-```
-
-Phase 0.2 and 0.3 depend on MCP tool dumps (`kalshi_series`, `fmp_economic_calendar`) saved to the harness's `tool-results/` cache; rerun the MCP calls in this session if the dump paths change.
-
-## What we *cannot* answer without buying data
-
-| Question | Why blocked | What we'd buy |
+| 시점 | 마일스톤 | 핵심 산출물 |
 |---|---|---|
-| Does CA0049 lead CDC disease counts? | Samples brand-locked (Medline only, no infectious-disease drugs) | CA0049 × Lilly/Novo/Pfizer/Moderna × 2018-2024 |
-| Does CA0056 card spend nowcast Retail Sales? | Samples are single-day (2019-01-05 or 2025-10-21) | CA0056 × 5 retailer tickers × monthly state-level |
-| Does CA0030 clickstream lead UMich Sentiment? | Sample is single-day (2025-11-13) | CA0030 × 10 Big Tech tickers × 2020-2025 monthly |
-| Does CA0040 trade lead PCE? | Single-day samples for most topics | CA0040 × AAPL/TSLA × HS-code × monthly |
+| 2026-05-08 | Repo 시작, CarbonArc API 탐색, 데이터 가치 메모 | `ANALYSIS.md`, `DATA.md` |
+| 2026-05-11 | 초기 수작업 매핑 시도 (legacy) — 21 CA × 66 Kalshi → 39 페어 | `outputs/leadlag_candidates.csv` |
+| 2026-05-12 | Phase 1 sample EDA — CA0049 × UMich r=−0.79 (n=20, COVID 영향, statistical evidence X) | `outputs/eda/PHASE1_REPORT.md` |
+| 2026-05-12 | Phase 2 백테스트 디자인 (4 scenarios, LightGBM+SHAP) — 디자인만, 실행 X | `docs/leadlag_scenarios.md` |
+| 2026-05-13 | Phase 3 LLM 비정형 PoC smoke test 통과 | `prompts/ca_row_to_text.md`, `docs/llm_cost.md` |
+| 2026-05-14 | **Phase 0 자동 파이프라인 완성** — cheap-first 필터로 754 후보 추출 | `scripts/auto/`, `docs/verification_pairs_macro.md` |
+| 2026-05-15 | Phase 4 framework 가격 조사 (35 CA × 1y/3y/5y) | `docs/framework_prices.md`, `scripts/auto/s_e_price_all.py` |
+| 2026-05-15 | Phase 5 첫 구매 — CA0030 Clickstream 5y, $4.99 | `docs/purchase_log.md` |
+| 2026-05-18 | Phase 5 두·세 번째 구매 — CA0056 Card Spend $14.03, CA0034 POS Volume $25.39 | `docs/purchase_log.md` |
+| 2026-05-18 | **3 dataset × 13 macros lag corr 검증 완료** — 측정 단위 의존적 결과 | `docs/analysis_per_dataset.md` |
 
-Even at the cheapest framework tier these 4 buys should fit in well under $30 of the $50 promo balance based on the published per-framework pricing model.
+## 결과 요약 (Phase 5)
 
-## Open follow-ups for the next collab meeting
+| Dataset | 측정 단위 | Verdict | 핵심 시그널 |
+|---|---|---|---|
+| CA0030 Clickstream | 사용자 수 | **미지지** | 7/13 Macro leads (panel-growth artifact) |
+| CA0056 Card Spend | 거래 금액 | **부분 지지** | 6/13 CA leads. PCE/CPI/NFP 가 lag +1~+2 에서 \|r\|=0.8 |
+| CA0034 Instore POS | 거래 건수 | **잠정 지지** | 10/13 CA leads. NFP/PI/Core CPI \|r\|≈0.8 |
 
-1. **Confirm publication semantics**: does "T+5 Days" mean ingestion-from-period-end or data-end-from-event? Affects real lead-window numbers.
-2. **Get Kalshi historical depth**: many KX* tickers (e.g., KXUSNFP, KXISMSERVICES) are new; some have <12 months of candle history. May need to backfill from Kalshi public data + scraped order books.
-3. **Sumin's 3 items**: map to track A/B and the four scenarios.
-4. **LLM Stage-3 model choice**: Sonnet vs Haiku swap (see `docs/llm_cost.md` §reduction-levers).
-5. **Paper structure**: 1 paper (macro + company combined) vs 2 papers.
+판정 기준 + per-pair table 은 `README.md` 의 §"Phase 5 결과 — 페어별 verdict" 참조.
+
+## 미해결 / Caveats
+
+- **Common-trend 영향 미보정**: 2021-2026 nominal 상승 추세가 YoY 적용에도 잔여 가능성. Detrended residual 에서 lag pattern 재현 검증 필요
+- **Multiple testing**: 520+ comparisons, Bonferroni / permutation 미적용
+- **Lag ±2 endpoint piling**: best_lag 가 ±2 에 몰림 → lag ±4 까지 확장 필요
+- **Causality 미검증**: r ≠ causation. Granger-causality test, OOS forecast 정확도 측정 미실시
+- **n=46~51 (YoY)**: 효과 크기 정밀도 부족 (r=0.7 의 95% CI ≈ [0.52, 0.83])
+- 754 후보 중 entertainment/sports 46 페어 borderline — 수동 점검 미실시
+
+## 다음 액션 (추가 비용 0)
+
+1. **Detrended (level − linear trend) 에서 lag corr** — 현재 YoY 결과의 robust 검증
+2. **Granger-causality test** (`statsmodels.tsa.stattools.grangercausalitytests`)
+3. **Lag 범위 ±4 확장** — endpoint piling 해소
+4. **Out-of-sample forecast** — 2021-2024 fit → 2025+ predict, baseline AR(1) 대비 incremental 정확도
+
+## 다음 액션 (추가 구매, promo $5.59 남음)
+
+- CA0058 Card Health Spend 1y monthly $4.99 — Medical CPI 검증
+- 또는 CA0010 OTT Streaming 5y monthly $4.99 — 엔터테인먼트 borderline 페어 검증
+
+## Repo 구조
+
+자세히는 `README.md`. 핵심 파일:
+- `scripts/auto/s_a1..s_g_*.py` — Phase 0 / 4 / 5 파이프라인
+- `docs/verification_pairs_macro.md` — Phase 0 메인 (754 후보)
+- `docs/framework_prices.md` — Phase 4 가격표
+- `docs/analysis_per_dataset.md` — Phase 5 메인
+- `docs/purchase_log.md` — 구매 거래 기록

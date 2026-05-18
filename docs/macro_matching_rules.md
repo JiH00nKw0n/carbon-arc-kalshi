@@ -12,7 +12,7 @@ to entries in `outputs/auto/macro_event_master_list.csv`. Match → series is
    official BLS / BEA / Census / Fed / UMich abbreviations**; none are guessed.
 4. A Kalshi series can match **multiple** events (e.g., a "Recession" market may
    match both `gdp` and `recession_prob`).
-5. Adding any new alias triggers a *full re-run* of Stage A2 (Phase 0b §3.2).
+5. Adding any new alias triggers a *full re-run* of Stage A2 (`scripts/auto/s_a2_kalshi_macro_match.py`).
 
 ## Alias dictionary
 

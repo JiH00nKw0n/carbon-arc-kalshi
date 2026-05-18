@@ -1,6 +1,6 @@
 # LLM cost envelope — Phase 3 unstructured pipeline
 
-Quick napkin math for the meeting. Updated 2026-05-14.
+LLM 비정형 시그널 (CA row → text → Kalshi 매칭) 의 연간 비용 예산. 작성 2026-05-14, 현재 *smoke test 통과 후 미실행* 상태 (Phase 3 본 실행은 Phase 5 결과 반영 후).
 
 ## Assumptions
 

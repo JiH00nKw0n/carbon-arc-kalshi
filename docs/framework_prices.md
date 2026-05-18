@@ -8,7 +8,7 @@
 - **Successfully priced @ 3y monthly US**: 19
 - **Under $50 @ 3y monthly US**: 14 datasets, covering 282 pairs
 - **No national rollup priceable**: 15 datasets (entity-level만 가능; 별도 견적 필요)
-- **Promo balance**: $50.00 (사용 0)
+- **Promo balance**: $50.00 → $5.59 (Phase 5 에서 $44.41 사용, 자세히는 `purchase_log.md`)
 
 ## 가격 모델 메모
 
@@ -57,19 +57,18 @@
 | `CA0037` | 1 | Weather Data | `502.0` Average Daily Rainfall | $4.99 | $8.94 | $14.31 | 1,216 | 2026-05-12 | nan |
 | `CA005` | 1 | Vehicle Registration | `309.0` Vehicle Registration | $4.99 | $4.99 | $4.99 | 78 | 2026-03-31 | nan |
 
-## $50 promo 사용 시나리오
+## 실제 구매 이력 (Phase 5)
 
-**Option A — 단일 anchor (추천)**
-- CA0056 Credit Card Spend US 7y monthly = **$19.30** → Census Retail Sales 검증 (84 monthly obs).
-- 남은 $30.70 으로 결과 보고 추가 buy 결정.
+| # | Framework | 윈도우 | 가격 | 결과 |
+|---:|---|---|---:|---|
+| 1 | CA0030 Clickstream | 5y monthly | $4.99 | 가설 미지지 (`analysis_per_dataset.md`) |
+| 2 | CA0056 Card Spend | 5y monthly | $14.03 | 부분 지지 |
+| 3 | CA0034 Instore POS Volume | 5y monthly | $25.39 | 잠정 지지 |
+| | **누적** | | **$44.41** | |
 
-**Option B — 두 mechanism 동시 검증**
-- CA0056 Card 5y monthly: $14.03 (Retail Sales 검증)
-- CA0077 Commodity 1y monthly: $22.96 (CPI 컴포넌트 검증)
-- 합 $36.99, 남은 $13.01
+남은 promo $5.59 — 후보: CA0058 Card Health Spend 1y $4.99 (Medical CPI), CA0010 OTT Streaming 5y $4.99 (borderline 검증).
 
-**Option C — 최저 risk 확인**
-- CA0056 Card 3y monthly: **$8.77** 만 사고 backtest 한 번 돌려본 뒤 추가 결정
+자세히는 `docs/purchase_log.md`, 분석 결과는 `docs/analysis_per_dataset.md`.
 
 ## $50 단독 cover 가능한 데이터셋 (3y monthly US)
 

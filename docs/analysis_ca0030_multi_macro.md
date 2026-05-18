@@ -89,12 +89,11 @@ UMich + New Home Sales 의 negative 패턴이 진짜라면 가능한 해석: 두
 - **n=51 (YoY)** ~ 51 monthly obs. 65 comparison 에 비해 작음
 - **Pre-2021 데이터 없음** — 진짜 non-COVID/non-inflation 윈도우 비교 불가
 - **CarbonArc panel composition 변화 정보 부재** — early adopter → 일반 대중 demographic 변화는 lag corr 로 못 잡음
-- **단 1개 데이터셋** — CA0030 의 결론이 다른 dataset 으로 일반화 안 됨. 특히 transaction-volume (CA0056 카드) 가 patient growth 영향 적을 것으로 *추정* — 검증 필요
 
-## 6. 결론
+## 6. 결론 (CA0030 만)
 
-- **CA0030 한 데이터셋으로는 alt-data leads macro 가설이 입증되지 않음.** 13 macros 중 다수가 반대 방향
+- **CA0030 데이터셋 한 건에서는 alt-data leads macro 가설이 지지 안 됨.** 13 macros 중 7개가 반대 방향
 - Aggregation 따라 부호 뒤집힘 → 데이터 구조 artifact 가 진짜 lead 신호를 가림
-- **다음 검증은 panel-growth artifact 가 적은 데이터셋 (예: CA0056 Card transaction volume, panel size 의 직접 함수 아님)** 으로 가야 의미 있음
+- 이 결과는 lead-lag 가설 *전체* 의 부정이 아니라 *CA0030 클릭스트림 클래스의 alt-data (user-count 측정) 가 macro forecaster 로 부적합* 임을 시사
 
-이 결과는 lead-lag 가설 *전체* 의 부정이 아니라 *CA0030 클릭스트림 클래스의 alt-data 가 macro forecaster 로 부적합* 임을 시사. Transaction-based 또는 price-based dataset 에서 재검증해야 함.
+→ 후속으로 panel-growth confound 가 적은 transaction-based dataset (CA0056 Card $, CA0034 POS volume) 으로 가설을 재검증함. **CA0034 에서 10/13 CA leads + \|r\|≈0.8 강 시그널 나옴** (Verdict: 잠정 지지). 자세히는 `analysis_per_dataset.md`.

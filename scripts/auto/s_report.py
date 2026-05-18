@@ -143,9 +143,9 @@ def negative_control_sanity() -> str:
 
 def main() -> None:
     md = [
-        "# Macro Track 검증쌍 — 자동 도출 (v2)",
+        "# Macro Track 검증쌍 — 자동 도출",
         "",
-        "> Phase 0b plan (lazy-mixing-simon.md) 의 실행 결과. cheap-first 필터 + ",
+        "> Phase 0 (automated) 의 실행 결과. cheap-first 필터 + ",
         "> authoritative 매크로 list 기반.",
         "",
         "## TL;DR",

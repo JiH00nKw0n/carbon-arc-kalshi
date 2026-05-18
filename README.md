@@ -260,8 +260,7 @@ docs/
   framework_prices.md                  Phase 4 가격표
   purchase_log.md                      Phase 5 실제 구매 기록 (3건)
   analysis_per_dataset.md              ← Phase 5 핵심 — 3 dataset × 13 macros 비교
-  analysis_ca0030_umich.md             Phase 5 deep-dive (UMich anchor)
-  analysis_ca0030_multi_macro.md       Phase 5 CA0030 단독 13-macro
+  analysis_ca0030_multi_macro.md       Phase 5 CA0030 단독 13-macro deep-dive
   macro_matching_rules.md              Stage A2 alias 사전 (BLS/BEA/Census)
   leadlag_scenarios.md                 Phase 2 백테스트 디자인 (LightGBM + SHAP)
   llm_cost.md                          Phase 3 비용 envelope
@@ -285,9 +284,9 @@ pip install -r requirements.txt
 
 `.env` (repo 미포함, 직접 작성):
 ```
-ANTHROPIC_API_KEY=sk-ant-...     # Phase 0b Stage C + Phase 3
+ANTHROPIC_API_KEY=sk-ant-...     # Phase 0 Stage C + Phase 3
 CARBONARC_API_KEY=eyJ...         # 무료 sample / Phase 4 가격 조회 / Phase 5 구매
-FMP_API_KEY=...                  # Phase 0b Stage A1
+FMP_API_KEY=...                  # Phase 0 Stage A1
 ```
 
 ### Phase 0 자동 파이프라인 (754 후보 추출 — 본 repo 핵심)

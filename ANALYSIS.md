@@ -1,8 +1,10 @@
+> **상태 (2026-05-18)**: 이 파일은 repo 시작 시점 (2026-05-08) 의 CarbonArc 플랫폼 가치 메모. 현재 진행 결과는 `README.md` 와 `docs/analysis_per_dataset.md` 를 참조. 이 메모의 데이터 카테고리 분류 + ontology / framework 모델 설명은 여전히 유효함.
+
 ---
 
 ## 12. 데이터 가치 분석 — 무엇을 어디에 쓸까
 
-여기는 docstring이 아니라 **편향된 의견**. Carbon Arc × Polymarket/Kalshi 콜랩 맥락에서 (1) 무슨 데이터가 있고 (2) 각 자산이 본질적으로 무엇이며 (3) 어떤 게 *값어치 있는지* 정리.
+여기는 docstring이 아니라 **편향된 의견**. Carbon Arc × Polymarket/Kalshi 맥락에서 (1) 무슨 데이터가 있고 (2) 각 자산이 본질적으로 무엇이며 (3) 어떤 게 *값어치 있는지* 정리.
 
 ### 12.1 Carbon Arc이 실제로 파는 것
 
