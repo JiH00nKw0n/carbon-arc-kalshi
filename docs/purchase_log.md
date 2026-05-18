@@ -77,13 +77,51 @@ $50.00 → **$45.01** (예상, balance API 미확인). 잔액으로 추가 frame
 
 ---
 
-## 향후 구매 후보
+## #2 — CA0056 Credit Card Spend US 5y monthly (2026-05-18)
 
-| 우선순위 | CA | 윈도우 | 가격 | 페어 | 매크로 |
-|---|---|---|---:|---:|---|
-| #2 | CA0056 Card Spend US | 7y monthly | $19.30 | 45 | Retail Sales 앵커 |
-| #3 | CA0077 Commodity Prices US | 1y monthly | $22.96 | 53 | CPI 컴포넌트 |
-| #4 | CA0058 Card Health Spend | 5y monthly | $13.99 | 18 | Medical CPI |
-| #5 | CA0034 POS Instore+Online | 1y monthly | $6.96 | 55 | CPI / PPI / Retail |
+| | |
+|---|---|
+| order_id | `1cc82c16-e3b9-4cd1-871c-b3e77cf7a7bc` |
+| framework_id | `4cd55f20-af20-4cc5-9534-b1357397ff73` |
+| price | **$14.03** |
+| records | 3,892 (full); 128 returned (64mo × 2 transaction methods: Online / Physical) |
+| insight | `626` Credit Card Spend |
+| entity | US country (carc_id 96) |
+| date_range | 2021-01-01 → 2026-04-30 |
+| aggregate | sum |
+| local file | `outputs/auto/ca0056_card_spend_us_monthly_5y.csv` (gitignored) |
+
+선택 근거: Transaction $ 기반 → panel-growth 영향 약함 (사용자 수가 아니라 거래 *금액*). CA0030 panel artifact 가설의 deflator. 분석 결과는 `docs/analysis_per_dataset.md`.
+
+## #3 — CA0034 Instore POS Volume 5y monthly (2026-05-18)
+
+| | |
+|---|---|
+| order_id | `5ba83dee-a10f-42b3-a3e3-d66b0c334a0e` |
+| framework_id | `848f1b07-5341-441f-9f37-bb5ea0a783c3` |
+| price | **$25.39** |
+| records | 1,765 (full); 58 returned (single series, 2021-07 ~ 2026-04) |
+| insight | `400` POS Volume (Instore Core Panel) |
+| entity | US country (carc_id 96) |
+| date_range | 2021-01-01 → 2026-04-30 (actual data starts 2021-07) |
+| aggregate | sum |
+| local file | `outputs/auto/ca0034_pos_instore_us_monthly_5y.csv` (gitignored) |
+
+선택 근거: Transaction volume (건수) — panel-size 의 직접 함수 아님. CA0034 는 754 페어 중 55개로 페어 수 최다 + 매크로 다양성 15.
+
+## 누적
+
+| | |
+|---|---|
+| Total spent | **$44.41** |
+| Promo balance | **$5.59** (≈ 1 추가 framework 한도) |
+
+## 향후 구매 후보 (남은 $5.59 로)
+
+| 후보 | 윈도우 | 가격 | 페어 | 비고 |
+|---|---|---:|---:|---|
+| CA0058 Card Health Spend | 1y monthly | $4.99 | 18 | Medical CPI 검증 |
+| CA0010 OTT Streaming | 5y monthly | $4.99 | 6 | 엔터테인먼트 borderline 검증 |
+| CA0030 추가 1y | (이미 산 거 외) | n/a | — | 같은 데이터셋 추가 구매는 의미 X |
 
 (전체 가격표: `docs/framework_prices.md`)

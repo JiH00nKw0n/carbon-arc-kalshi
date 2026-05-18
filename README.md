@@ -2,11 +2,18 @@
 
 CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으로 *leads* 한다는 *가설* 을 데이터로 검증해 보려고 한다. 검증을 시작하려면 먼저 "검증해 볼 만한 (CA dataset, Kalshi market) 페어" 의 list 가 필요하다. **이 repo 가 만드는 것은 그 list 이지 가설의 입증이 아니다.**
 
-## 현재 상태 (3줄)
+## 현재 상태
 
 1. **후보 페어 754개 추출 완료** — 10,161 Kalshi 시리즈 × 63 CA 데이터셋 → cheap-first 자동 필터링 후 754개 (`docs/verification_pairs_macro.md`).
-2. **실증 1차 시도 (1개 데이터셋, $4.99)** — CA0030 Clickstream 5년치 구매 후 13개 매크로 × 3 aggregation 으로 lag correlation 검사.
-3. **그 1개에서는 가설 미지지** — 13 macros 중 7개가 *매크로가 CA 를 leads* 의 정반대 방향 (\|r\| 0.6-0.75). Aggregation 에 따라 부호 뒤집힘 = panel 구조 artifact 의 신호. **다른 데이터셋 (특히 card transaction volume) 에서 재검증 필요**.
+2. **3 framework 구매 후 13 macros 실증 검증 (총 $44.41 / $50 promo)**:
+   - CA0030 Clickstream $4.99 (사용자 수)
+   - CA0056 Credit Card Spend $14.03 (거래 금액)
+   - CA0034 Instore POS Volume $25.39 (거래 건수)
+3. **결과 — 데이터셋 종류에 강하게 의존**:
+   - **CA0030 (사용자 수)**: 가설 *미지지* — Macro leads CA (7/13). Panel-growth artifact 직접 증거.
+   - **CA0056 (거래 $)**: *약하게 지지* — SUM 6/13, Online 10/13 CA leads.
+   - **CA0034 (거래 건수)**: *잠정 지지* — 10/13 CA leads. NFP/Personal Income/Core CPI 에서 \|r\| ≈ 0.8.
+   - 단 모든 \|r\| 는 nominal 추세 / multiple testing 미보정 → 확정 아님. 자세히는 `docs/analysis_per_dataset.md`.
 
 ---
 
@@ -61,7 +68,7 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
 | 2 (scenario design) | 4-scenario 백테스트 디자인 (LightGBM + SHAP) | `docs/leadlag_scenarios.md` | 디자인만, 실행 X |
 | 3 (LLM unstructured PoC) | CA row → text → Kalshi search 파이프라인 | `prompts/ca_row_to_text.md`, `docs/llm_cost.md` | smoke test 통과 |
 | 4 (framework 가격 조사) | 35 unique CA dataset 의 framework 가격 매트릭스 (1y/3y/5y) | `docs/framework_prices.md`, `scripts/auto/s_e_price_all.py` | 완료 |
-| **5 (1차 구매 + 실증)** | **CA0030 Clickstream 5y $4.99 구매 → 13 매크로 × lag corr × 3 aggregation** | **`docs/purchase_log.md`, `docs/analysis_ca0030_multi_macro.md`** | **완료, 가설 미지지** |
+| **5 (3 framework 구매 + 실증)** | **CA0030 + CA0056 + CA0034 × 13 매크로 × multi-aggregation** | **`docs/purchase_log.md`, `docs/analysis_per_dataset.md`** | **완료. 결론은 데이터셋 종류 의존** (transaction-based 가설 약하게 지지, user-count 미지지) |
 
 총괄 진행 로그: `RESEARCH_PROGRESS.md`.
 
@@ -87,26 +94,33 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
 
 ---
 
-## Phase 5 결과 — 1차 실증에서 가설 미지지
+## Phase 5 결과 — 데이터셋 종류가 결론을 좌우
 
-CA0030 Clickstream 5년치 monthly US (`outputs/auto/ca0030_clickstream_us_monthly_5y.csv`, $4.99) 구매 후 **13 macros** (UMich, Retail Sales, NFP, CPI, Core CPI, PCE Price, INDPRO, Durable Goods, Housing Starts, New Home Sales, JOLTS Quits, PPI, Personal Income) 와 lag correlation 검사. YoY % change 변환.
+3 framework × 13 macros × multiple aggregations 의 lag correlation (YoY % change) 결과:
 
-**Direction 집계 (SUM aggregation, 13 macros)**:
+| Dataset (측정 단위) | Aggregation | CA leads | Macro leads | 우세 방향 |
+|---|---|---:|---:|---|
+| **CA0030 Clickstream (사용자 수)** | SUM | 5 | **7** | Macro leads |
+| | Desktop | 3 | **9** | Macro leads (강) |
+| | Mobile | **9** | 2 | CA leads (약) |
+| **CA0056 Credit Card Spend ($)** | SUM | **6** | 5 | CA leads |
+| | Online | **10** | 1 | **CA leads (압도)** |
+| | Physical | 5 | 6 | Macro leads (약) |
+| **CA0034 Instore POS Volume (건수)** | SUM | **10** | 3 | **CA leads (강)** |
 
-| | 개수 | 평균 \|r\| | 대표 |
-|---|---:|---:|---|
-| Macro leads CA (lag < 0) | **7** | 0.61 | Retail Sales (r=+0.75 at lag −1), NFP, CPI, PPI, Core CPI 등 |
-| Contemporaneous (lag 0) | 1 | 0.46 | Industrial Production |
-| CA leads (lag > 0) | 5 | 0.49 | UMich, New Home Sales (negative), PCE, Durable Goods |
+**해석**:
+- **User-count 패널 (CA0030)**: 가설 미지지. Panel-growth artifact 가 dominant (5년간 5x 성장 → 경기 좋을 때 onboarding 가속).
+- **Transaction-based 패널 (CA0056 $, CA0034 건수)**: 가설 약-잠정 지지. Top 3 macros 에서 \|r\| ≈ 0.8 (CA0034 × NFP/Personal Income/Core CPI at lag +1, +2).
 
-**관찰**:
-- 다수 macro (7/13) 가 *반대 방향* (매크로 가 CA leads). \|r\| 도 평균 더 큼.
-- **Aggregation 에 따라 부호 뒤집힘**: Desktop 은 9/13 Macro leads (panel 성장 4.7x); Mobile 은 9/13 CA leads (panel 4.9x). 깨끗한 시그널이라면 aggregation 영향 없어야 함 → **데이터 구조 artifact 의 신호**
-- UMich + New Home Sales 만 모든 aggregation 에서 CA-leads negative — 둘 다 같은 기간 *하락 추세* (UMich 79→53, NHS 변동). CA panel 의 상승 추세와 trend 부호 mismatch 가 만든 *trend artifact* 일 가능성 큼
+**결정적 차이**: 같은 13 macros 와 같은 변환을 썼는데 데이터셋 측정 단위만 바꿔도 방향이 뒤집힘 → 측정 단위 (사용자 수 vs 거래 금액 vs 거래 건수) 가 lead 패턴의 *진위* 를 결정.
 
-**결론**: CA0030 한 데이터셋에서는 lead-lag 가설 지지 안 됨. 1차 시도 (3 macros 만 본 분석) 의 "UMich 에서 CA leads" 가 cherry-pick 이었음을 13 macros 확장이 보여줌.
+**Caveats**:
+- 모든 시리즈가 2021-2026 nominal 상승 추세 → YoY 적용에도 common-trend 가 \|r\| 부풀릴 가능성
+- Multiple testing 미보정 (3 dataset × 평균 2.7 agg × 13 macros × 5 lag = 520+ 비교)
+- n=46-51 (YoY 적용 후) — 효과 크기 정밀도 부족
+- Lag ±2 의 끝점에 best_lag 몰림 → lag +3, +4 까지 확장 검증 필요
 
-상세: `docs/analysis_ca0030_umich.md` (1차, 3 macros, outdated) → `docs/analysis_ca0030_multi_macro.md` (13 macros 갱신본).
+자세히는 `docs/analysis_per_dataset.md`. CA0030 단독 deep-dive 는 `docs/analysis_ca0030_multi_macro.md`.
 
 ---
 
@@ -122,14 +136,15 @@ CA0030 Clickstream 5년치 monthly US (`outputs/auto/ca0030_clickstream_us_month
 
 ## 다음에 할 일
 
-**즉시 가능 (추가 비용 0)** — 이미 산 CA0030 데이터로:
-1. Desktop / Mobile platform 별도 lag corr — Desktop 의 panel growth 영향 적은 Mobile 만 단독으로
-2. Granger-causality test 로 lead 방향 통계 검증
-3. 같은 데이터로 추가 매크로 (Core PCE / Industrial Production / Housing Starts) lag corr — UMich 만 다른 부호인 게 sentiment-specific 인지 trend artifact 인지 분리
+**즉시 가능 (추가 비용 0)** — 이미 산 3 framework 로:
+1. Detrended residual 에서도 lag +1, +2 패턴 살아남는지 확인 (현재 \|r\| 가 common-trend 영향일 가능성)
+2. Granger-causality test (statsmodels) 로 lead 방향 통계 검증
+3. Lag ±4 또는 ±6 까지 확장 — lag +2 가 진짜 peak 인지 vs ±2 끝점에 우연 몰림인지
+4. Out-of-sample forecast — 2021-2024 fit → 2025+ predict, baseline AR 대비 incremental 정확도 측정
 
-**다음 framework 구매** ($45.01 promo 잔존):
-- 최우선 후보: **CA0056 Card Spend US 7y monthly $19.30** — card transaction 은 panel size 의 직접 함수가 아닌 거래 금액이므로 panel-growth confound 가 작을 *것으로 추정*. Phase 0b 의 다른 anchor 페어 (× Census Retail Sales) 임. CA0030 에서 reverse direction 이 나왔으니 카드에서도 같은지 / 다른지 확인 필요
-- 차선: CA0077 Commodity 1y $22.96 — commodity 가격은 panel-size 와 무관 (가격 자체) 이라 더 깨끗한 lead-lag 테스트 가능
+**남은 promo ($5.59) 추가 구매**:
+- CA0058 Card Health Spend 1y $4.99 — Medical CPI 검증 (CA0056 와 비교)
+- 또는 CA0010 OTT Streaming 5y $4.99 — 엔터테인먼트 borderline 페어 검증
 
 **검증 파이프라인 자체 보완**:
 - Borderline 46 페어 수동 triage 또는 Sonnet 재실행으로 두 모델 합의만 채택
@@ -149,6 +164,7 @@ scripts/auto/                          ← Phase 0b 자동 파이프라인 + Pha
   s_report.py                          docs/verification_pairs_macro.md 생성
   s_e_price_all.py                     CarbonArc framework 가격 조회
   s_f_ca0030_full_check.py             Phase 5 — CA0030 × 13 macros × 3 aggregation lag corr
+  s_g_multi_dataset_check.py           Phase 5 — CA0030/0056/0034 × 13 macros × multi-agg
 
 scripts/                               ← Phase 1/3 + 0a legacy
   phase1_0_fetch_samples.py            무료 sample 100행 fetch
@@ -162,9 +178,10 @@ docs/
   verification_pairs_macro.md          Phase 0b 메인 리포트 (754 페어 top-30)
   ca_datasets_in_verification_pairs.md 754 페어의 35 CA + sample row
   framework_prices.md                  Phase 4 가격표
-  purchase_log.md                      Phase 5 실제 구매 기록
-  analysis_ca0030_umich.md             Phase 5 1차 분석 + 자체 비판
-  analysis_ca0030_multi_macro.md       Phase 5 multi-macro inversion
+  purchase_log.md                      Phase 5 실제 구매 기록 (3건)
+  analysis_per_dataset.md              ← Phase 5 핵심 — 3 dataset × 13 macros 비교
+  analysis_ca0030_umich.md             Phase 5 1차 분석 (UMich only, outdated)
+  analysis_ca0030_multi_macro.md       Phase 5 CA0030 13-macro 단독 분석
   macro_matching_rules.md              Stage A2 alias 사전 (BLS/BEA/Census)
   leadlag_scenarios.md                 Phase 2 백테스트 디자인 (LightGBM + SHAP)
   llm_cost.md                          Phase 3 비용 envelope
