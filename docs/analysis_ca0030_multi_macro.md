@@ -1,105 +1,100 @@
-# CA0030 × Multi-Macro 검증 — UMich 결과 일관성 점검
+# CA0030 × Multi-Macro 검증 — 13 macros (전체 분석)
 
-> 2026-05-15. `docs/analysis_ca0030_umich.md` 의 후속.
-> 동일 CA0030 5y 데이터 (`outputs/auto/ca0030_clickstream_us_monthly_5y.csv`) 를 사용.
-> 추가 비용 없음.
+> 2026-05-18 갱신. `docs/analysis_ca0030_umich.md` (1차, UMich only) 및 이전 multi-macro 분석 (3 macros) 의 *제대로 된* 후속.  
+> 이전 3-macro 분석은 outputs/fred 캐시에 3개 (UMich/RSAFS/PAYEMS) 만 있어서 도달한 한계였음. 본 분석에서 13 macros 까지 확장.  
+> 데이터: `outputs/auto/ca0030_clickstream_us_monthly_5y.csv` ($4.99 구매), 매크로는 FRED MCP 캐시. CSV: `outputs/auto/ca0030_multi_macro_corr.csv`.
 
-**한 줄 결론**: 첫 분석에서 본 "CA0030 leads UMich at lag +1, negative" 가 *방향 일관 신호* 가 **아니다**. Retail Sales 와 NFP 에선 정반대로 **매크로가 CA0030 을 leads (lag −1, positive)**. UMich 한 페어만의 우연이거나 sentiment-specific 패턴.
+**한 줄 결론**: CA0030 의 13 macros 전체 검증 결과 — **SUM/Desktop aggregation 에서는 가설 미지지** (다수 macro 가 CA 를 leads), **Mobile 에서는 표면적으로 CA-leads 패턴이 더 많지만 그게 진짜 시그널인지 noise 인지 구분 불가**. 한 마디로 *CA0030 한 데이터셋으로는 lead-lag 가설 입증도 반증도 명료하지 않다* — 단, 가설을 *지지하지는 않는다*.
 
-## 1. 매트릭스 — CA0030 (3 aggregation) × 3 매크로
+---
 
-### YoY % change (가장 robust 변환)
+## 1. 분석 범위
 
-| CA agg | UMich | Retail Sales | NFP |
-|---|---|---|---|
-| SUM | r=**−0.50** at lag +1 (CA leads, negative) | r=**+0.75** at lag −1 (**macro leads CA**, positive) | r=**+0.68** at lag −1 (**macro leads CA**, positive) |
-| Desktop only | r=−0.48 at lag 0 (contemporaneous) | r=+0.72 at lag −1 (**macro leads CA**) | r=+0.70 at lag −1 (**macro leads CA**) |
-| Mobile only | r=−0.30 at lag +1 (weak CA leads) | r=+0.64 at lag −2 (**macro leads CA**) | r=+0.60 at lag +2 (CA leads, weak) |
+| | |
+|---|---|
+| CA 데이터 | CA0030 Clickstream US monthly, 2021-01 ~ 2026-04 (64 months) |
+| Aggregations 시도 | SUM (Desktop + Mobile), Desktop only, Mobile only |
+| Macros (FRED) | UMich, Retail Sales, NFP, Core CPI, PCE Price, CPI, INDPRO, Durable Goods, Housing Starts, New Home Sales, JOLTS Quits, PPI, Personal Income |
+| 변환 | YoY % change (가장 robust) |
+| Lag 범위 | −2 ~ +2 months |
 
-### Linear-detrended levels (대안 변환)
+Macros 13개는 754 검증쌍에서 CA0030 이 매칭된 19 unique macro events 중 FRED 에서 fetch 가능한 부분집합. 못 fetch 한 것들: ADP Employment, ISM Services, Services PMI, Existing Home Sales, Consumer Confidence (UMich 대체 가능), Michigan Consumer (UMich 대체), PCE 와 Personal Spending (PCE Price + Personal Income 으로 대체).
 
-| CA agg | UMich | Retail Sales | NFP |
-|---|---|---|---|
-| SUM | r=−0.45 at lag +1 (CA leads, negative) | r=+0.34 at lag −1 (macro leads CA, weak) | r=+0.26 at lag 0 (contemporaneous, weak) |
-| Desktop | r=−0.41 at lag +1 (CA leads, negative) | r=+0.32 at lag +2 (mixed) | r=+0.21 at lag −2 (weak) |
-| Mobile | r=−0.39 at lag +2 (CA leads, weak) | r=+0.43 at lag −2 (macro leads CA) | r=+0.48 at lag +1 (**CA leads**, positive) |
+## 2. 전체 결과 — SUM aggregation
 
-(n=63-64 for detrended, n=51-52 for YoY)
+13 macros, YoY %, sorted by \|best_r\|:
 
-## 2. 결정적 관찰
+| Macro | best lag | best r | 방향 |
+|---|---:|---:|---|
+| Retail Sales | −1 | +0.748 | **Macro leads CA** |
+| NFP | −1 | +0.682 | **Macro leads CA** |
+| PCE Price | +2 | +0.682 | CA leads (positive) |
+| PPI | −1 | +0.677 | **Macro leads CA** |
+| CPI | −1 | +0.669 | **Macro leads CA** |
+| JOLTS Quits | −1 | +0.645 | **Macro leads CA** |
+| Core CPI | −1 | +0.614 | **Macro leads CA** |
+| New Home Sales | +1 | −0.610 | CA leads (negative) |
+| UMich Sentiment | +1 | −0.504 | CA leads (negative) |
+| Industrial Production | 0 | +0.455 | Contemporaneous |
+| Durable Goods | +2 | +0.440 | CA leads (positive, weak) |
+| Personal Income | −1 | −0.422 | Macro leads CA (negative) |
+| Housing Starts | +2 | −0.146 | weak |
 
-### (1) UMich 만 lag +1 negative
+**Direction 집계 (SUM)**:
+- CA leads (lag > 0): 5 macros (PCE Price, New Home Sales, UMich, Durable Goods, Housing Starts)
+- Contemporaneous (lag 0): 1 (INDPRO)
+- Macro leads CA (lag < 0): 7 macros (Retail Sales, NFP, PPI, CPI, JOLTS, Core CPI, Personal Income)
 
-CA0030 SUM × UMich YoY → r=−0.50 at lag +1 (CA leads). 첫 분석에서 본 핵심 결과.
+→ **7 vs 5 로 Macro-leads-CA 가 더 많고**, \|r\| 도 평균적으로 더 큼 (0.6-0.75 범위 vs 0.4-0.6).
 
-### (2) Retail Sales 와 NFP 는 반대 방향
+## 3. Aggregation 별 비교
 
-CA0030 SUM × Retail Sales YoY → **r=+0.75 at lag −1** — Retail Sales 가 CA0030 을 1개월 leads. \|r\| 가 UMich (0.50) 보다 더 큼.  
-CA0030 SUM × NFP YoY → **r=+0.68 at lag −1** — NFP 가 CA0030 을 1개월 leads.
+| Aggregation | CA leads | Contemp | Macro leads | 우세 방향 |
+|---|---:|---:|---:|---|
+| **SUM** | 5 | 1 | 7 | Macro leads (살짝) |
+| **Desktop** | 3 | 1 | 9 | **Macro leads (압도)** |
+| **Mobile** | 9 | 2 | 2 | CA leads |
 
-이건 lead-lag 가설의 **정반대**. "alt data 가 macro 를 leads" 가 아니라 "macro 가 alt data 를 leads".
+**Desktop 은 macro 가 CA 를 leads 하는 방향이 압도적** (9/13). 패널 크기 (153K → 722K, 4.7x 성장) 가 경제와 함께 가속되는 onboarding artifact 의 직접 증거.
 
-### (3) Aggregation 별 일관성 약함
+**Mobile 은 CA 가 leads 하는 방향이 더 많음** (9/13) — 그런데 best_lag 분포가 +1 / +2 에 흩어져 있어서 진짜 시그널인지, 작은 패널 (12K → 62K, 4.9x 성장) 의 noise 가 ±2 윈도우 내 임의 lag 에 부딪힌 건지 구분 불가.
 
-UMich 의 경우:
-- SUM: lag +1
-- Desktop: lag 0
-- Mobile: lag +1 (weak) 또는 +2
+## 4. 정직한 해석
 
-진정한 lead 가 있다면 aggregation 바꿔도 같은 lag 에서 나와야 함. 흔들리는 것 = robust 아님.
+### (a) 가설 미지지 (또는 weak supported at best)
 
-### (4) Panel-growth confound 가 진짜로 작동
+총 13 macros 중 SUM 기준 **7/13 (54%)** 가 *반대 방향* (macro leads CA). 우연이라면 50% 일 텐데 살짝 더 많고, 그것도 \|r\| 가 더 큼.
 
-CA0030 의 panel 사용자 수는 2021-01 의 166K → 2026-04 의 860K (5.17x).
+만약 가설이 진짜라면: 대부분 macro 에서 CA leads 가 우세해야 하는데 **그 반대 패턴**.
 
-- 동시기에 미국 NFP: 142M → 159M (+12%)
-- Retail Sales: $559B → $750B (+34%, nominal)
+### (b) Aggregation 의 결정적 영향
 
-CA0030 의 5x 성장 중 대부분은 panel onboarding (CA 가 사용자 모으는 속도) 인데, 그 onboarding 자체가 **경기 좋을 때 가속**되는 듯:
-- 경기 좋음 → 사람들이 인터넷 사용↑ → panel 가입↑ → CA 측정치↑
-- = macro lead CA, 즉 **CA 의 변동은 경제의 *결과*, 원인이 아님**
+Desktop vs Mobile 의 정반대 방향 → CA0030 의 데이터 패널 구성이 신호의 *부호* 를 결정. 이건 깨끗한 lead-lag 시그널이 아니라 *데이터 구조 artifact* 의 신호.
 
-이건 우리가 분석 시작 때 우려했던 panel-growth confound 의 직접 증거.
+만약 CA0030 가 진짜 leading 정보를 가졌다면, aggregation 에 따라 부호가 바뀌면 안 됨.
 
-## 3. UMich 만 다른 부호인 이유 추정
+### (c) UMich 와 New Home Sales 만 일관되게 CA leads (negative)
 
-UMich Sentiment 도 같은 기간 79 → 53 으로 **하락**. 즉:
-- NFP, Retail Sales: 상승 추세
-- UMich: 하락 추세
-- CA0030 panel: 상승 추세
+3 aggregation 모두에서 UMich (r ≈ −0.4 ~ −0.5 at lag +1) 과 New Home Sales (r ≈ −0.4 ~ −0.7 at lag +1) 가 CA-leads, negative. 다른 macros 는 aggregation 따라 부호/방향 흔들림.
 
-→ "CA0030 ↑ ↔ UMich ↓" 의 negative 상관은 단순히 **반대 방향 trend** 의 산물. detrending 후에도 잔존하는 부분이 있지만 (r=−0.45), 그것조차 *trend 노이즈 잔여* 일 가능성.
+UMich + New Home Sales 의 negative 패턴이 진짜라면 가능한 해석: 두 시리즈 모두 2021-2026 기간 *하락 추세*. CA 의 panel 은 상승 → trend 부호 mismatch 가 negative corr 만들고 있을 가능성 큼. 즉 **진짜 lead 아닌 trend artifact**.
 
-→ UMich 결과는 spurious. 다른 sentiment-related 매크로 (Conference Board Consumer Confidence, Michigan Inflation Expectations) 로 cross-check 필요.
+### (d) 1차 분석 (3 macros) 의 결론은 cherry-pick 결과였음
 
-## 4. Lead-lag 가설에 대한 함의
+이전 `analysis_ca0030_umich.md` 의 "UMich 만 lag +1 negative" 결론은 단 3개 macro 만 본 결과였고, 13개로 확장하니 그 negative 패턴이 UMich + New Home Sales 만의 *trend mismatch* 일 가능성이 더 분명해짐. 나머지 11개 macros 는 다른 방향.
 
-이 repo 의 핵심 가설 "alt data leads macro release":
-- **CA0030 (Clickstream) 에는 적용 안 됨** — 오히려 reverse direction 이 더 강함
-- 754 페어 전체에 적용 *안 될 수도 있음* — Phase 0b 가 "lead window > 3d" 를 *publication timing* 으로 평가했지, *데이터 lead* 로 평가한 게 아님
-- Publication timing (= CA 가 매크로 전에 publish) 와 데이터 lead (= CA 변동이 매크로 변동 전에 일어남) 는 **다른 개념**
+## 5. Methodological 한계 — 더 심각해짐
 
-즉 **검증쌍 754개의 "lead_window_days" 는 거래일 단위 publish 순서이지, alpha 의 lead 여부가 아님**. 후자는 페어별 실증 데이터로만 확인 가능.
+- **65 comparisons** (3 agg × 13 macro × 5 lag 중 best 선택) → multiple testing 보정 안 됨. 우연히 \|r\| ≥ 0.5 다수 나올 수 있음
+- **n=51 (YoY)** ~ 51 monthly obs. 65 comparison 에 비해 작음
+- **Pre-2021 데이터 없음** — 진짜 non-COVID/non-inflation 윈도우 비교 불가
+- **CarbonArc panel composition 변화 정보 부재** — early adopter → 일반 대중 demographic 변화는 lag corr 로 못 잡음
+- **단 1개 데이터셋** — CA0030 의 결론이 다른 dataset 으로 일반화 안 됨. 특히 transaction-volume (CA0056 카드) 가 patient growth 영향 적을 것으로 *추정* — 검증 필요
 
-## 5. 무엇을 더 해야 하나
+## 6. 결론
 
-### (a) Direction-aware 재분류
-754 페어 중 "데이터 lead 방향이 alt → macro" 인 것 vs "macro → alt" 인 것을 사후적으로 구분. Direction granger-causality test 가 더 적합.
+- **CA0030 한 데이터셋으로는 alt-data leads macro 가설이 입증되지 않음.** 13 macros 중 다수가 반대 방향
+- Aggregation 따라 부호 뒤집힘 → 데이터 구조 artifact 가 진짜 lead 신호를 가림
+- **다음 검증은 panel-growth artifact 가 적은 데이터셋 (예: CA0056 Card transaction volume, panel size 의 직접 함수 아님)** 으로 가야 의미 있음
 
-### (b) UMich 패턴 confirm 시도
-- Mobile aggregation 만으로 (lag +1 r=−0.30) → 약하지만 살아남음 → desktop 의 panel growth confound 제거 후 mobile 만으로 재분석
-- 다른 sentiment 시리즈와 cross-check (Conference Board, UMich inflation expectations sub-index)
-
-### (c) 다른 CA 데이터셋 검증
-- CA0056 (Card Spend) × Retail Sales — Phase 0 의 다른 anchor 페어. **카드 거래는 panel-growth 영향 적을 듯** (사용자 수가 아니라 거래 금액). 진짜 lead 가 있다면 여기서 보여야 함
-- $19.30 (7y) 또는 $4.99 (1y) 로 구매 가능. **CA0030 결과가 panel-growth confound 의 증거인 이상, panel-growth 가 적은 카드 transaction 패널이 lead-lag 가설의 더 깨끗한 테스트**
-
-### (d) 754 페어의 lead 정의 명확화
-`s_b_timing.py` 의 `lead_window_days` 가 **publication 시간 lead** 임을 README 와 verification_pairs_macro.md 에 명시. 실제 *데이터* lead 는 페어별 실증 필요.
-
-## 6. 결론 (정직하게)
-
-- **첫 분석 (`docs/analysis_ca0030_umich.md`) 의 "CA leads UMich" 결과는 trend artifact 가능성 큼**. 같은 데이터로 Retail Sales / NFP 보면 정반대 방향이 더 강함.
-- 754 페어의 "lead_window_days" 는 publication timing — alpha 의 데이터 lead 가 아님. 둘 구분 명시 필요.
-- 다음 검증은 **CA0056 Card Spend 같은 panel-growth 가 적은 데이터셋** 에서 해야 의미 있음.
-- 진정한 lead-lag 입증은 멀리 있음. 이 repo 의 754 검증쌍은 *후보 list* 일 뿐.
+이 결과는 lead-lag 가설 *전체* 의 부정이 아니라 *CA0030 클릭스트림 클래스의 alt-data 가 macro forecaster 로 부적합* 임을 시사. Transaction-based 또는 price-based dataset 에서 재검증해야 함.

@@ -5,8 +5,8 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
 ## 현재 상태 (3줄)
 
 1. **후보 페어 754개 추출 완료** — 10,161 Kalshi 시리즈 × 63 CA 데이터셋 → cheap-first 자동 필터링 후 754개 (`docs/verification_pairs_macro.md`).
-2. **실증 1차 시도 (1개 데이터셋, $4.99)** — CA0030 Clickstream 5년치 구매 후 3개 매크로 (UMich, Retail Sales, NFP) 와 lag correlation 검사.
-3. **그 1개에서는 가설 지지 안 됨** — Retail Sales / NFP 에서 *매크로가 CA 를 leads* (lag −1, positive r ≈ 0.7) 의 정반대 패턴. panel-growth confound 가 원인 추정. **다른 데이터셋 (특히 card transactions) 에서 재검증 필요**.
+2. **실증 1차 시도 (1개 데이터셋, $4.99)** — CA0030 Clickstream 5년치 구매 후 13개 매크로 × 3 aggregation 으로 lag correlation 검사.
+3. **그 1개에서는 가설 미지지** — 13 macros 중 7개가 *매크로가 CA 를 leads* 의 정반대 방향 (\|r\| 0.6-0.75). Aggregation 에 따라 부호 뒤집힘 = panel 구조 artifact 의 신호. **다른 데이터셋 (특히 card transaction volume) 에서 재검증 필요**.
 
 ---
 
@@ -61,7 +61,7 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
 | 2 (scenario design) | 4-scenario 백테스트 디자인 (LightGBM + SHAP) | `docs/leadlag_scenarios.md` | 디자인만, 실행 X |
 | 3 (LLM unstructured PoC) | CA row → text → Kalshi search 파이프라인 | `prompts/ca_row_to_text.md`, `docs/llm_cost.md` | smoke test 통과 |
 | 4 (framework 가격 조사) | 35 unique CA dataset 의 framework 가격 매트릭스 (1y/3y/5y) | `docs/framework_prices.md`, `scripts/auto/s_e_price_all.py` | 완료 |
-| **5 (1차 구매 + 1차 실증)** | **CA0030 Clickstream 5y $4.99 구매 → 3 매크로 × lag corr** | **`docs/purchase_log.md`, `docs/analysis_ca0030_*.md`** | **완료, 결과 negative** |
+| **5 (1차 구매 + 실증)** | **CA0030 Clickstream 5y $4.99 구매 → 13 매크로 × lag corr × 3 aggregation** | **`docs/purchase_log.md`, `docs/analysis_ca0030_multi_macro.md`** | **완료, 가설 미지지** |
 
 총괄 진행 로그: `RESEARCH_PROGRESS.md`.
 
@@ -87,25 +87,26 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
 
 ---
 
-## Phase 5 결과 — 1차 실증에서 가설이 흔들림
+## Phase 5 결과 — 1차 실증에서 가설 미지지
 
-CA0030 Clickstream 5년치 monthly US (`outputs/auto/ca0030_clickstream_us_monthly_5y.csv`, $4.99) 구매 후 anchor 페어 + 다른 매크로 2종과 lag correlation 검사. YoY % change 기준:
+CA0030 Clickstream 5년치 monthly US (`outputs/auto/ca0030_clickstream_us_monthly_5y.csv`, $4.99) 구매 후 **13 macros** (UMich, Retail Sales, NFP, CPI, Core CPI, PCE Price, INDPRO, Durable Goods, Housing Starts, New Home Sales, JOLTS Quits, PPI, Personal Income) 와 lag correlation 검사. YoY % change 변환.
 
-| × Kalshi macro (CA0030 SUM) | best \|r\| | 어느 쪽이 leads? |
-|---|---:|---|
-| UMich Sentiment | 0.50 at lag +1 | CA leads, negative |
-| Retail Sales | **0.75 at lag −1** | **Macro leads CA**, positive |
-| NFP | **0.68 at lag −1** | **Macro leads CA**, positive |
+**Direction 집계 (SUM aggregation, 13 macros)**:
 
-Retail Sales 와 NFP 에서 매크로가 CA0030 을 1개월 leads — 작업 가설의 정반대 방향. \|r\| 도 UMich (0.5) 보다 더 큼 (0.7).
+| | 개수 | 평균 \|r\| | 대표 |
+|---|---:|---:|---|
+| Macro leads CA (lag < 0) | **7** | 0.61 | Retail Sales (r=+0.75 at lag −1), NFP, CPI, PPI, Core CPI 등 |
+| Contemporaneous (lag 0) | 1 | 0.46 | Industrial Production |
+| CA leads (lag > 0) | 5 | 0.49 | UMich, New Home Sales (negative), PCE, Durable Goods |
 
-**원인 추정**: CA0030 의 panel 사용자 수가 5년간 5.17x 성장 (166K → 860K). 같은 기간 미국 인구는 거의 정체 → "사람들이 5배 더 인터넷 씀" 이 아니라 *CA 가 panel 에 사용자를 5배 추가했다*. 그 onboarding 이 *경기 좋을 때 가속됨* (NFP/Retail 상승 → panel growth 가속) → CA0030 변동은 경제의 **결과** 이지 원인이 아님.
+**관찰**:
+- 다수 macro (7/13) 가 *반대 방향* (매크로 가 CA leads). \|r\| 도 평균 더 큼.
+- **Aggregation 에 따라 부호 뒤집힘**: Desktop 은 9/13 Macro leads (panel 성장 4.7x); Mobile 은 9/13 CA leads (panel 4.9x). 깨끗한 시그널이라면 aggregation 영향 없어야 함 → **데이터 구조 artifact 의 신호**
+- UMich + New Home Sales 만 모든 aggregation 에서 CA-leads negative — 둘 다 같은 기간 *하락 추세* (UMich 79→53, NHS 변동). CA panel 의 상승 추세와 trend 부호 mismatch 가 만든 *trend artifact* 일 가능성 큼
 
-**UMich 만 다른 부호** 인 이유: UMich Sentiment 만 같은 기간 79 → 53 으로 *하락*. CA panel 의 상승 추세와 trend 가 반대라서 단순 trend mismatch 일 가능성. CA leads 의 증거가 아닐 가능성 큼.
+**결론**: CA0030 한 데이터셋에서는 lead-lag 가설 지지 안 됨. 1차 시도 (3 macros 만 본 분석) 의 "UMich 에서 CA leads" 가 cherry-pick 이었음을 13 macros 확장이 보여줌.
 
-**해석**: 이 데이터셋 한 건에서 가설이 지지 안 됨. CA0030 의 panel-growth confound 의 직접 증거. *다른 데이터셋* (예: card transactions — panel size 의 직접 함수가 아니라 거래 *금액*) 에서 재검증 필요.
-
-상세 분석 + 자체 비판: `docs/analysis_ca0030_umich.md` (1차) + `docs/analysis_ca0030_multi_macro.md` (multi-macro 후속).
+상세: `docs/analysis_ca0030_umich.md` (1차, 3 macros, outdated) → `docs/analysis_ca0030_multi_macro.md` (13 macros 갱신본).
 
 ---
 
@@ -147,6 +148,7 @@ scripts/auto/                          ← Phase 0b 자동 파이프라인 + Pha
   s_d_v1_diff.py                       v1 39쌍과의 diff
   s_report.py                          docs/verification_pairs_macro.md 생성
   s_e_price_all.py                     CarbonArc framework 가격 조회
+  s_f_ca0030_full_check.py             Phase 5 — CA0030 × 13 macros × 3 aggregation lag corr
 
 scripts/                               ← Phase 1/3 + 0a legacy
   phase1_0_fetch_samples.py            무료 sample 100행 fetch
