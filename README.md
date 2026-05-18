@@ -2,6 +2,26 @@
 
 CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으로 *leads* 한다는 *가설* 을 데이터로 검증해 보려고 한다. 검증을 시작하려면 먼저 "검증해 볼 만한 (CA dataset, Kalshi market) 페어" 의 list 가 필요하다. **이 repo 가 만드는 것은 그 list 이지 가설의 입증이 아니다.**
 
+## 용어 (먼저)
+
+| 용어 | 뜻 |
+|---|---|
+| **CA leads macro by k months** | CA 의 YoY 변동이 macro 의 YoY 변동을 k 개월 *앞섬* (= 작업 가설을 *지지* 하는 방향). lag 양수. 예: CA 의 4월 변동이 macro 의 6월 변동과 상관 → CA leads by 2m |
+| **Macro leads CA by k months** | 반대 방향. macro 가 먼저 움직이고 CA 가 따라옴 → 가설을 *반증* (CA 가 macro 의 *결과*) |
+| **Contemp** | 동시기 변동, 방향 판정 불가 |
+| **\|r\|** | Pearson 상관계수의 절대값. 강 ≥ 0.7, 중 0.5-0.7, 약 < 0.5 |
+| **(∗) marker** | best_lag 가 검사 범위 (±2) 끝점 → 진짜 peak 이 ±2 밖일 가능성 |
+
+## 가설 verdict 기준 (per dataset, 13 macros 기준)
+
+| Verdict | 조건 |
+|---|---|
+| **잠정 지지** | ≥ 7/13 가 CA leads (lag > 0) **AND** 최소 1개 강 시그널 (\|r\|≥0.7) |
+| **부분 지지** | CA leads ≥ Macro leads (둘 다 7 미만) **AND** 최소 1개 중-강 시그널 |
+| **미지지** | ≥ 7/13 가 Macro leads (lag < 0); 또는 CA leads 가 있어도 모두 약 / endpoint 의심 |
+
+위 verdict 는 모두 *잠정적* — common-trend / multiple testing / endpoint piling / no causality test 의 caveat 적용 (§Caveats).
+
 ## 현재 상태
 
 1. **후보 페어 754개 추출 완료** — 10,161 Kalshi 시리즈 × 63 CA 데이터셋 → cheap-first 자동 필터링 후 754개 (`docs/verification_pairs_macro.md`).
@@ -9,11 +29,11 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
    - CA0030 Clickstream $4.99 (사용자 수)
    - CA0056 Credit Card Spend $14.03 (거래 금액)
    - CA0034 Instore POS Volume $25.39 (거래 건수)
-3. **결과 — 데이터셋 종류에 강하게 의존**:
-   - **CA0030 (사용자 수)**: 가설 *미지지* — Macro leads CA (7/13). Panel-growth artifact 직접 증거.
-   - **CA0056 (거래 $)**: *약하게 지지* — SUM 6/13, Online 10/13 CA leads.
-   - **CA0034 (거래 건수)**: *잠정 지지* — 10/13 CA leads. NFP/Personal Income/Core CPI 에서 \|r\| ≈ 0.8.
-   - 단 모든 \|r\| 는 nominal 추세 / multiple testing 미보정 → 확정 아님. 자세히는 `docs/analysis_per_dataset.md`.
+3. **결과 — 데이터셋 종류에 강하게 의존** (위 verdict 기준 적용):
+   - **CA0030 (사용자 수)**: 미지지 — 7/13 Macro leads. Panel-growth artifact.
+   - **CA0056 (거래 $)**: 부분 지지 — 6/13 CA leads, 5/13 Macro leads. PCE/CPI/NFP 가 CA leads 강 시그널.
+   - **CA0034 (거래 건수)**: 잠정 지지 — 10/13 CA leads. NFP/Personal Income/Core CPI 에서 \|r\| ≈ 0.8.
+   - 자세히는 `docs/analysis_per_dataset.md`.
 
 ---
 
@@ -62,19 +82,18 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
 
 | Phase | 한 일 | 산출물 | 상태 |
 |---|---|---|---|
-| 0a (manual v1) | 21 CA × 66 Kalshi 수작업 매핑 → 39 페어 | `outputs/leadlag_candidates.csv` | 완료, 0b 가 대체 |
-| **0b (automated v2)** | **cheap-first 자동 파이프라인 → 754 후보** | **`scripts/auto/`, `docs/verification_pairs_macro.md`** | **완료, 본 repo 핵심** |
+| **0 (automated 후보 추출)** | **cheap-first 자동 파이프라인 → 754 후보** | **`scripts/auto/`, `docs/verification_pairs_macro.md`** | **완료, 본 repo 핵심** |
 | 1 (sample EDA) | 무료 100행 sample 로 시계열 sanity check | `outputs/eda/PHASE1_REPORT.md` | 완료, statistical evidence 수준 아님 |
 | 2 (scenario design) | 4-scenario 백테스트 디자인 (LightGBM + SHAP) | `docs/leadlag_scenarios.md` | 디자인만, 실행 X |
 | 3 (LLM unstructured PoC) | CA row → text → Kalshi search 파이프라인 | `prompts/ca_row_to_text.md`, `docs/llm_cost.md` | smoke test 통과 |
-| 4 (framework 가격 조사) | 35 unique CA dataset 의 framework 가격 매트릭스 (1y/3y/5y) | `docs/framework_prices.md`, `scripts/auto/s_e_price_all.py` | 완료 |
-| **5 (3 framework 구매 + 실증)** | **CA0030 + CA0056 + CA0034 × 13 매크로 × multi-aggregation** | **`docs/purchase_log.md`, `docs/analysis_per_dataset.md`** | **완료. 결론은 데이터셋 종류 의존** (transaction-based 가설 약하게 지지, user-count 미지지) |
+| 4 (framework 가격 조사) | 35 unique CA dataset 의 framework 가격 매트릭스 | `docs/framework_prices.md`, `scripts/auto/s_e_price_all.py` | 완료 |
+| **5 (3 framework 구매 + 실증)** | **CA0030 + CA0056 + CA0034 × 13 매크로 × multi-aggregation** | **`docs/purchase_log.md`, `docs/analysis_per_dataset.md`** | **완료. 결론은 데이터셋 종류 의존** |
 
 총괄 진행 로그: `RESEARCH_PROGRESS.md`.
 
 ---
 
-## Phase 0b 결과 — 754 후보 페어
+## Phase 0 결과 — 754 후보 페어
 
 | Stage | 방법 | 개수 |
 |---|---|---:|
@@ -87,7 +106,6 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
 | **C. Final (connected=true)** | LLM 통과 | **754** |
 
 - 754 후보가 사용하는 unique CA 데이터셋 35 종
-- v1 의 39 페어 중 26 페어 재현 (66.7%), 13 페어는 v2 가 reject
 - 페어별 가격: `docs/framework_prices.md` (단독 $50 이내 구매 가능 14 데이터셋 / 282 페어)
 
 여기서 "lead_window_days" 는 *publication timing* — CA 가 매크로 발표 *후* 며칠 더 일찍 publish 되는가. **데이터 lead** (CA 변동이 매크로 변동을 시간순으로 leads) 와는 별개 개념이며, 후자는 페어별 실증으로만 확인 가능.
@@ -101,12 +119,8 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
 - CA 와 macro 둘 다 **YoY % change** 변환 (12개월 % 변화 → trend 제거)
 - Pearson r 을 **lag ∈ [−2, +2] months** 에서 계산
 - `best_lag` = \|r\| 가 최대인 lag
-- **lag > 0** → CA 가 macro 를 leads (가설 *지지*)
-- **lag < 0** → macro 가 CA 를 leads (가설 *반증*)
-- **lag = 0** → 동시기 (방향 판정 불가)
-- 강 = \|r\| ≥ 0.7, 중 = 0.5 ≤ \|r\| < 0.7, 약 = \|r\| < 0.5
-- **(∗) 표시 = best_lag 가 ±2 끝점** — 진짜 peak 이 ±2 밖일 가능성 (lag 범위 확장 검증 필요)
 - n = 46~51 months (YoY 적용 후 obs 수)
+- (verdict 기호 / 강도 정의는 위 §용어 참조)
 
 ### Direction 집계
 
@@ -136,7 +150,7 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
 | Personal Income | ❌ Macro leads −1m, r=−0.42 [약] |
 | Housing Starts | ✅ CA leads +2m, r=−0.15 [약] (∗) |
 
-→ **가설 미지지**: 인플레/고용/소비 핵심 7개 매크로 모두 Macro leads. CA leads 로 나온 페어들도 부호가 negative (UMich/NHS) 또는 lag ±2 끝점에 몰려 의심.
+→ **Verdict: 미지지** (7/13 Macro leads, 위 §가설 verdict 기준 적용). CA leads 로 나온 페어들도 부호가 negative (UMich/NHS) 또는 lag ±2 끝점에 몰려 의심.
 
 ### CA0056 Card Spend × 13 macros (SUM aggregation)
 
@@ -156,7 +170,7 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
 | Durable Goods | ❌ Macro leads −2m, r=+0.43 [약] (∗) |
 | Housing Starts | ⚪ Contemp, r=+0.14 |
 
-→ **부분 지지**: 핵심 인플레 지표 (PCE Price, CPI, Core CPI) + 고용 (NFP) + 산업 (INDPRO) 에서 CA leads. PPI / JOLTS / NHS / UMich 등 일부는 Macro leads. Online aggregation 만 보면 10/13 CA leads (압도). Retail Sales 는 r=0.84 의 강한 *contemp* 상관.
+→ **Verdict: 부분 지지** (6/13 CA leads, 5/13 Macro leads, 둘 다 7 미만; PCE Price/CPI 가 \|r\|≈0.82 강 CA-leads 시그널). Online aggregation 만 보면 10/13 CA leads (압도). Retail Sales 는 r=0.84 의 강한 *contemp* 상관.
 
 ### CA0034 Instore POS Volume × 13 macros
 
@@ -176,7 +190,7 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
 | Retail Sales | ❌ Macro leads −2m, r=+0.18 [약] (∗) |
 | New Home Sales | ✅ CA leads +2m, r=−0.08 [약] (∗) |
 
-→ **가장 강한 지지**: 10/13 CA leads. 특히 **NFP / Personal Income / Core CPI** 가 lag +1 또는 +2 에서 r ≈ +0.8 강 시그널. n=46 으로 더 작지만 효과 크기 가장 큼.
+→ **Verdict: 잠정 지지** (10/13 CA leads ≥ 7 기준 충족, **NFP / Personal Income / Core CPI** 가 lag +1~+2 에서 r ≈ +0.8 강 시그널 ≥ 1 충족). n=46 으로 다른 dataset 보다 작지만 효과 크기 가장 큼.
 
 ### Caveats — 모든 verdict 에 동일 적용
 
@@ -192,8 +206,9 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
 
 ## 한계
 
-- Phase 0b 의 `lead_window_days` 는 publication timing 만 측정. **데이터 lead 와는 별개** (Phase 5 가 이 점을 드러냄)
-- Phase 5 의 negative 결과는 *데이터셋 1건* 의 결과. panel-growth confound 가 적은 다른 데이터셋에서 가설 재검증해야 일반화 가능
+- Phase 0 의 `lead_window_days` 는 publication timing 만 측정. **데이터 lead 와는 별개** (Phase 5 가 이 점을 드러냄)
+- Phase 5 결과는 *3 데이터셋 × 13 macros* 의 lag 상관일 뿐. Granger-causality / OOS forecast 미실시 → trade-able edge 입증 아님
+- 측정 단위 차이가 verdict 를 좌우 — user-count panel (CA0030) 은 panel-growth artifact 가 dominant, transaction-based panel (CA0056/0034) 만 의미 있음
 - Stage C LLM verify 는 temperature=0 이지만 prompt-sensitive. 재실행 variance 직접 확인 안 됨
 - 754 후보 중 borderline 46건 (entertainment/sports CA × 매크로) 은 Haiku 가 connected=true 통과시킴 — 수동 점검 후보
 - CA 무료 sample 은 토픽당 100행 — Phase 1 EDA 통계는 sanity 수준 (CA0049 monthly n=20, COVID 제외 시 r 붕괴)
@@ -221,41 +236,39 @@ CarbonArc 의 대안 데이터가 미국 공식 매크로 발표를 시간순으
 ## 디렉토리
 
 ```
-scripts/auto/                          ← Phase 0b 자동 파이프라인 + Phase 4 가격 조회
+scripts/auto/                          ← Phase 0 자동 파이프라인 + Phase 4 가격 + Phase 5 분석
   s_a1_macro_list.py                   FMP + FRED → macro event master (123)
   s_a2_kalshi_macro_match.py           Kalshi 10,161 → macro 151 (rule + alias)
   s_b_timing.py                        63 CA × 151 Kalshi → timing pass 5,664
   s_c_mechanism_verify.py              Haiku 4.5 verify → 754
-  s_d_v1_diff.py                       v1 39쌍과의 diff
+  s_d_v1_diff.py                       (legacy 비교용) 초기 수작업 39 페어 vs 자동 754
   s_report.py                          docs/verification_pairs_macro.md 생성
   s_e_price_all.py                     CarbonArc framework 가격 조회
   s_f_ca0030_full_check.py             Phase 5 — CA0030 × 13 macros × 3 aggregation lag corr
   s_g_multi_dataset_check.py           Phase 5 — CA0030/0056/0034 × 13 macros × multi-agg
 
-scripts/                               ← Phase 1/3 + 0a legacy
+scripts/                               ← Phase 1/3
   phase1_0_fetch_samples.py            무료 sample 100행 fetch
   phase1_eda.py                        sample × FRED 시계열 EDA
   phase3_smoke_test.py                 LLM 비정형 시그널 PoC E2E
   build_fred_cache.py                  FRED 시리즈 캐시
   cache_fred.py                        (early experiment, build_fred_cache 가 대체)
-  phase0_*.py                          (0a legacy) 수작업 v1 검증쌍 도출
 
 docs/
-  verification_pairs_macro.md          Phase 0b 메인 리포트 (754 페어 top-30)
+  verification_pairs_macro.md          Phase 0 메인 리포트 (754 페어 top-30)
   ca_datasets_in_verification_pairs.md 754 페어의 35 CA + sample row
   framework_prices.md                  Phase 4 가격표
   purchase_log.md                      Phase 5 실제 구매 기록 (3건)
   analysis_per_dataset.md              ← Phase 5 핵심 — 3 dataset × 13 macros 비교
-  analysis_ca0030_umich.md             Phase 5 1차 분석 (UMich only, outdated)
-  analysis_ca0030_multi_macro.md       Phase 5 CA0030 13-macro 단독 분석
+  analysis_ca0030_umich.md             Phase 5 deep-dive (UMich anchor)
+  analysis_ca0030_multi_macro.md       Phase 5 CA0030 단독 13-macro
   macro_matching_rules.md              Stage A2 alias 사전 (BLS/BEA/Census)
   leadlag_scenarios.md                 Phase 2 백테스트 디자인 (LightGBM + SHAP)
   llm_cost.md                          Phase 3 비용 envelope
 
 prompts/ca_row_to_text.md              CA row → 1-sentence summary prompt
 
-ANALYSIS.md / DATA.md                  초기 EDA / Kalshi inventory 메모 (Phase 0a 시대)
-RESEARCH_PROGRESS.md                   진행 트래커
+RESEARCH_PROGRESS.md                   진행 트래커 (`ANALYSIS.md`, `DATA.md` 는 초기 EDA 노트, 본 흐름과 독립)
 ```
 
 `outputs/`, `_explore/` 는 `.gitignore` — script 로 재생성 가능한 데이터 / CarbonArc 원본 캐시 (TOS 상 비공개).
@@ -277,14 +290,13 @@ CARBONARC_API_KEY=eyJ...         # 무료 sample / Phase 4 가격 조회 / Phase
 FMP_API_KEY=...                  # Phase 0b Stage A1
 ```
 
-### Phase 0b 자동 파이프라인 (754 후보 추출 — 본 repo 핵심)
+### Phase 0 자동 파이프라인 (754 후보 추출 — 본 repo 핵심)
 
 ```bash
 python3 scripts/auto/s_a1_macro_list.py
 python3 scripts/auto/s_a2_kalshi_macro_match.py
 python3 scripts/auto/s_b_timing.py                                      # _explore/datasets_non_webcontent.json 필요
 python3 scripts/auto/s_c_mechanism_verify.py --model claude-haiku-4-5 --workers 12
-python3 scripts/auto/s_d_v1_diff.py
 python3 scripts/auto/s_report.py                                         # docs/verification_pairs_macro.md
 python3 scripts/auto/s_e_price_all.py                                    # docs/framework_prices.md (Phase 4 가격)
 ```
@@ -299,9 +311,13 @@ python3 scripts/build_fred_cache.py           # outputs/fred/ 채움
 python3 scripts/phase1_eda.py                 # outputs/eda/PHASE1_REPORT.md
 ```
 
-### Phase 5 (1차 구매 + 검증) 재현
+### Phase 5 (구매 + 검증) 재현
 
-`scripts/auto/s_e_price_all.py` 의 `buy_frameworks` 호출 부분을 별도 스크립트로 분리해야 함 (현재는 ad-hoc Python). 자세히는 `docs/purchase_log.md` 의 framework spec 참조.
+3 framework 구매 (CA0030/0056/0034) 의 framework spec 은 `docs/purchase_log.md` 참조 — entity, insight ID, 날짜 범위, aggregate 다 명시됨. `buy_frameworks()` 호출은 현재 ad-hoc python 으로 진행됨. 구매 후 분석은:
+
+```bash
+python3 scripts/auto/s_g_multi_dataset_check.py    # 3 dataset × 13 macros lag corr
+```
 
 ---
 
