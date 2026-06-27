@@ -106,6 +106,7 @@ Full verbatim workflow scripts: `altdata-ticker-screen`, `card-oxscreen`.
 - `N1 X-OLS` = `surprise ~ X_yoy`.
 - `N2 sent-OLS` = `surprise ~ 감성점수(직전콜)`.
 - `N3 X+sent`, `N3b X+sent+lag` (lag = 직전분기 서프라이즈).
+- `N4 X×sent`(교호항), `N4b N3b+교호항`, `N5 GBT(X,sent,lag)` — **전통기법이 X×Z 교호작용을 잡는지** 검정용. *근거:* "LLM 융합 = 전통 불가"가 아니라 **"Z를 스칼라(감성)로 줄이면 교호항·트리로도 신호가 안 살아난다"**(실측: N4<N3, N4b≈N3b, N5<N3b)를 보여 LLM 이점 = *전체 텍스트* 융합임을 정확히 규정.
 
 **감성점수 (N2/N3/N3b) — 사전·전처리·출처 명시 (paper-grade):**
 - **사전 = Loughran-McDonald Master Dictionary (1993–2025, 2026-03 갱신)** — 금융 텍스트(10-K·어닝콜) 감성의 도메인 표준.
