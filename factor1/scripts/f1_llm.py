@@ -40,6 +40,23 @@ class BPredict(BaseModel):
     rationale: str
 
 
+class AScores(BaseModel):
+    """Option A — LLM reads TEXT (Z) only -> consensus-relative scores (distilled, then OLS)."""
+    rev_vs_consensus: int = Field(description="-100..+100: does the call imply NEXT-quarter revenue ABOVE(+)/BELOW(-) sell-side consensus? Headline.")
+    news_not_in_consensus: int = Field(description="0..100: how much NEW info (likely not yet in estimates) the call carries.")
+    signal_reliability: int = Field(description="0..100: guidance specificity/quantification + management credibility + low hedging.")
+    rev_vs_consensus_quote: str = Field(description="one verbatim sentence justifying rev_vs_consensus.")
+
+
+class CFeatures(BaseModel):
+    """Option C — LLM reads web signal (X) + TEXT (Z) -> joint features (distilled, then OLS)."""
+    rev_vs_consensus: int = Field(description="-100..+100 vs consensus, reconciling the web-traffic trend and narrative.")
+    news_not_in_consensus: int = Field(description="0..100 new info.")
+    signal_reliability: int = Field(description="0..100 reliability.")
+    web_narrative_consistency: int = Field(description="-100..+100: web-traffic trend vs management story: -100 strong contradiction, +100 strong agreement.")
+    rationale: str
+
+
 def gpt5_cost(usage) -> float:
     pin = getattr(usage, "prompt_tokens", 0) or 0
     pout = getattr(usage, "completion_tokens", 0) or 0

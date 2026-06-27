@@ -23,7 +23,7 @@ def corr(d: pd.DataFrame, x: str, y: str) -> float:
     return np.corrcoef(m[x], m[y])[0, 1] if len(m) > 2 else np.nan
 
 
-def cluster_boot(d: pd.DataFrame, x: str, y: str, n: int = 5000, seed: int = 7):
+def cluster_boot(d: pd.DataFrame, x: str, y: str, n: int = 5000, seed: int = 2026):
     """Return (r, p_boot, n_obs). Resample tickers (clusters) with replacement."""
     m = d[["ticker", x, y]].dropna()
     if m[x].nunique() < 3 or len(m) < 5:
@@ -42,7 +42,7 @@ def cluster_boot(d: pd.DataFrame, x: str, y: str, n: int = 5000, seed: int = 7):
     return r0, p, len(m)
 
 
-def surrogate(d: pd.DataFrame, x: str, y: str, r_obs: float, n: int = 5000, seed: int = 11):
+def surrogate(d: pd.DataFrame, x: str, y: str, r_obs: float, n: int = 5000, seed: int = 2026):
     """Return p_surr = P(|r(shuffled)| >= |r_obs|). Permute ticker labels of X vs Y."""
     m = d[["ticker", x, y]].dropna()
     ticks = m.ticker.unique()

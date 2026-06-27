@@ -43,7 +43,7 @@ def main():
 
     log("## #1 shuffle-company surrogate (firm-specific vs common cross-company artifact)")
     log(f"  {'arm':16s} pooled  between  within   surr_p")
-    rng = np.random.default_rng(7)
+    rng = np.random.default_rng(2026)
     for arm in ARMS:
         pred = df[arm].values
         r_pool = r(pred, true)
@@ -69,7 +69,7 @@ def main():
 
     log("\n## #3 interaction / synergy (company-clustered bootstrap, 5000)")
     comps = df.tkr.unique()
-    rng2 = np.random.default_rng(11)
+    rng2 = np.random.default_rng(2026)
     keys = {"r_fwt": [], "text_on_web": [], "web_on_text": [], "synergy": []}
     for _ in range(5000):
         samp = rng2.choice(comps, len(comps), replace=True)

@@ -11,7 +11,9 @@ outputs/
 
 # Licensed third-party data — FactSet / Carbon Arc / S&P-CIQ transcripts.
 # Script-reproducible; MUST NOT be committed (data licensing + internal S3 key paths).
-factor1/data/
+# Exception: the O/X screening table (our analysis output — no licensed raw data) IS committed.
+factor1/data/*
+!factor1/data/altdata_ticker_screen.csv
 factor3/data/
 **/transcripts/
 *_pit.json
@@ -29,3 +31,4 @@ venv/
 # Notebooks
 notebooks/.ipynb_checkpoints/
 factor3/outputs/
+lm_master_dictionary.csv

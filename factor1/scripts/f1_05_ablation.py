@@ -158,7 +158,7 @@ async def main():
 
     def perm_p(col, n=5000):
         m = df[[col, "true"]].dropna(); r0 = abs(np.corrcoef(m[col], m["true"])[0, 1])
-        rng = np.random.default_rng(7); yv = m["true"].values
+        rng = np.random.default_rng(2026); yv = m["true"].values
         return (sum(abs(np.corrcoef(m[col].values, rng.permutation(yv))[0, 1]) >= r0 for _ in range(n)) + 1) / (n + 1)
 
     print(f"\n{'='*72}\nFACTOR 1 ABLATION (n={len(df)}; truth mean={df.true.mean()*100:+.2f}% pos={df.true.gt(0).mean():.2f})")
