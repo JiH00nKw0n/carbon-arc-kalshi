@@ -10,6 +10,7 @@ shuffle-company surrogate, architecture A/C/B, Z-depth. Writes results_{ch}.md.
 Classical (fit pre-cutoff -> predict matched post-cutoff):
   N0 naive (company mean) / N1 X-OLS / N2 sent-OLS / N3 X+sent / N3b X+sent+lag.
 """
+import os
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -119,7 +120,11 @@ def main():
     train = E[E.report <= CUTOFF].dropna(subset=["x_yoy", "true"]).copy()
     train["lag_surprise"] = train["lag_surprise"].fillna(train["true"].mean())
 
+    DROP = float(os.getenv("F1_DROP_OUTLIER_PCT", "0"))         # structural-break / outlier sensitivity
     A = pd.read_csv(OUT / f"preds_{ch}_ablation.csv")           # LLM rows define the eval set
+    if DROP:
+        n0 = len(A); A = A[A["true"].abs() * 100 <= DROP].copy()
+        print(f"[{ch}] OUTLIER DROP |true|>{DROP:.0f}%: ablation eval {n0} -> {len(A)} rows")
     A["k"] = A.tkr + "|" + A.true.round(8).astype(str)
     E["k"] = E.tkr + "|" + E.true.round(8).astype(str)
     feat = E[["k", "sent", "lag_surprise"]].drop_duplicates("k")
@@ -194,6 +199,8 @@ def main():
     ap = OUT / f"preds_{ch}_arch.csv"
     if ap.exists():
         a = pd.read_csv(ap)
+        if DROP:
+            a = a[a["true"].abs() * 100 <= DROP].copy()
         def cr(x): m = a[[x, "true"]].dropna(); return np.corrcoef(m[x], m["true"])[0, 1]  # noqa: E704
         L.append(f"\n## architecture (distilled scores vs end-to-end), n={len(a)}")
         L.append(f"  A (text→score)   corr={cr('A_rev'):+.3f}")
@@ -204,6 +211,8 @@ def main():
     zp = OUT / f"preds_{ch}_zdepth.csv"
     if zp.exists():
         z = pd.read_csv(zp)
+        if DROP:
+            z = z[z["true"].abs() * 100 <= DROP].copy()
         if len(z):
             tz = z["true"].values * 100
             m1, m2 = metrics(z["z1"].values, tz), metrics(z["z2"].values, tz)

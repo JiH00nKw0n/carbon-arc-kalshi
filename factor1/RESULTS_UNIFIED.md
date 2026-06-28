@@ -63,6 +63,8 @@ LLM fin+x+text             3.73  +0.098  +0.607  0.369   2.26  0.78   <- best co
 - On **raw RMSE/R²**, the calibrated classical **N3b wins** (3.28 / +0.302). On **information (corr/corr²)**, the **LLM fusion wins** (0.607 / 0.369): it ranks beat-vs-miss best, but its raw magnitudes are uncalibrated, so its raw R² (0.098) is far below its ceiling (0.369).
 - Adding X and Z to the LLM **raises corr monotonically** (fin 0.466 → fin+x+text 0.607): on web, the fusion genuinely *is* the best arm.
 
+> **⚠️ Single-point fragility (web only — n=60 too small).** The web headline rests on a single legitimate tail event: **FIGS 2025-12-31, surprise +22.4%** — a *real* Q4 blowout, triple-confirmed (FactSet actual $202M vs consensus $165M = FMP $202M exactly; news: stock **+25%**, "sales well ahead," **3 analyst upgrades** same day). It is **NOT** a data artifact (unlike DLTR's spinoff −39.3%), so it must **stay**. But dropping that one point (n=60→59) would move LLM fin+x+text RMSE **3.73→2.59**, calibrated R² **0.286→0.470**, corr **0.607→0.714** — flipping the web verdict from "tie N3b" to "LLM clearly wins." Conclusion: **web's RMSE/calibration verdict is not robust to one legitimate point** (the LLM, like all 3 analysts, simply missed FIGS's blowout). **Trust card (n=210), which is robust** (dropping its one >10% test point, PLNT +12.7%, barely moves anything: RMSE 2.53→2.39).
+
 ## 3. CARD results  (n=210, 95 firms; truth mean +1.05%, sd 2.54%)
 
 ```
@@ -181,7 +183,8 @@ For deployment: use the LLM for fusion, ranking, and cold-start / interpretable 
 ## 10. Caveats / what would sharpen these claims
 
 - **LLM generation variance is not yet quantified.** The bootstrap CIs capture *which companies* are sampled, not the LLM's run-to-run randomness. Close calls (the corr orderings, Z-depth) could move on re-run. **Deferred:** K independent re-runs → mean±SD per metric and paired across-run tests (spec §10 "re-run stability"), optionally an ensemble-mean to cut variance and improve calibration.
-- **Small n** (web 60) makes RMSE differences noisy; card (210) is firmer.
+- **Small n → single-point fragility (web).** web n=60 is small enough that one legitimate tail event (FIGS +22.4%, §2) swings the headline between "tie" and "LLM wins" (RMSE 3.73↔2.59). card n=210 is robust to its one outlier. **Web verdicts should be read as fragile; weight card.** Reporting MAE (robust) alongside RMSE partly mitigates this.
+- **Structural-break contamination — apply a pre-declared exclusion rule.** A genuine artifact exists in the data: **DLTR 2025-01-31 surprise −39.3%** (Family Dollar spinoff → consensus on the old perimeter vs actual on the new one; verified identical in our FactSet). It sits in the **pre-cutoff training** set (so it distorts classical N0–N5, not the post-cutoff LLM test) but should still be dropped by a pre-declared rule that excludes spinoff/major-M&A quarters — applied symmetrically to train and test, all channels. (Contrast FIGS, which is a *real* beat and must stay — the diagnostic is whether the print-time consensus was also missed.)
 - The **realized calibration** (§4) is a finite-sample estimate (5 folds); it lands between raw and the corr² ceiling and would tighten with more data.
 
 ---
