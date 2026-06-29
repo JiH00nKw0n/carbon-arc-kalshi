@@ -12,7 +12,7 @@ Metrics are MSE-primary. gpt-5.5 (knowledge cutoff 2025-12-01); evaluation restr
 2. **On calibrated R² the LLM TIES (not beats) the best classical baseline** (web 0.29 vs 0.30; card 0.10 vs 0.10). **But raw R² is the LLM's *worst* metric, and it genuinely wins elsewhere:** lowest **MAE / typical error** in both channels (beating N3b *and* the naive mean), highest **corr / ranking** in both, plus a fusion + end-to-end signal that classical models cannot produce or distill, and it does this **zero-shot with no fitting** (§4b, §5, §6).
 3. **The LLM fuses X with the *full transcript*, not a scalar.** Classical interactions on a sentiment scalar — an `X×sentiment` term, or gradient-boosted trees — do **not** reproduce the fusion (they tie or *underperform* the additive baseline), and distilling Z to scores then regressing (architecture A/C) fails the same way. The LLM's niche is reading raw text with no feature engineering — not capturing an interaction classical models structurally can't (they can; it just doesn't help on a scalar Z).
 4. Revenue surprise is a **near-efficient, low-signal target** (consensus already absorbs public info), so a tie — not LLM dominance — is the honest, expected outcome.
-5. **foot (3rd channel, added 2026-06-29) — strong-O only.** Foot traffic predicts surprise at web level (r≈+0.24) but **only for foot-dominant names**; moderate-O foot carries **zero** signal (all-O dilutes to null). And its signal is **nonlinear** — a gradient-boosted tree (R²_OOS +0.27) is the single best model, beating every LLM arm. See §11–§12.
+5. **foot (3rd channel, added 2026-06-29) — strong-O only.** Foot traffic predicts surprise at web level (r≈+0.24) but **only for foot-dominant names**; moderate-O foot carries **zero** signal (all-O dilutes to null). Its OOS-predictive signal is **nonlinear and mostly autoregressive** — a gradient-boosted tree (R²_OOS +0.27) is the single best model, beating every LLM arm, but an ablation shows that edge is `lag + foot×lag`, **not** a foot×text synergy (sentiment/Z adds nothing; foot alone is OOS-useless). See §11–§12.
 
 ---
 
@@ -228,10 +228,24 @@ calibration (R²_OOS, leak-free): LLM fin+x+text +0.069 · LLM fin +0.072 · N3b
 - **architecture:** B end-to-end +0.296 > A +0.132 > C −0.028 (end-to-end ≫ distilled — consistent with web/card).
 - **Z-depth:** z1 ≈ z2 (corr +0.261 vs +0.258) — no difference.
 
+**GBT feature ablation (strong-O, n=75) — what is GBT's +0.27 actually made of?**
+```
+features                 GBT_R²  GBT_corr   (OLS_R²)
+lag_surprise              +0.093  +0.409     +0.033   <- the workhorse (autoregression)
+x_yoy (foot alone)        -4.5    +0.058     -0.060   <- OOS-useless alone (overfits)
+sent (alone)              -0.56   -0.038     -0.023   <- useless
+x_yoy + lag               +0.241  +0.497     -0.002   <- foot adds ~+0.09 corr ON TOP of lag
+sent + lag                +0.089  +0.407     -0.058   <- sentiment adds ~0
+x_yoy + sent + lag (full) +0.240  +0.497     -0.002   <- = x_yoy+lag (sentiment contributes nothing)
+```
+→ **GBT's edge is NOT a foot×Z synergy.** It is **lag (track-record autoregression, corr +0.41 alone) + foot interacting with lag** (foot lifts +0.09 corr *only* on top of lag); **sentiment/Z adds essentially nothing** (sent+lag = lag = full) and **foot alone has no OOS predictive power** (corr +0.06; its H1 r=+0.20 is in-panel association, not OOS prediction). So neither GBT nor the LLM finds a usable foot×text synergy — the foot signal that *does* predict OOS is `lag + foot×lag` nonlinearity. *(Single-feature GBT R² is overfit-noisy — read corr; n=75.)*
+
 **foot takeaway**
-1. **The signal is real but NONLINEAR.** Linear OLS (N1 corr +0.04; N3b R²≈0) is near-useless out-of-sample, but **GBT (R² +0.27, corr +0.53) is the single best model — beating every LLM arm.** foot→surprise lives in nonlinear interactions (visits × ticket/AOV × seasonality) that trees capture and linear/LLM do not.
+1. **The predictive signal is NONLINEAR and mostly AUTOREGRESSIVE.** GBT (R² +0.27, corr +0.53) is the single best model, beating every LLM arm — but its edge is `lag + foot×lag` (ablation above), **not** the alt-data alone (foot alone is OOS-useless) and **not** a foot×text fusion (Z adds nothing). Linear OLS can't combine these nonlinearly; the LLM under-uses the autoregression.
 2. **Here the winner is GBT, not the LLM.** LLM `fin` is modest (calib R² +0.07 ≈ N3b); adding foot or text individually hurts; fusion only recovers. On foot, classical (GBT) *beats* the LLM — unlike web/card where they tie.
 3. **Foot works only for foot-dominant (strong-O) names** (tier table above) — the most screening-sensitive of the three channels.
+
+*Open (next diagnostics, why the LLM under-performs here): (a) give the LLM an explicit prior-quarter-surprise (lag) feature — GBT's edge is autoregression the LLM may under-use; (b) feed the LLM only the GBT numeric features (foot#, sent#, lag#) and compare — can it do the nonlinear combination?; (c) LLM-distilled scores → GBT (nonlinear combiner) instead of OLS; (d) per-subsector error decomposition. (a)/(b) are the priority.*
 
 ## 12. Three-channel summary
 
