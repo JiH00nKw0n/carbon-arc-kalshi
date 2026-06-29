@@ -1,4 +1,4 @@
-# Alt-data × Earnings-call × LLM → Revenue Surprise — Unified Results (web + card)
+# Alt-data × Earnings-call × LLM → Revenue Surprise — Unified Results (web + card + foot)
 
 *Channel-agnostic pipeline, identical setting for both X channels. Spec: `EXPERIMENT_SPEC.md`.
 Metrics are MSE-primary. gpt-5.5 (knowledge cutoff 2025-12-01); evaluation restricted to events
@@ -12,6 +12,7 @@ Metrics are MSE-primary. gpt-5.5 (knowledge cutoff 2025-12-01); evaluation restr
 2. **On calibrated R² the LLM TIES (not beats) the best classical baseline** (web 0.29 vs 0.30; card 0.10 vs 0.10). **But raw R² is the LLM's *worst* metric, and it genuinely wins elsewhere:** lowest **MAE / typical error** in both channels (beating N3b *and* the naive mean), highest **corr / ranking** in both, plus a fusion + end-to-end signal that classical models cannot produce or distill, and it does this **zero-shot with no fitting** (§4b, §5, §6).
 3. **The LLM fuses X with the *full transcript*, not a scalar.** Classical interactions on a sentiment scalar — an `X×sentiment` term, or gradient-boosted trees — do **not** reproduce the fusion (they tie or *underperform* the additive baseline), and distilling Z to scores then regressing (architecture A/C) fails the same way. The LLM's niche is reading raw text with no feature engineering — not capturing an interaction classical models structurally can't (they can; it just doesn't help on a scalar Z).
 4. Revenue surprise is a **near-efficient, low-signal target** (consensus already absorbs public info), so a tie — not LLM dominance — is the honest, expected outcome.
+5. **foot (3rd channel, added 2026-06-29) — strong-O only.** Foot traffic predicts surprise at web level (r≈+0.24) but **only for foot-dominant names**; moderate-O foot carries **zero** signal (all-O dilutes to null). And its signal is **nonlinear** — a gradient-boosted tree (R²_OOS +0.27) is the single best model, beating every LLM arm. See §11–§12.
 
 ---
 
@@ -189,4 +190,63 @@ For deployment: use the LLM for fusion, ranking, and cold-start / interpretable 
 
 ---
 
-*Pipeline: `f1_channels.py` (channel config) · `f1_20_panel.py` (panel) · `f1_21_run.py` (LLM ablation+architecture+Z-depth, one pass) · `f1_22_eval.py` (MSE-primary eval + calibration + synergy + surrogate). Per-channel raw dumps: `factor1/outputs/results_{web,card}.md`. Seeds = 2026. LLM cost: web $26.24 + card $114.04 = $140.28.*
+## 11. FOOT (CA0060) results — strong-O channel  [added 2026-06-29]
+
+foot is screened to **strong-O = foot-dominant names** (physical visits ≈ ~100% of revenue: restaurants, off-price/dollar/grocery, single-channel retail). Same pipeline, gpt-5.5. LLM eval n=77 / 34 firms; H1 corr battery n=273.
+
+**Why strong-O, not all-O.** Unlike web/card (all-O), foot's signal is *concentrated* in strong-O. Expanding to all-O (54 firms, bought) **dilutes it to null** because moderate-O foot names carry zero signal:
+
+| foot universe | r | p_boot | p_surr |
+|---|--:|--:|--:|
+| **strong-O (34)** | **+0.243** | 0.000 | 0.001 ✅ |
+| moderate-O (19) | −0.001 | 0.969 | 0.995 ✗ |
+| all-O (54) | +0.113 | 0.069 | 0.037 ❌ (diluted) |
+
+Foot is the **most tier-sensitive** channel — it predicts surprise *only* where visits are essentially the whole revenue channel. (web/card all-O pass because their moderate-O still carry signal; foot's do not.)
+
+**H1 (foot alone, strong-O, n=273):** r=+0.202, p_boot=0.006, p_surr=0.009 ✅ — web-level. DLTR 2025-01-31 structural break excluded per the pre-declared rule. (The 10-firm pilot's null was pure underpower.)
+
+**MSE-primary (post-cutoff n=77):**
+```
+model                  RMSE   R²_OOS   corr   corr²   MAE
+N0 naive               2.90  -0.162  +0.332  0.110  1.98
+N1 X-OLS               2.80  -0.076  +0.036  0.001  1.95
+N2 sentiment-OLS       2.74  -0.032  -0.038  0.001  1.88
+N3 X+sent              2.82  -0.092  +0.038  0.001  1.96
+N4 X×sent interaction  2.78  -0.066  -0.111  0.012  1.93
+N3b X+sent+lag         2.70  -0.002  +0.293  0.086  1.86
+N4b +lag+interaction   2.67  +0.016  +0.308  0.095  1.84
+N5 GBT (x,sent,lag)    2.30  +0.269  +0.526  0.277  1.61   <- best of ALL models
+LLM fin                2.57  +0.092  +0.375  0.141  1.62   <- best LLM arm
+LLM fin+x              2.95  -0.198  +0.258  0.067  2.05
+LLM fin+text           2.82  -0.093  +0.190  0.036  1.82
+LLM fin+x+text         2.84  -0.110  +0.296  0.088  1.93
+```
+calibration (R²_OOS, leak-free): LLM fin+x+text +0.069 · LLM fin +0.072 · N3b −0.002 · **GBT +0.269 (self-calibrated)**.
+
+- **synergy (both significant):** corr +0.220 (p=0.008 ✅), MSE-skill +0.307 (p=0.005 ✅); surrogate p_surr=0.010 ✅ firm-specific. *Read as mutual-recovery (like card): LLM `fin` alone has the best corr (+0.375); adding x or text individually hurts; together they recover — super-additive but not beating fin-alone.*
+- **architecture:** B end-to-end +0.296 > A +0.132 > C −0.028 (end-to-end ≫ distilled — consistent with web/card).
+- **Z-depth:** z1 ≈ z2 (corr +0.261 vs +0.258) — no difference.
+
+**foot takeaway**
+1. **The signal is real but NONLINEAR.** Linear OLS (N1 corr +0.04; N3b R²≈0) is near-useless out-of-sample, but **GBT (R² +0.27, corr +0.53) is the single best model — beating every LLM arm.** foot→surprise lives in nonlinear interactions (visits × ticket/AOV × seasonality) that trees capture and linear/LLM do not.
+2. **Here the winner is GBT, not the LLM.** LLM `fin` is modest (calib R² +0.07 ≈ N3b); adding foot or text individually hurts; fusion only recovers. On foot, classical (GBT) *beats* the LLM — unlike web/card where they tie.
+3. **Foot works only for foot-dominant (strong-O) names** (tier table above) — the most screening-sensitive of the three channels.
+
+## 12. Three-channel summary
+
+| | web (all-O, 33) | card (all-O, 99) | **foot (strong-O, 34)** |
+|---|--:|--:|--:|
+| H1 alt-data → surprise (r) | +0.200 ✅ | +0.136 ✅ | +0.202 ✅ |
+| best classical (R²_OOS) | N3b +0.30 | N3b +0.10 | **GBT +0.27** |
+| best LLM (calib R²) | fin+x+text +0.29 | fin +0.10 | fin +0.07 |
+| LLM vs classical | tie | tie | **classical (GBT) wins** |
+| MSE-skill synergy | +0.225 (p.001) ✅ | +0.171 (p.010) ✅ | +0.307 (p.005) ✅ |
+| end-to-end > distilled | ✅ | ✅ | ✅ |
+| universe | all-O | all-O | strong-O (all-O dilutes to null) |
+
+**Cross-channel:** (1) every channel's alt-data carries a real H1 signal (r≈0.14–0.20). (2) X×Z MSE-skill synergy is super-additive in all three. (3) end-to-end ≫ distilled in all three. (4) **the LLM never clearly beats the best calibrated classical model** — it ties on web/card and *loses to GBT on foot*. (5) foot is uniquely **tier-sensitive** (strong-O only) and **nonlinear** (GBT-best).
+
+---
+
+*Pipeline: `f1_channels.py` (channel config; web/card/foot) · `f1_20_panel.py` (panel) · `f1_21_run.py` (LLM ablation+architecture+Z-depth) · `f1_22_eval.py` (MSE-primary eval + calibration + synergy + surrogate). Per-channel raw dumps: `factor1/outputs/results_{web,card,foot}.md` (gitignored). Seeds = 2026. LLM cost: web $26.24 + card $114.04 + foot $43.98 = $184.26. Foot data (CarbonArc CA0060): strong-O $664.40 + moderate-O $390.78.*

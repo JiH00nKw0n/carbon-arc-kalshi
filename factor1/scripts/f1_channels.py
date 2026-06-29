@@ -40,6 +40,22 @@ CARD_FSYM2TKR = {
     "R5RD6T-R": "GAP", "Q53D75-R": "GME", "RQSKKH-R": "CASY", "JYQXCG-R": "MTN",
 }
 
+# --- foot strong-O FactSet id→ticker (34), CA0060, resolved 2026-06-29 ---
+FOOT_FSYM2TKR = {
+    "GF26VF-R": "ACI", "JN801W-R": "ASO", "J3LDJT-R": "BLMN", "BM7J26-R": "BROS", "VL607C-R": "BURL",
+    "V2MTKT-R": "CAKE", "X93SZL-R": "CAVA", "KFQHFG-R": "CMG", "BL5KVX-R": "COST", "BDQDB8-R": "DG",
+    "MR0PSP-R": "DLTR", "GRS9LG-R": "DRI", "VPSN43-R": "EAT", "S2YZ7L-R": "FIVE", "SSK1W1-R": "GO",
+    "PD98GG-R": "HD", "R2J99W-R": "KR", "CHKL7S-R": "LOW", "VTBLV9-R": "MCD", "XNM3N2-R": "OLLI",
+    "FJ4NDH-R": "ROST", "TWTDGH-R": "SBUX", "CSDT95-R": "SFM", "G6QSWR-R": "SG", "JNYJHG-R": "SHAK",
+    "J994MP-R": "TGT", "S8ZPBT-R": "TJX", "BRWKF0-R": "TSCO", "X44KDF-R": "TXRH", "GM3DBL-R": "ULTA",
+    "CSMTMQ-R": "WMT", "LNDJN4-R": "BOOT", "DF2CV6-R": "CNK", "H2VPCM-R": "VLO",
+    # moderate foot-O (all-O expansion, 2026-06-29)
+    "P36M94-R": "ORLY", "WPKF66-R": "BBY", "JDQ0K1-R": "AZO", "DKJ8VM-R": "DDS", "MRHVBK-R": "BJ",
+    "J1JDGR-R": "CZR", "GJZ5YB-R": "KSS", "J75B2X-R": "BYD", "K8ZVRV-R": "DKS", "SDDH43-R": "WBA",
+    "RBB7RY-R": "ANF", "THXZ97-R": "WING", "M79B89-R": "MGM", "BV3N5V-R": "M", "D1LJ47-R": "AEO",
+    "XKTZWR-R": "URBN", "FBCHQC-R": "BBWI", "VXQ46D-R": "WEN", "R5RD6T-R": "GAP", "RQSKKH-R": "CASY",
+}
+
 CHANNELS = {
     "web": dict(
         x_csv=[DATA / "web_O39_by_company_3y.csv"], x_val="website_users",
@@ -55,6 +71,13 @@ CHANNELS = {
         factset=DATA / "factset_card99_pit.json", fsym2tkr=CARD_FSYM2TKR,
         tx_index=DATA / "transcript_index_card.csv", screen_dt="card_spend",
         x_table_label="CARD-SPEND HISTORY (Carbon Arc alt-data)", x_unit="card_spend_yoy",
+    ),
+    "foot": dict(
+        x_csv=[DATA / "ca0060_foot_strongO_monthly_3y.csv", DATA / "ca0060_foot_moderateO_monthly_3y.csv"], x_val="foot_traffic",
+        entity_map=None, entity_drop=set(), yoy_lag=12,
+        factset=DATA / "factset_foot54_pit.json", fsym2tkr=FOOT_FSYM2TKR,
+        tx_index=DATA / "transcript_index_foot.csv", screen_dt="foot_traffic",
+        x_table_label="FOOT-TRAFFIC HISTORY (Carbon Arc CA0060, monthly visits YoY)", x_unit="foot_visits_yoy",
     ),
 }
 
