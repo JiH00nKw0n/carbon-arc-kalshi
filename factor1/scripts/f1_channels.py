@@ -73,9 +73,11 @@ CHANNELS = {
         x_table_label="CARD-SPEND HISTORY (Carbon Arc alt-data)", x_unit="card_spend_yoy",
     ),
     "foot": dict(
-        x_csv=[DATA / "ca0060_foot_strongO_monthly_3y.csv", DATA / "ca0060_foot_moderateO_monthly_3y.csv"], x_val="foot_traffic",
+        # headline universe = strong-O (foot-dominant). moderate-O CSV / factset_foot54 exist for the
+        # all-O tier-dilution check (§11) but are NOT the canonical eval basis.
+        x_csv=[DATA / "ca0060_foot_strongO_monthly_3y.csv"], x_val="foot_traffic",
         entity_map=None, entity_drop=set(), yoy_lag=12,
-        factset=DATA / "factset_foot54_pit.json", fsym2tkr=FOOT_FSYM2TKR,
+        factset=DATA / "factset_foot34_pit.json", fsym2tkr=FOOT_FSYM2TKR,
         tx_index=DATA / "transcript_index_foot.csv", screen_dt="foot_traffic",
         x_table_label="FOOT-TRAFFIC HISTORY (Carbon Arc CA0060, monthly visits YoY)", x_unit="foot_visits_yoy",
     ),
