@@ -1,0 +1,219 @@
+<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>LLM Identification 검증 보고서</title><style>
+    :root{--surface:#fbfbf9;--card:#fff;--ink:#111110;--ink2:#54534e;--line:#e6e5e0;
+      --accent:#2a78d6;--accent-soft:rgba(42,120,214,.08)}
+    @media(prefers-color-scheme:dark){:root{--surface:#181816;--card:#232320;--ink:#f5f4ef;
+      --ink2:#b6b5ab;--line:#32322d;--accent:#5598e7;--accent-soft:rgba(85,152,231,.12)}}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--surface);color:var(--ink);
+      font:15px/1.65 ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      -webkit-font-smoothing:antialiased}
+    .wrap{max-width:940px;margin:0 auto;padding:40px 24px 72px}
+    .num{font-variant-numeric:tabular-nums}
+    header{border-bottom:2px solid var(--accent);padding-bottom:20px;margin-bottom:24px}
+    .eyebrow{text-transform:uppercase;letter-spacing:.09em;font-size:11px;font-weight:700;
+      color:var(--accent);margin-bottom:10px}
+    h1{font-size:29px;line-height:1.2;margin:0 0 10px;letter-spacing:-.015em;text-wrap:balance;max-width:24ch}
+    h2{font-size:20px;margin:44px 0 6px;letter-spacing:-.01em}
+    h2::before{content:'';display:inline-block;width:3px;height:.85em;background:var(--accent);
+      margin-right:9px;vertical-align:-1px;border-radius:2px}
+    h3{font-size:15px;margin:22px 0 6px;font-weight:700}
+    .sub{color:var(--ink2);font-weight:400;font-size:13.5px;max-width:68ch}
+    .lead{color:var(--ink2);margin:2px 0 14px;max-width:68ch}
+    .note{color:var(--ink2);font-size:12px;margin:4px 0 0}
+    .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:8px 0 4px}
+    @media(min-width:640px){.kpi-grid{grid-template-columns:repeat(4,1fr)}}
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 14px}
+    .kpi-v{font-size:28px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
+    .kpi-l{font-size:12.5px;font-weight:650;margin-top:7px}
+    .kpi-s{font-size:11px;color:var(--ink2);margin-top:3px;line-height:1.4}
+    .takeaway{background:var(--accent-soft);border:1px solid var(--line);border-radius:10px;
+      padding:14px 16px;margin:16px 0 4px;font-size:14px;line-height:1.6}
+    .twrap{overflow-x:auto;margin:8px 0}
+    table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+    th,td{border-bottom:1px solid var(--line);padding:7px 11px;text-align:left;white-space:nowrap}
+    thead th,tr:first-child th{background:var(--accent-soft);font-weight:650;
+      border-bottom:1.5px solid var(--line)}
+    tbody tr:hover,tr:hover{background:var(--accent-soft)}
+    .badge{color:#fff;padding:1px 9px;border-radius:10px;font-size:11px;font-weight:650;letter-spacing:.02em}
+    .quote{background:var(--card);border-left:3px solid var(--accent);padding:9px 13px;margin:7px 0;
+      border-radius:0 7px 7px 0;font-size:12.5px;color:var(--ink2);line-height:1.55}
+    code{background:var(--accent-soft);padding:1px 5px;border-radius:4px;font-size:.9em}
+    footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);color:var(--ink2);
+      font-size:11.5px;line-height:1.7}
+    </style></head><body><div class='wrap'><header><div class='eyebrow'>Carbon Arc × FactSet · Stage-1 Identification</div><h1>Alt-data가 예측하는 Y를 LLM이 미리 맞힐 수 있는가</h1>
+<p class='sub'>gpt-5.5가 <b>실험 결과를 모르는 상태로</b> (a) 채널별 유용한 Y metric과 (b) 신호가 강한 회사를 예측했다. 아래는 그 예측을 실제 실험결과와 대조한 것이다. X = card / foot / click (Carbon Arc), Y = 매출·서프라이즈·SSS·운영지표.</p></header>
+<section class='kpi-grid'>
+<div class='kpi'><div class='kpi-v' style='color:#0ca30c'>62%</div><div class='kpi-l'>Metric-fit 정확도</div><div class='kpi-s'>LLM이 어떤 Y가 유의할지 맞힌 비율 (채널평균)</div></div>
+<div class='kpi'><div class='kpi-v' style='color:#0ca30c'>+0.50</div><div class='kpi-l'>Metric 순위상관</div><div class='kpi-s'>LLM metric 랭킹 vs 실제 |r| 랭킹 (Spearman 평균)</div></div>
+<div class='kpi'><div class='kpi-v' style='color:#d03b3b'>28%</div><div class='kpi-l'>Company top-k precision</div><div class='kpi-s'>LLM 상위 회사픽이 실제 상위와 겹친 비율</div></div>
+<div class='kpi'><div class='kpi-v' style='color:#d03b3b'>+0.08</div><div class='kpi-l'>Company 순위상관</div><div class='kpi-s'>LLM 회사 랭킹 vs 실제 per-company r (평균)</div></div>
+</section>
+<div class='takeaway'><b>핵심:</b> LLM은 <b>어떤 Y metric이 각 alt-data에 맞는지</b>는 경제 논리로 잘 식별했지만(metric-fit 정확도 높음), <b>어떤 개별 회사에서 신호가 강할지</b>는 거의 못 맞혔다(company 순위상관 ≈ 0). 즉 <b>메트릭 적합성 ≫ 회사 적합성</b> — LLM의 사전지식은 '채널×메트릭' 수준의 구조는 알지만 '이 회사가 이번에 신호가 셀지'는 데이터가 필요하다.</div>
+
+<h2>0. 검증 메트릭 — 정의와 근거</h2>
+<p class='lead'>LLM의 예측(랭킹)을 실제 실험결과와 대조하려면, "랭킹이 맞았나"와 "강신호를 골랐나"를
+정량화하는 지표가 필요하다. 아래 4개를 도입했다. 각 메트릭의 정의(코드와 1:1)와, <b>왜 이 검증에
+적합한지</b>를 함께 밝힌다.</p>
+
+<h3>① Rank Spearman — 순위 상관</h3>
+<p class='lead'><b>정의</b>: LLM이 매긴 순위(rank 1 = 가장 유망)와, 실제 |r|로 매긴 순위 사이의
+Spearman 상관계수 (<code>spearmanr(llm_rank, actual_rank)</code>). +1 = 순위 완벽 일치, 0 = 무관, −1 = 정반대.<br>
+<b>왜 적합한가</b>: LLM의 출력은 <b>절대 점수가 아니라 순위</b>다("card엔 rev_yoy가 surprise보다
+유망"). 실제 r의 절대값을 LLM이 맞힐 필요는 없고 <b>순서만</b> 맞으면 식별에 성공한 것이므로,
+스케일에 둔감한 순위 상관이 정확히 이 질문에 답한다. Pearson이 아니라 Spearman인 이유: r 분포에
+꼬리가 있어 한두 조합이 상관을 좌우하는 것을 막기 위해.</p>
+
+<h3>② Significance accuracy / precision / recall — 유의성 예측 정확도</h3>
+<p class='lead'><b>정의</b>: LLM의 <code>will_be_significant</code>(각 Y가 유의할 거란 예/아니오)를
+실제 <code>pass</code>(이중검정 통과)와 대조한 혼동행렬. accuracy = (TP+TN)/전체,
+precision = TP/(TP+FP), recall = TP/(TP+FN).<br>
+<b>왜 적합한가</b>: 순위와 별개로 <b>"이 Y가 실전에서 쓸 수 있는가(유의한가)"는 이진 판단</b>이다.
+LLM이 유망하다고 지목한 Y가 실제로 통과하는지(precision), 실제 통과 Y를 놓치지 않는지(recall)를
+분리해 본다. 특히 <b>precision이 낮으면 = LLM이 과대평가</b>(foot에서 surprise류를 유의하다 예측했으나
+실패) → 이 실패 모드를 잡아내는 게 핵심.</p>
+
+<h3>③ Top-k precision — 상위 회사픽 적중률</h3>
+<p class='lead'><b>정의</b>: k = max(3, 회사수/4). LLM 상위 k개 회사와 실제 r_company 상위 k개의
+교집합 크기 / k (<code>|LLM_topk ∩ actual_topk| / k</code>).<br>
+<b>왜 적합한가</b>: 실전에서 alt-data를 쓸 때 <b>"어느 회사에 이 신호를 적용할까"는 상위 몇 개만
+고르는 문제</b>다. 전체 순위가 다 맞을 필요 없이 <b>상위권이 실제 상위권과 겹치는지</b>가 실용적으로
+중요하므로, 상위 k에 초점을 둔 precision이 랭킹 전체 상관보다 이 목적에 더 맞다. 무작위 기대값 =
+k/n (예: 63종목 중 top-15면 24%) — 이보다 높아야 의미 있음.</p>
+
+<h3>④ AUC — 강신호 분류 성능</h3>
+<p class='lead'><b>정의</b>: 실제 r_company가 채널 중앙값 초과면 "강신호(1)"로 라벨. LLM 순위(−rank를
+점수로)가 이 라벨을 얼마나 분리하는지의 ROC-AUC. 0.5 = 무작위, 1.0 = 완벽 분리.<br>
+<b>왜 적합한가</b>: top-k precision은 임계값(k) 하나에만 의존하지만, <b>AUC는 모든 임계값에 걸쳐
+LLM 순위가 강/약 회사를 분리하는 능력을 요약</b>한다. threshold-free라 "LLM 회사랭킹이 애초에
+신호강도와 상관있나"를 편향 없이 판정. <b>AUC ≈ 0.5는 곧 "회사 수준에선 사실상 랜덤"</b>이라는
+이 실험의 핵심 결론을 뒷받침한다.</p>
+
+<div class='takeaway'><b>왜 metric-fit과 company-fit을 분리했나</b>: 전자는 "채널×메트릭"이라는
+<b>구조적 지식</b>(경제 논리로 추론 가능)을, 후자는 "이 개별 회사가 이번에 셀지"라는
+<b>사례별 지식</b>(데이터 없이는 어려움)을 측정한다. 두 축을 나눠야 LLM 사전지식의 <b>한계선이
+정확히 어디인지</b>가 드러난다 — 그리고 실제로 그 경계에서 갈렸다.</div>
+
+<h2>1. Metric-fit — LLM이 예측한 'Y 적합성' vs 실제</h2>
+<p class='lead'>각 alt-data 채널에서 어떤 Y metric이 잘 예측될지 LLM이 <b>결과를 모르는 상태로</b> 랭킹했다. 아래는 그 랭킹을 실제 |r| 랭킹과 겹쳐 본 것 — 순위 상관(Spearman)과 유의성 예측 정확도.</p>
+<h3>card <span class='sub'>rank Spearman=0.81 · significance accuracy=0.875</span></h3>
+<div class='twrap'><table><tr><th>Y metric</th><th>LLM rank</th><th>실제 rank</th><th>LLM: 유의?</th><th>실제 r</th><th>실제 pass</th></tr>
+<tr><td>sss_level</td><td>2</td><td>1</td><td>예 ✓</td><td>+0.565</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>GMV</td><td>4</td><td>2</td><td>예 ✗</td><td>+0.449</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>rev_yoy</td><td>1</td><td>3</td><td>예 ✓</td><td>+0.415</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>sss_surprise</td><td>5</td><td>4</td><td>예 ✓</td><td>+0.343</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>surprise_early</td><td>3</td><td>5</td><td>예 ✓</td><td>+0.201</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>surprise_print</td><td>6</td><td>6</td><td>예 ✓</td><td>+0.195</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>OCCUPY_RATE_TOT</td><td>8</td><td>7</td><td>아니오 ✓</td><td>-0.108</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>SALES_RSF</td><td>7</td><td>8</td><td>아니오 ✓</td><td>+0.028</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+</table></div>
+<h3>foot <span class='sub'>rank Spearman=0.886 · significance accuracy=0.5</span></h3>
+<div class='twrap'><table><tr><th>Y metric</th><th>LLM rank</th><th>실제 rank</th><th>LLM: 유의?</th><th>실제 r</th><th>실제 pass</th></tr>
+<tr><td>rev_yoy</td><td>2</td><td>1</td><td>예 ✓</td><td>+0.385</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>sss_level</td><td>1</td><td>2</td><td>예 ✓</td><td>+0.193</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>sss_surprise</td><td>3</td><td>3</td><td>예 ✗</td><td>+0.072</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>SALES_RSF</td><td>5</td><td>4</td><td>예 ✗</td><td>+0.049</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>surprise_early</td><td>4</td><td>5</td><td>예 ✗</td><td>+0.015</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>surprise_print</td><td>6</td><td>6</td><td>아니오 ✓</td><td>+0.006</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+</table></div>
+<h3>click <span class='sub'>rank Spearman=-0.2 · significance accuracy=0.5</span></h3>
+<div class='twrap'><table><tr><th>Y metric</th><th>LLM rank</th><th>실제 rank</th><th>LLM: 유의?</th><th>실제 r</th><th>실제 pass</th></tr>
+<tr><td>GMV</td><td>2</td><td>1</td><td>예 ✗</td><td>+0.148</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>surprise_early</td><td>3</td><td>2</td><td>예 ✓</td><td>+0.122</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>surprise_print</td><td>4</td><td>3</td><td>예 ✓</td><td>+0.082</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>rev_yoy</td><td>1</td><td>4</td><td>예 ✗</td><td>+0.058</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+</table></div>
+<h2>2. Company-fit — LLM이 예측한 '회사 적합성' vs 실제</h2>
+<p class='lead'>LLM이 각 채널에서 alt-data가 revenue surprise를 잘 예측할 회사를 랭킹했다. 실제 per-company 상관(r_company)과 비교 — top-k precision과 순위 상관.</p>
+<h3>card <span class='sub'>rank Spearman=0.096 · top15 precision=0.2 · AUC=0.616</span></h3>
+<div class='twrap'><table><tr><th>ticker</th><th>LLM rank</th><th>실제 rank</th><th>LLM 강도</th><th>실제 r_company</th><th>n</th></tr>
+<tr><td><b>SG</b></td><td>27</td><td>1</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.845</td><td>9</td></tr>
+<tr><td><b>EAT</b></td><td>29</td><td>2</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.818</td><td>9</td></tr>
+<tr><td><b>UAL</b></td><td>44</td><td>3</td><td>moderate</td><td style='color:#0ca30c;font-weight:600'>+0.778</td><td>9</td></tr>
+<tr><td><b>ORLY</b></td><td>35</td><td>4</td><td>moderate</td><td style='color:#0ca30c;font-weight:600'>+0.765</td><td>9</td></tr>
+<tr><td><b>WING</b></td><td>38</td><td>5</td><td>moderate</td><td style='color:#0ca30c;font-weight:600'>+0.676</td><td>9</td></tr>
+<tr><td><b>FND</b></td><td>11</td><td>6</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.661</td><td>9</td></tr>
+<tr><td><b>BLMN</b></td><td>30</td><td>7</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.606</td><td>9</td></tr>
+<tr><td><b>GME</b></td><td>24</td><td>8</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.594</td><td>7</td></tr>
+<tr><td><b>FUN</b></td><td>32</td><td>9</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.581</td><td>9</td></tr>
+<tr><td><b>AAL</b></td><td>43</td><td>10</td><td>moderate</td><td style='color:#0ca30c;font-weight:600'>+0.575</td><td>8</td></tr>
+<tr><td><b>BROS</b></td><td>25</td><td>11</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.554</td><td>9</td></tr>
+<tr><td><b>MTN</b></td><td>36</td><td>12</td><td>moderate</td><td style='color:#0ca30c;font-weight:600'>+0.483</td><td>9</td></tr>
+<tr><td><b>BBWI</b></td><td>6</td><td>13</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.471</td><td>9</td></tr>
+<tr><td><b>DKNG</b></td><td>56</td><td>14</td><td>weak</td><td style='color:#0ca30c;font-weight:600'>+0.461</td><td>9</td></tr>
+<tr><td><b>SFM</b></td><td>15</td><td>15</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.451</td><td>9</td></tr>
+</table></div><p class='note'>상위 15개만 표시 (전체는 CSV).</p>
+<h3>foot <span class='sub'>rank Spearman=0.13 · top13 precision=0.385 · AUC=0.562</span></h3>
+<div class='twrap'><table><tr><th>ticker</th><th>LLM rank</th><th>실제 rank</th><th>LLM 강도</th><th>실제 r_company</th><th>n</th></tr>
+<tr><td><b>SG</b></td><td>2</td><td>1</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.741</td><td>8</td></tr>
+<tr><td><b>AZO</b></td><td>48</td><td>2</td><td>weak</td><td style='color:#0ca30c;font-weight:600'>+0.729</td><td>7</td></tr>
+<tr><td><b>EAT</b></td><td>9</td><td>3</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.714</td><td>8</td></tr>
+<tr><td><b>WING</b></td><td>40</td><td>4</td><td>weak</td><td style='color:#0ca30c;font-weight:600'>+0.702</td><td>8</td></tr>
+<tr><td><b>DLTR</b></td><td>17</td><td>5</td><td>moderate</td><td style='color:#0ca30c;font-weight:600'>+0.701</td><td>9</td></tr>
+<tr><td><b>GO</b></td><td>20</td><td>6</td><td>moderate</td><td style='color:#0ca30c;font-weight:600'>+0.653</td><td>8</td></tr>
+<tr><td><b>TXRH</b></td><td>5</td><td>7</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.442</td><td>8</td></tr>
+<tr><td><b>DRI</b></td><td>8</td><td>8</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.430</td><td>9</td></tr>
+<tr><td><b>URBN</b></td><td>30</td><td>9</td><td>moderate</td><td style='color:#0ca30c;font-weight:600'>+0.413</td><td>8</td></tr>
+<tr><td><b>BLMN</b></td><td>10</td><td>10</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.400</td><td>8</td></tr>
+<tr><td><b>WBA</b></td><td>50</td><td>11</td><td>weak</td><td style='color:#0ca30c;font-weight:600'>+0.382</td><td>5</td></tr>
+<tr><td><b>VLO</b></td><td>54</td><td>12</td><td>weak</td><td style='color:#0ca30c;font-weight:600'>+0.342</td><td>8</td></tr>
+<tr><td><b>OLLI</b></td><td>14</td><td>13</td><td>strong</td><td style='color:#fab219;font-weight:600'>+0.280</td><td>9</td></tr>
+<tr><td><b>BYD</b></td><td>51</td><td>14</td><td>weak</td><td style='color:#fab219;font-weight:600'>+0.267</td><td>8</td></tr>
+<tr><td><b>BURL</b></td><td>11</td><td>15</td><td>strong</td><td style='color:#fab219;font-weight:600'>+0.263</td><td>8</td></tr>
+</table></div><p class='note'>상위 15개만 표시 (전체는 CSV).</p>
+<h3>click <span class='sub'>rank Spearman=0.012 · top8 precision=0.25 · AUC=0.518</span></h3>
+<div class='twrap'><table><tr><th>ticker</th><th>LLM rank</th><th>실제 rank</th><th>LLM 강도</th><th>실제 r_company</th><th>n</th></tr>
+<tr><td><b>EB</b></td><td>14</td><td>1</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.700</td><td>8</td></tr>
+<tr><td><b>BKNG</b></td><td>10</td><td>2</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.696</td><td>10</td></tr>
+<tr><td><b>CPRT</b></td><td>26</td><td>3</td><td>moderate</td><td style='color:#0ca30c;font-weight:600'>+0.636</td><td>9</td></tr>
+<tr><td><b>HIMS</b></td><td>17</td><td>4</td><td>moderate</td><td style='color:#0ca30c;font-weight:600'>+0.569</td><td>10</td></tr>
+<tr><td><b>CHWY</b></td><td>6</td><td>5</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.562</td><td>9</td></tr>
+<tr><td><b>UPWK</b></td><td>28</td><td>6</td><td>moderate</td><td style='color:#0ca30c;font-weight:600'>+0.544</td><td>10</td></tr>
+<tr><td><b>TRUE</b></td><td>20</td><td>7</td><td>moderate</td><td style='color:#0ca30c;font-weight:600'>+0.527</td><td>8</td></tr>
+<tr><td><b>TDUP</b></td><td>9</td><td>8</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.443</td><td>10</td></tr>
+<tr><td><b>TRIP</b></td><td>23</td><td>9</td><td>moderate</td><td style='color:#0ca30c;font-weight:600'>+0.423</td><td>10</td></tr>
+<tr><td><b>FIVE</b></td><td>34</td><td>10</td><td>weak</td><td style='color:#0ca30c;font-weight:600'>+0.362</td><td>9</td></tr>
+<tr><td><b>FIGS</b></td><td>8</td><td>11</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.330</td><td>10</td></tr>
+<tr><td><b>SFIX</b></td><td>30</td><td>12</td><td>weak</td><td style='color:#0ca30c;font-weight:600'>+0.325</td><td>9</td></tr>
+<tr><td><b>W</b></td><td>1</td><td>13</td><td>strong</td><td style='color:#0ca30c;font-weight:600'>+0.313</td><td>10</td></tr>
+<tr><td><b>REAL</b></td><td>7</td><td>14</td><td>strong</td><td style='color:#fab219;font-weight:600'>+0.261</td><td>10</td></tr>
+<tr><td><b>YELP</b></td><td>27</td><td>15</td><td>moderate</td><td style='color:#fab219;font-weight:600'>+0.234</td><td>10</td></tr>
+</table></div><p class='note'>상위 15개만 표시 (전체는 CSV).</p>
+<h2>3. Ground truth — 전체 그리드 (8 Y × 3 channel = 24조합)</h2>
+<p class='lead'>모든 채널 × 모든 Y를 실제 검정한 완전한 정답지. 색 = |r|, PASS = clustered-bootstrap &amp; surrogate 이중검정 통과. n&lt;15 = 커버리지 부족(회색).</p>
+<div class='twrap'><table><tr><th>channel</th><th>Y</th><th>r</th><th>rank-IC</th><th>n</th><th>검정</th></tr>
+<tr><td>card</td><td>rev_yoy</td><td style='background:rgba(42,120,214,0.66);color:#fff;font-weight:600'>+0.415</td><td>+0.514</td><td>560</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>card</td><td>surprise_early</td><td style='background:rgba(42,120,214,0.32);color:#fff;font-weight:600'>+0.201</td><td>+0.242</td><td>562</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>card</td><td>surprise_print</td><td style='background:rgba(42,120,214,0.31);color:#fff;font-weight:600'>+0.195</td><td>+0.241</td><td>562</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>card</td><td>sss_surprise</td><td style='background:rgba(42,120,214,0.55);color:#fff;font-weight:600'>+0.343</td><td>+0.345</td><td>210</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>card</td><td>sss_level</td><td style='background:rgba(42,120,214,0.85);color:#fff;font-weight:600'>+0.565</td><td>+0.643</td><td>210</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>card</td><td>SALES_RSF</td><td style='background:rgba(42,120,214,0.04);color:#fff;font-weight:600'>+0.028</td><td>+0.100</td><td>85</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>card</td><td>OCCUPY_RATE_TOT</td><td style='background:rgba(42,120,214,0.17);color:#fff;font-weight:600'>-0.108</td><td>+0.036</td><td>59</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>card</td><td>GMV</td><td style='background:rgba(42,120,214,0.72);color:#fff;font-weight:600'>+0.449</td><td>—</td><td>17</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>foot</td><td>rev_yoy</td><td style='background:rgba(42,120,214,0.62);color:#fff;font-weight:600'>+0.385</td><td>+0.376</td><td>434</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>foot</td><td>surprise_early</td><td style='background:rgba(42,120,214,0.02);color:#fff;font-weight:600'>+0.015</td><td>-0.035</td><td>434</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>foot</td><td>surprise_print</td><td style='background:rgba(42,120,214,0.01);color:#fff;font-weight:600'>+0.006</td><td>-0.057</td><td>434</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>foot</td><td>sss_surprise</td><td style='background:rgba(42,120,214,0.11);color:#fff;font-weight:600'>+0.072</td><td>+0.156</td><td>384</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>foot</td><td>sss_level</td><td style='background:rgba(42,120,214,0.31);color:#fff;font-weight:600'>+0.193</td><td>+0.343</td><td>384</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>foot</td><td>SALES_RSF</td><td style='background:rgba(42,120,214,0.08);color:#fff;font-weight:600'>+0.049</td><td>+0.073</td><td>168</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>foot</td><td>OCCUPY_RATE_TOT</td><td style='color:var(--ink2)'>—</td><td>—</td><td>11</td><td><span class='badge' style='background:#999'>n&lt;15</span></td></tr>
+<tr><td>foot</td><td>GMV</td><td style='color:var(--ink2)'>—</td><td>—</td><td>0</td><td><span class='badge' style='background:#999'>n&lt;15</span></td></tr>
+<tr><td>click</td><td>rev_yoy</td><td style='background:rgba(42,120,214,0.09);color:#fff;font-weight:600'>+0.058</td><td>+0.467</td><td>315</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+<tr><td>click</td><td>surprise_early</td><td style='background:rgba(42,120,214,0.19);color:#fff;font-weight:600'>+0.122</td><td>+0.082</td><td>319</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>click</td><td>surprise_print</td><td style='background:rgba(42,120,214,0.13);color:#fff;font-weight:600'>+0.082</td><td>+0.091</td><td>319</td><td><span class="badge" style="background:#0ca30c">PASS</span></td></tr>
+<tr><td>click</td><td>sss_surprise</td><td style='color:var(--ink2)'>—</td><td>—</td><td>9</td><td><span class='badge' style='background:#999'>n&lt;15</span></td></tr>
+<tr><td>click</td><td>sss_level</td><td style='color:var(--ink2)'>—</td><td>—</td><td>9</td><td><span class='badge' style='background:#999'>n&lt;15</span></td></tr>
+<tr><td>click</td><td>SALES_RSF</td><td style='color:var(--ink2)'>—</td><td>—</td><td>9</td><td><span class='badge' style='background:#999'>n&lt;15</span></td></tr>
+<tr><td>click</td><td>OCCUPY_RATE_TOT</td><td style='color:var(--ink2)'>—</td><td>—</td><td>0</td><td><span class='badge' style='background:#999'>n&lt;15</span></td></tr>
+<tr><td>click</td><td>GMV</td><td style='background:rgba(42,120,214,0.24);color:#fff;font-weight:600'>+0.148</td><td>+0.111</td><td>39</td><td><span class="badge" style="background:#d03b3b">fail</span></td></tr>
+</table></div>
+<h2>4. LLM 근거 (발췌)</h2>
+<h3>card</h3>
+<div class='quote'><b>metric:</b> Consumer card spend is most powerful when the reported metric is also a dollar measure of consumer transactions. It is strongest for revenue growth levels, still useful for revenue or GMV surprises where consensus has not fully incorporated actual quarter spending, and weaker for normalized operating metrics that require denominators the signal does not observe, such as same-store definitions, square footage, or hotel rooms occupied.</div>
+<div class='quote'><b>company:</b> I rank the signal highest where consumer credit/debit card dollars are the economic transaction that becomes reported quarterly revenue: specialty retail, grocery, restaurants, and consumer leisure with little lag. I downgrade companies where card spend is a gross-volume proxy rather than revenue, where revenue is royalty/fee/take-rate based, where bookings are recognized later, where B2B/wholesale/franchise/international channels are large, or where payments occur through app stores, subscriptions, ACH, insurance, cash, or corporate accounts. The key distinction is whether the card data measures the same dollar that analysts are forecasting as revenue, not merely whether consumers interact with the brand.</div>
+<h3>foot</h3>
+<div class='quote'><b>metric:</b> Mobile geolocation foot traffic is a physical-visit volume signal. It is strongest for operating metrics whose numerator is in-store activity and weakest when the target is consensus-adjusted, value-based, online, or dependent on ticket size and mix. Therefore it should best predict actual same-store sales and revenue growth, retain some but weaker power for early surprises and sales-density surprises, and have little incremental power for print-time revenue surprise, hotel occupancy surprise, or GMV.</div>
+<div class='quote'><b>company:</b> Mobile geolocation foot traffic is most predictive when reported revenue is mainly physical-location transaction volume with relatively stable ticket and limited non-store channels. It is strongest for company-operated restaurants and store-dependent off-price/value retailers. It becomes only moderate when ticket size, promotions, e-commerce, franchising, fuel/pharmacy, global exposure, or analyst-visible public demand data dilute the incremental information. It is weakest where visits do not map cleanly to reported revenue, such as pharmacies, auto parts commercial delivery, home-improvement project tickets, casinos, and refining.</div>
+<h3>click</h3>
+<div class='quote'><b>metric:</b> Clickstream is most powerful when the measured website visit is economically close to the revenue-generating action. Therefore it should work best for online revenue growth and marketplace GMV, somewhat less well for revenue surprises after consensus is considered, and only weakly for offline operating metrics. Metrics that are store-density or store-comps surprises require the web signal to proxy physical behavior and also beat consensus, making them much less predictable.</div>
+<div class='quote'><b>company:</b> This ranking prioritizes businesses where monthly web visitors are closest to the economic transaction that creates revenue: online retail, e-commerce marketplaces, OTAs, and ticketing marketplaces rank highest because a visit often represents purchase intent and can convert within the quarter. Companies where traffic is important but monetization is indirect, lagged, subscription-based, ad-sales-driven, or dependent on supply constraints rank in the middle. The weakest names are offline-dominant, app-dominant, highly diversified, or cases where visitor traffic measures the non-paying side of the marketplace rather than the paying customer.</div>
+<footer>재현: <code>li_00→li_04</code> 순차 실행. LLM 응답·FactSet metric 전부 캐시(cache/) — 같은 입력 → 같은 출력. Carbon Arc 추가 다운로드 없음(기구매 framework 무료 재사용). 검정 gate = clustered-bootstrap &amp; shuffle-surrogate 이중검정. no-lookahead: X 관측 &lt; 실적발표일.</footer></div></body></html>
