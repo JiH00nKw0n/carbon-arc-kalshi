@@ -1,0 +1,370 @@
+Q2 2026 Earnings Call, 2026-03-09 
+ Operator; - operator 
+
+ Good afternoon and welcome to the Vail Resorts' Fiscal Second Quarter 2026 Earnings Conference Call. Today's conference is being recorded. Currently, all callers have been placed in a listen-only mode, and following management's prepared remarks, the call will be open for your questions.
+
+I will now turn the call over to Connie Wang, Vice President of Investor Relations at Vail Resorts. You may begin. 
+ Connie Wang;Vice President-Investor Relations - corprep 
+
+ Thank you, operator. Good afternoon, everyone, and welcome to Vail Resorts' fiscal 2026 second quarter earnings conference call. Joining me on the call today are Rob Katz, our Chief Executive Officer; and Angela Korch, our Chief Financial Officer.
+
+Before we begin, let me remind you that some information provided during this call may include forward-looking statements that are based on certain assumptions and are subject to a number of risks and uncertainties, as described in our SEC filings, and actual future results may vary materially. Forward-looking statements in our press release issued this afternoon along with our remarks on this call are made as of today, March 9, 2026, and we undertake no duty to update them as actual events unfold.
+
+Today's remarks also include certain non-GAAP financial measures, reconciliations of these measures are provided in the tables included with our press release, which, along with our quarterly form report on Form 10-Q, were filed this afternoon with the SEC and are also available on the Investor Relations section of our website at www.vailresorts.com.
+
+I would now like to turn the call over to Rob for opening remarks. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Thanks, Connie. Good afternoon, everyone, and thank you for joining us for our second quarter earnings call. This quarter and our full-year outlook reflect the challenges we face this season, including the most difficult weather environment in the Rockies we have ever seen, with snowfall and snowpack at or near all-time historic lows, even worse than fiscal year 2012, which had previously been our season with the worst conditions in the Rockies.
+
+Our second quarter was significantly impacted by these unprecedented weather challenges in the Rockies, which weighed on visitation and overall performance. In addition to Rockies snowfall through February being at historic lows, it's also been the warmest winter to date on record for Colorado. For example, February was 9 degrees warmer than average in the Rockies, which has dramatically impacted our ability to open terrain.
+
+This season saw the latest opening of the Back Bowls at Vail Mountain and Imperial Lift at Breckenridge, and only 70% to 80% of acres opened through the end of February at our resorts in Colorado and Utah, but the Rockies are the largest driver of resort EBITDA for the company, and as such, the poor weather had an outsized negative impact on our results this year.
+
+While these conditions weighed on our results, they also underscore the importance of our advanced commitment strategies. While pass units may have declined a couple of points over the past few years, it's important to highlight that we've grown our pass units by 55% over the past five years, with passholders now making up approximately 75% of our annual visitation, providing meaningful stability, especially in a year like this.
+
+Over the past decade, we've also meaningfully expanded the geographic diversity of our portfolio to help mitigate regional weather impacts. While that benefit is less evident this year given the severity of conditions in the Rockies, diversification has provided more support than it did historically, and it will continue to play an important role over time. We're proud of the resilience of our business model that is now more durable, more diversified, and well-positioned for our next phase of growth.
+
+We continue to advance strategic initiatives to optimize visitation, supported by enhanced marketing initiatives and new products. We saw the first signs of that last fall as we materially changed the trajectory of pass sales post-Labor Day, which was critical heading into this season. We also launched pass sales for the 2026-2027 season last week with new products and targeted pricing adjustments. Most notably, we introduced new pricing for skiers and riders ages 13 to 30 at 20% less than standard pricing, providing a more accessible pathway for the next generation of skiers who are the future of our sport.
+
+This incentivizes young adults, those ages 18 to 30, who tend to be more price-sensitive and likely were more impacted by the price increases we took over the past four years. We supported this new product with our enhanced marketing strategy, including the launch of a new campaign this week called Epic Passion, which leans into the emotional connection skiers and riders, particularly Gen Z, have with the sport.
+
+This campaign exemplifies our evolved marketing approach of supporting new products through integrated investment and messaging across channels, including a social-first and influencer-driven approach to content to reach younger guests and drive awareness and conversion. For our broader array of passes, we announced 3% to 4% price increases for Epic and Epic Local Passes before taxes. Combined with our new 20% discount for young adults, price changes we made to Epic Day Passes and other unlimited regional products, this results in an approximately 3% to 4% blended price increase before the impact of any mix changes.
+
+Additionally, this year, we are passing through the sales and lift tax the company pays to local communities on multi-resort passes in the same way we do for lift tickets and all of our other mountain products. The tax rate for most of our passes is approximately 3%.
+
+Lastly, as part of the broader integrated approach across lift tickets and passes, we also made targeted updates to pass pricing, including adjustments to Epic Day Pass pricing to incentivize greater frequency, resulting in higher increases on one- to two-day passes and year-over-year decreases on six- to seven-day passes. These are key steps in advancing our portfolio of products to address our largest opportunities to drive revenue growth.
+
+Moving on to our lift ticket initiatives, we are seeing positive early reception to our Epic Friend and advanced lift tickets introduced this season, both of which are especially noteworthy in light of the soft weather conditions we've had this year. Epic Friend ticket redemption rates are up over the legacy passholder benefit tickets and showing growth in visitation compared to declines across traditional ticket types, demonstrating that this product is both delivering meaningful value to passholders while also expanding a key top-of-funnel audience.
+
+Similarly, our one-month advanced lift tickets are showing positive signs of moving guest purchasing behavior earlier despite the uncertainty this year around weather. We are also encouraged by the results from our off-peak pricing strategy at select resorts. It's been a difficult season to truly evaluate performance of these products given the magnitude of the weather overhang, but these initial results give us confidence that these products are expanding our reach and strengthening the funnel into our pass business.
+
+Most importantly, in the face of very challenging conditions, we achieved record high system-wide guest satisfaction scores this season, including increases year-over-year in Colorado and Utah, which is a direct reflection of the caliber of our team members and their exceptional execution throughout the season. I want to extend my sincere appreciation to our frontline teams for their unwavering commitment to our guests, which was critical during this time.
+
+Overall, the collective strength and focus of this organization are evident. As I mentioned upfront, this year underscores the stability of our advance commitment strategy, what it provides. We have purposely built a model that has been designed to withstand challenging weather years through regional diversification, pre-commitment of roughly 75% of visits through our pass products, and continued investment in snowmaking, and that's just part of the story. Combined with new lift ticket and pass initiatives launched this season and our reimagined marketing approach and significant investments in guest-facing technology and an opportunity to completely reimagine the gear business, I'm confident we are setting ourselves up for the next phase of growth. Looking ahead, we are well-positioned to continue elevating the guest experience, executing with discipline, and delivering sustainable long-term value for our shareholders.
+
+With that, I will now turn the call over to Angela to review our financial results and outlook in more depth. 
+ Angela A. Korch;Executive Vice President & Chief Financial Officer - corprep 
+
+ Thanks, Rob. Good afternoon, everyone. I'll now walk through our second quarter financial results, season to date metrics, and our updated outlook for fiscal 2026. Starting with the second quarter results. As Rob mentioned, historically challenging conditions in the Rockies significantly impacted performance in the quarter, with Rockies snowfall down 43% year-over-year. Conditions in Whistler and Tahoe have also been variable, while conditions in the East were strong this season, providing a partial offset and highlights the geographic diversification of our portfolio.
+
+Q2 total net revenue declined approximately 5% in the second quarter, compared to the prior year, driven by unfavorable weather conditions that negatively impacted visitation and ancillary spending for both local and destination guests. Total Q2 lift revenue declined approximately 3%, despite visitation being down 13%. This performance reflects the stability provided by pass sales, which were up approximately 3% heading into the season. Q2 resort reported EBITDA declined approximately 8% compared to the prior year as weather-related headwinds were partially offset by disciplined cost management and continued savings from our resource efficiency transformation plan.
+
+Turning to season to date metrics through March 1, skier visitation declined approximately 12%, consistent with the ongoing weather impacts we saw during the second quarter. Lift revenue declined approximately 4% as growth in pass revenue was partially offset by – was offset by declines in non-pass lift ticket revenue. To highlight the magnitude of the conditions impact, even our most committed pass visitation declined approximately 14%, while non-pass lift ticket visitation declined approximately 6%. Ancillary revenue trends improved compared to January metrics, though they remain down versus the prior year due to lower visitation, partially offset by increased yield per visit.
+
+Moving to our fiscal 2026 full year outlook. Persistent challenging weather conditions through February in the Rockies continued to limit terrain availability and we are reducing our fiscal 2026 net income and resort reported EBITDA guidance. We now expect net income attributable to Vail Resorts in the range of $144 million to $190 million and resort reported EBITDA in the range of $745 million to $775 million. With the reduction in earnings, we now expect cash taxes for the year to be approximately $95 million to $105 million.
+
+Given the unprecedented conditions in the Rockies, we are pleased with the stability provided by our pass program and resource efficiency transformation savings. To put the magnitude of the conditions impact into context, Rockies snowfall this season is approximately 40% lower than fiscal 2012, which was historically the year with the most unfavorable weather conditions until now. We acknowledge that given challenging conditions persisting this late into the season, there is greater variability in our guidance for the year despite limited time left in the season. Our updated guidance range reflects our assumptions outlined in the press release, including the conditions for the rest of the season are consistent with the current levels in North America.
+
+Turning to our resource efficiency transformation plan, we now expect to exceed the initial $100 million annualized savings target by approximately $6 million by the end of fiscal 2026. This program continues to drive improvements in organizational effectiveness and operating leverage. For fiscal 2026, we expect to deliver approximately $42 million of incremental savings versus the prior year before approximately $15 million of one-time operating expenses.
+
+Finally, turning to liquidity and capital allocation. Despite the difficult operating environment this year, we remain confident in the strength of our cash flow generation and the stability of our business model. Our balance sheet remains strong as we ended the quarter with liquidity of approximately $1.1 billion and net leverage 3.1 times trailing 12 months EBITDA. During the quarter, we retired our convertible debt of $525 million using a combination of net proceeds from our delayed draw term loan and cash on hand. On February 9, we amended our credit agreement to extend the maturity date to 2031, revised the pricing levels, and slightly increased the facility size.
+
+On capital allocation, our priorities remain unchanged. We continue to prioritize reinvestment in the business and balance sheet flexibility to pursue attractive acquisition opportunities. We then look to return capital to shareholders. We reaffirmed our calendar year 2026 capital plan with core capital expenditures of $215 million to $220 million and total capital spending in the range of $234 million to $239 million, with a continued focus on technology investments that can be deployed at scale across the enterprise. We also maintained the quarterly dividend at $2.22 per share and will remain opportunistic on buybacks, as evidenced by repurchasing 0.3 million shares for a total of $45 million year-to-date.
+
+In light of the results from this year, we reevaluated the current dividend level and elected to hold our quarterly dividend flat as we do not believe this year's cash flow decline is indicative of the long-term cash generation potential of the business. We always take a long-term view when investing in the business and setting the level of the dividend, knowing that we may have variations due to weather like we experienced this year and we built a business model with strong cash flow generation and a balance sheet to withstand those fluctuations and stay focused on the future.
+
+To close, while the season has unfolded in an unusually difficult weather environment, the quarter reinforced the resilience of our business and the benefits of the strategic choices we've made over time. The stability provided by advanced commitment strategy, the progress we're making across lift ticket and pass initiatives, along with our resource transformation plan have all helped mitigate the impact of extremely challenging conditions this year. We remain confident in the actions we're taking, the durability of our cash flow profile as conditions normalize, and the strength of our balance sheet to support both reinvestment in the business and returns to shareholders.
+
+With that, I'll turn the call back over to the operator for Q&A. 
+ Shaun C. Kelley;Analyst - analyst 
+
+ Hi. Good afternoon, everyone, Rob and Angela. Just wondering, Rob, if we could start off by, I think usually right around now is when we flip the script and start talking about next season as hard as that is, and I know there's still a bit ahead of work for everybody, the team to do. But can you just talk about sort of how that conversation with your consumer is evolving in a sort of a season like this? And specifically, we read a lot about unusually warm temperatures in the base communities around areas like Denver and Salt Lake. So just kind of how do you think this ultimately impacts renewals and the look to next year in some of these local communities that were hit hard by weather this year? 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. I think it's certainly something that people will take into account. But I think what we've seen historically when there are big aberrations, like what we saw this year in terms of weather, we saw this I think back in 2012. We saw this I think the following year in 2012, 2013 for Tahoe, which had a pretty tough year. I think what we see is that people tend to look at this in terms of how many times they may have used their pass as also an aberration, that it's not really that they don't love skiing. It's not that they're not as connected to the sport, but just that the weather didn't show up this year like they may have hoped. But I think everyone also knows that that doesn't really change the likelihood that next year could be an amazing season. Even in this year where we had tough conditions out West, we obviously had really strong conditions in the Northeast. So I think people understand that there is a little variability to that. That's one of the reasons why we do provide our passes at a low price so that it's something that people can plan on year-after-year through good years and bad. Not to say – obviously, since we haven't seen a year like this, it's hard to know exactly how this will play out. But I don't think this is going to impact kind of long-term engagement in the sport. 
+ Shaun C. Kelley;Analyst - analyst 
+
+ Great. Thanks. And then maybe just as a short follow-up, more on the numbers. Angela, I got a couple of questions regarding sort of just the flow-through assumption here. So we look at the change from where you started the season in revenue relative to change in EBITDA. It's quite high. I mean, it's roughly 80%, which I think when we think about locking in a lot of the lift revenue would hopefully be a little bit of an offset. But can you just talk us through that, maybe where the delta and expectation was to your model and why that flow-through is as elevated as it is understanding that you're obviously a fixed cost business? 
+ Angela A. Korch;Executive Vice President & Chief Financial Officer - corprep 
+
+ Yeah. I mean, that is the punchline, Shaun, I think 
+ Shaun C. Kelley;Analyst - analyst 
+
+ Thank you. 
+ Operator; - operator 
+
+ We'll move next to David Katz with Jefferies. Your line is open. 
+ David Katz;Analyst - analyst 
+
+ Hi. Good day, everyone. Thanks for taking my question. Rob, I wanted to go back to one of the issues that we – you talked about a bit, which is the marketing efforts, particularly the social presence and any feedback, results, input, impact, updates there would be helpful. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Sure. I think we started to see, I think, the real benefits of that in the fall of last year with pass sales, where we really saw that kind of big change in trajectory of pass sales, which – through Labor Day and then post-Labor Day. And I think we've continued to see that this year. I think some of our kind of social-first content, influencer content has been some of the best performing content we've had throughout the year, which I think highlights the strategic change, right, that – which I think is again not about Vail Resorts, but the broader marketplace where people are looking for more authentic, more real-time content. They're looking for more voices than just the company amplifying that content. And quite frankly, they are – yeah, they want to see us show up in the places that they are engaging, which I think we have been this year. And so we do feel very good about all the – both media spend and channel shifts that we made this year, because we are tracking kind of the incremental return that we're getting from that spend and it's all been very good. Now, unfortunately, that, of course, is not enough to overcome some of the other dynamics we're talking about with weather and visitation. But so far, in terms of what we've seen, we feel like it was absolutely the right choice and something we're going to continue going forward. 
+ David Katz;Analyst - analyst 
+
+ I appreciate that. And I wanted to – just as my follow-up, at the risk of trying to steal some thunder from the analyst meeting, we've seen a couple of buddy programs, Epic discount programs, the Gen Z program. Is this the direction we should expect you to continue progressing, which is to offer very specific kinds of discounts in the interest of driving some visitation with the hope of ancillary spending and return? 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. And yeah, we'll share a little bit more at the investor conference. But I would say that it isn't necessarily like the strategy that we're going to take is about discounting. I think what you're going to see from us is constantly looking at where we think we can optimize price, optimize features and benefits and performance. And we're going to make whatever moves we think are the right moves for the business and the program for that. And so what you saw with our kind of Gen Z effort, young adult effort was really seeing that, yeah, when we look back over a number of years, we saw a growth in a lot of different segments of our pass business. But the area that we were showing the most struggles was in this age group.
+
+And I think when you look back over the past price increases that we've had, those were taken – I mean, you could look at it as a discount today or you could look at it that, hey, we provided price increases over the last four years across the board in the program. That probably hit, right, folks who were earlier in their career, so to speak, harder. And so I think what we're doing is kind of resetting a little bit from that based on looking at all the data and all the information we have. And we do think it's critical that we keep the engagement of these folks in the sport for the future. But as we go forward, you'll see us make other adjustments where we may increase prices, pass through prices, other things that we think make more sense in terms of how we drive overall revenue, which is really just the ultimate goal here. 
+ David Katz;Analyst - analyst 
+
+ Appreciate the color. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. Sure. 
+ Operator; - operator 
+
+ We'll move next to Patrick Scholes with Truist. Your line is open. 
+ Patrick Scholes;Analyst - analyst 
+
+ Hi. Thank you. When I think back to the most recent weak snowfall season, that being 2017 to 2018. After that season, you went very heavy on the CapEx and upgraded your systems for snowmaking. Is something like that being contemplated for after this season in light of the very weak snowfall? Thank you. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. I can't exactly remember. I'd have to go back and look at exactly what we did after that year. But I would say that the plans that we make for capital start – so we're currently spending money in what we call capital year 2026. We start planning for capital year 2026 in the spring of 2025, or sometimes even earlier, and making commitments on those plans, maybe in September, late summer, September 2025. So what I'd say is
+
+So what I'd say is we have a long term commitment to upgrading snowmaking as part of that guest experience. I think we actually did see – again, hard to see through all the challenge of this year, but Keystone had a strong year, which I think was absolutely – because of the investments that we made in snowmaking there and I do think that even the investments we made at Vail a number of years back, as you're pointing out, I think really helped us. So that is absolutely something we're going to continue to look at as we go forward, and I would say it's not that this year will change that. I think we understand, having been in the business for a long time, that this is the nature of the business. And so, we're going to prioritize those types of opportunities as we think they make sense. 
+ Patrick Scholes;Analyst - analyst 
+
+ Okay. Thank you. 
+ Operator; - operator 
+
+ We'll take our next question from Matthew Boss with JPMorgan. Your line is open. 
+ Matthew R. Boss;Analyst - analyst 
+
+ Great. Thanks. So, Rob, maybe just trying our best to parse through some of the most difficult weather conditions this season for your business as you cited. Could you elaborate on traction that you're seeing with the proactive actions that you've put in place to accelerate visitation? Or how would you rank order maybe some of the green shoots? 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. I mean, again, it is hard to parse through this year, because obviously it's such a unique year. But we highlighted obviously the actions we took to drive pass sales, which clearly made a difference. And I think we're really helpful as we went into the season. We talked about that right in December and what we did in the fall, and we did see those shifts. I think on the three kind of lift ticket initiatives that we launched, Epic Friend, a ticket type that performed, was up, right, when every other ticket type was down, and obviously meaningfully down. So that tends to indicate that, yeah, people are, of course, interested in going there and that the lower price made a difference. We also saw a lot of folks going into Epic Friend, who, right, came from a lot of different kind of corners, so to speak. And so we felt like that was a real positive.
+
+The one month advanced discount that we offer, the same thing. People – we saw that grow quite a bit, again when a lot of other – all of our other advanced ticket types were down, and we saw a lot of prospects coming in, people who were new to the database, so to speak, from this one month advance ticket. And again, I would say, for that product in particular, unusual that you would see people in a year like this with so much weather instability that they would commit a month in advance. So I think that was also helped by the fact that we had a greater call to action on the website kind of a month out when people are really in there kind of looking and booking timeframe for making a vacation. So we feel really good about that.
+
+And we definitely saw some other resorts, like Keystone, which had good weather, but – good, better conditions. But honestly, really outperformed, and I think that was also because of the changes that we made to the off-peak ticket prices there. And even if you compare kind of the off-peak to off-peak or peak to peak for the exact same resorts, what we saw was that in a year like this, yeah, the lower prices really made a difference. None of this is that shocking. I think we understand that bringing those prices back in line are important. But I think all of those we do see as green shoots, because there are things that we're going to continue to build on for next year.
+
+Now, I will say that that doesn't mean that, like, we're going to go around just discounting. It is really this kind of more sharpshooter approach, right, where we're not – I think what we were probably doing before was a little bit more peanut butter as it related to pass and as it related to lift tickets, because we were trying to move everybody from lift tickets to pass. But at this point, right, we're now kind of coming back and really picking apart each and every product and time period to decide what's the best way 
+ Matthew R. Boss;Analyst - analyst 
+
+ Great. And then Angela, with resort EBITDA forecasted roughly $100 million below initial expectations for this year, under normal weather conditions, if that played out, I mean, what do you see as the recapture opportunity next year? And are there any reinvestments for us to consider as it relates to bottom-line? 
+ Angela A. Korch;Executive Vice President & Chief Financial Officer - corprep 
+
+ Yeah. Thanks, Matt. The changes from this year are all weather-related, as we noted, right? So all of this we see is, yeah, the visitation impact. That was obviously not part of our original guidance and very stark visitation obviously had the large revenue impact that we were just talking about with Shaun. And so yeah, that is all things that we would say was very unusual related to weather for this year. 
+ Matthew R. Boss;Analyst - analyst 
+
+ Helpful color. Best of luck. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Thanks. 
+ Operator; - operator 
+
+ We'll move next to Jeff Stantial with Stifel. Your line is open. 
+ Jeffrey Stantial;Analyst - analyst 
+
+ Great. Good afternoon, everyone. Thanks for taking our questions. Maybe following up on Shaun's question and then Matt's question just now. Rob, so obviously, a chunk of the pass sales historically has come from cross selling skiers over that purchased a window ticket in the prior year season. Can you just remind us sort of years like this, really bad weather conditions, what have you seen in terms of the impact to that overall funnel? How does that play into pass sales, and is or has that factored into your expectation for this year? 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. No, there is no doubt that I think when you see less usage, whether it's lift tickets or passes, that it does have an impact. I think the question is like how much of that – for folks, typically, it's because people are just choosing not to ski for some reason. And I think in those situations, yeah, sometimes it's that kind of person who's either not – maybe not going to renew, not going to buy or buy less frequency products or something like that. But this I think when you get to a year like this, it's almost more like a life event that happens. So if somebody, for instance, gets injured, well, their skiing might go to zero. But that doesn't have any impact on the following year, right, if they're not healthy, or life event like children and things like that.
+
+So in other words, those are things that happened that people understand are really outside of this question that people go through about like, well, do I really like skiing and how much am I going to ski and all that. So that's – a year like this I think has a lot of that. Now that said, there's no doubt that it absolutely means that we have to work hard, right, to reach people who may not have come as much or may not have come at all or didn't buy lift ticket. So there's no doubt about that, and that's where I think we feel good about some of the moves that we've made going into this year in terms of the broader marketing, the increased investment, the different channels that we're reaching out to people, the young adult discount, the Epic Friend discount, and the promotion. We've been promoting turn in your ticket, right, all season long, which is new for us, because we typically didn't do that. So we do see all of those things as tailwinds. There's no doubt that the conditions and visitation is the headwind. 
+ Jeffrey Stantial;Analyst - analyst 
+
+ That's great. Thanks a lot, Rob. And then maybe switching gears over to Angela or Rob, whoever wants to take this, on the operating expenses side of things. Can you just remind us how much of the expense base here is utilities and just how to think about sensitivity in the model to higher energy costs, given everything going on from a geopolitical perspective? And that's all from us. Thanks. 
+ Angela A. Korch;Executive Vice President & Chief Financial Officer - corprep 
+
+ Yeah. We have not disclosed the exact percent of utility or energy. Obviously, we do have utility costs at all resorts. And energy at this point in the season, now that's dramatically ramping down. So yes, and we do also lock in some long-term contracts at a lot of our resorts. And so, yeah, we don't expect that the energy piece is now part of kind of our changed outlook for the year. And it's we'll monitor as we go into next year. 
+ Jeffrey Stantial;Analyst - analyst 
+
+ Thank you, both. 
+ Operator; - operator 
+
+ We'll move next to Arpiné Kocharyan with UBS. Your line is open. 
+ Arpiné Kocharyan;Analyst - analyst 
+
+ Hi. Thank you very much. My question is on the pass product pricing for the upcoming season. Sounds like the actual price increase is around 7% or so if you look at a like-for-like basis after taxes. And I understand there was a difference last year the way that was – I think taxes were included. At the same time, it seems like most of your initiatives, recent initiatives are really focused on pricing, mostly targeting discounting for both lift and pass offering for the upcoming season. I'm just trying to understand the 7% like-for-like pricing better. Is there a segment of your consumer that is not that price-sensitive and you can better segment more price-sensitive consumer by raising sort of overall cost to the core consumer in that 7% range, which to me was not that different to the pricing – versus the pricing increase you had the prior year? 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. So what I would say is I think, first of all, we obviously are providing a pretty big discount to a big chunk of our pass holders through this new young adult pricing program. So I think what you have to look at is everybody, It isn't a one price fits all to everybody. So for those guests, they're obviously seeing a pretty significant decline in pricing. And we do think that that is our most price-sensitive guests, especially those 18 to 30. And so I think when you look at it that way, we are essentially segmenting the customer base in a way. It's also consistent with what we've seen over the last four years in terms of performance of all of that. And I do think, yeah, I think we do charge tax on all of our products. And I think historically just because network was growing, it was moving around. We just had an additive here. But we do think at the time – and we do think a lot of consumers understand, look at it a little bit differently. They understand that that is what they should expect when they purchase almost any product and certainly any product in travel. So yeah, it did give us comfort that on an overall basis, we felt good about the moves that we were making going into the pass selling season for next year. 
+ Arpiné Kocharyan;Analyst - analyst 
+
+ Thank you. Helpful. And then you mentioned there is greater variability in your guidance. Could you zoom on that a little bit more? What is driving that variability on the guidance that you just issued? What needs to happen for you to come in at the higher end versus the lower end of that guidance range? 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. I just think at this point in the season, I would say typically because the snowpack is lower, the conditions is more variable now than it has been different times. If I look back over the last 10 years on this same date, I think because the snowpack is higher, the conditions don't change as much between now and Easter or early April. Where here, actually, right, if we get a storm that comes through, that could really improve the conditions. If we don't get a storm and it's – the temperature goes up 5 degrees, that can hurt conditions. So I just think we're at a point in time that's – obviously, as we've mentioned a few times on this call for the Rockies, pretty much no one's ever seen. So I think that creates more uncertainty as to what we're going to see for the rest of the year. 
+ Arpiné Kocharyan;Analyst - analyst 
+
+ So it's entirely weather driven, there's no sort of current macro... 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. 
+ Arpiné Kocharyan;Analyst - analyst 
+
+ ...or geopolitical. Okay. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ No, no. 
+ Arpiné Kocharyan;Analyst - analyst 
+
+ Thank you very much. Thank you very much. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ All weather-driven. Yeah. 
+ Arpiné Kocharyan;Analyst - analyst 
+
+ Thank you. 
+ Operator; - operator 
+
+ Thank you. We'll take our next question from Ben Chaiken with Mizuho. Your line is open. 
+ Ben Chaiken;Analyst - analyst 
+
+ Hey, how's it going? Thanks for taking my questions. Rob, in the past, we've kind of talked about adding benefits to the pass, both ski and non-ski, to reduce weather dependency and drive year-round engagement. Clearly, you've been moving fast on product side with the Friend ticket, the advanced purchase, the lift ticket conversion.
+
+As you sit here today, using your words, the – arguably the worst Rocky Mountain season ever, does that accelerate or change your thinking on pass benefits, or do you feel the product is largely where you want it? Thanks. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ I think we're always looking at pass benefits, and I think that's something, yeah, we're – we'll definitely be taking a look at as we go into next year for sure. And there could definitely be things we add, there could be things we have for next season, there could be things we add for the FY 2028 passes that'll go on sale in March of 2027.
+
+I don't think – I would say though I think in the end, the primary benefit, I think that, that will just be a nice add-on, but the primary benefit of the pass is still going to be winter-focused. And we do think from all the research we've done, that is the thing that most people are saying that they want from the pass.
+
+Now, it's not to say that they wouldn't like to have some other benefits and perks and things like that, and we'll do that, but for us, yeah, the – what we constantly hear is, yeah, they want us to make the winter season better for them, whether it's benefits, perks, what they get, pricing, discounts, all of that.
+
+But that said, like, yeah, there are probably ways that we can absolutely just improve the overall package by adding things that, yeah, might be useful in the summer. But I don't that, that changes like the weighting of winter, summer, the way people think about it. 
+ Ben Chaiken;Analyst - analyst 
+
+ Understood. And then as you think about the overall structure of your pass, is the young adult cohort largely a single-day guest today, again, on a kind of a relative basis as you think about the buckets, meaning, do you expect this purchase to be largely an incremental pass sale? Thanks. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Oh, well, wait, sorry. You said – yeah, you said, are they a single-day – they're definitely – no, they – they're – they frequent and they ski quite a bit, and so I wouldn't say that. But in terms of whether we think that this new pricing will help get new people into the program, absolutely, and we do think it makes a difference. And we think that, yeah, being more aggressive to this cohort, especially right now, we think can make a real difference in terms of the people that we bring into our program and into the sport. 
+ Ben Chaiken;Analyst - analyst 
+
+ Got it. I didn't necessarily mean one day. I meant like a window ticket versus a pass is maybe a better way to phrase it. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. I would say both. I think we – yes, not window, but lift tickets, yes, I think they definitely – we do see a lot of these folks not wanting to make that commitment. But I think it's broadly, it's also just, yeah, that they – they may – if the pricing gets too high, they just may not engage, right, overall in the sport or engage as much. 
+ Ben Chaiken;Analyst - analyst 
+
+ Thank you. 
+ Operator; - operator 
+
+ We'll move next to Laurent Vasilescu with BNP Paribas. Your line is open. 
+ Unknown name;Unknown title - Unknown participant type 
+
+ Hi, guys. It's 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. So I think, we – the good news for us is that we have a lot of data on the behavior of our guests, and we have a lot of data that both lift ticket data at across all of our resorts and pass purchase and visitation. We've been at this a long time. And so we're basically looking at, yeah, what we think are the price elasticities of these different groups and cohorts, and we're looking for prices that we think ultimately optimize the total revenue for us.
+
+And when we look at that, we do include, it's not just lift revenue, we also include all of our ancillary revenue, and we also include what we think getting them into a pass does in terms of return rate and, therefore, the long-term value that we're creating. And so that's how we got to that discount. And it is – yeah, it's not just a swag, like it's – we're – we spend a lot of time trying to identify what we think is the best opportunity. And then, sorry, your second question was? 
+ Unknown name;Unknown title - Unknown participant type 
+
+ About kind of maybe how you're thinking about pass pricing versus the lift ticket or lift window... 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Oh, lift ticket. Yeah, I think... 
+ Unknown name;Unknown title - Unknown participant type 
+
+ ...but, yeah. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah, I – we think there's a – there is definitely a gap there, right, that was created I think back four years ago in terms of when we reduced pass pricing 20%, so it has given us some room to move lift ticket pricing down without, in our minds, really affecting pass pricing or pass demand. But I think for – in this cohort, yeah, I don't – I think we were really more looking at what the pass prices were for this cohort over the last four years and what we saw in terms of their demand and performance over the last four years. That's really what drove that decision, less about actual lift ticket pieces.
+
+But we do think, yes, that obviously, some of the other things that we're doing, including Epic Friend tickets and our one month advance ticket, all of that also, we think, are good opportunities for this cohort as well. 
+ Unknown name;Unknown title - Unknown participant type 
+
+ Okay, great. Thank you. 
+ Operator; - operator 
+
+ We'll move next to Brandt Montour with Barclays. Your line is open. 
+ Brandt Montour;Analyst - analyst 
+
+ Great. Thanks, everybody. So, Rob, you described young adults as being a big chunk of your guests. It seems like you're expecting a fair amount of elasticity to come from this program. That would imply perhaps a mix shift toward a lower value guest. Even if it's a higher LTV, it's perhaps a lower value guest near and medium term. So is that true, right, one; and then two is how should we think about how sensitive the model might be to that shift? 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. I would say by definition, yeah, there are folks, I mean – but this would be true for every travel company, I think, which is typically, folks in their 20s have less disposable income than folks in their 40s and 50s and 60s, and so – but that doesn't mean that – it may be that on a relative basis, that's true, but it doesn't mean that they're not highly value add to our model and to the business and wanting to be a part of the program and the sport.
+
+So, in our minds, we're really not looking at kind of the yield per guest because in a fixed cost business, right, there's a lot of flow through that comes from adding people onto our mountains, and we have some of the largest mountains, right, in the world. And so for us, we really look at it as, yeah, how do we make sure that we're optimizing that equation for each age group.
+
+And I think as we look at the model going forward, no, we think, it's accretive to the model going forward, we don't think it takes away anything. It's certainly true that it's possible that they might spend less on the mountain than other people, but that doesn't mean, again, that, that in total, it's not going to be highly accretive. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah, yeah. But I would say I think really important to highlight that in 2021-2022, that was not an issue that we had too many people. It was an issue we had enough – didn't have enough employees. And it was an issue of, yeah, that we had so many people out from COVID, it was right in the global labor shortage, and we literally – Christmas was like peak of that.
+
+I would say that while it's true that on any given day, in any given moment on a mountain, you could have lines, but we see that as relatively transitory. And I think when you look across our mountains, yeah, that we do have lots of an excess capacity, and so, yeah, we view this as highly incremental. And certainly, we don't see this as, in any way, pushing other guests out. I mean, it's not – we don't see it as a zero-sum game at all.
+
+And by the way , there are other pricing points in the rest of the vacation that tend to stabilize or balance that out in terms of the price of lodging, right? So if you're at a peak week between Christmas, lodging is very expensive, airfare is very expensive, everything is very expensive. So to the extent you have more price-sensitive guests, they tend to come in other times.
+
+And actually, if you look back over the last couple of decades, what you've seen is that the pass program and this broadening of people in the program has actually smoothed out the visitation, it has not really added to the peaks. And so, yeah, we don't – we see this as just positive if we can do it successfully and not necessarily taking away from some other part of the revenue opportunity. 
+ Brandt Montour;Analyst - analyst 
+
+ Very helpful. Thanks, all. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Thanks. 
+ Operator; - operator 
+
+ We'll move next to Chris Woronka with Deutsche Bank. Your line is open. 
+ Chris Woronka;Analyst - analyst 
+
+ Hey, good afternoon, guys. Thanks for taking the question. Not to beat a dead horse at this point, but circling back to the Gen Z young adult pricing strategy, was there – is there any concern or have you done the math on cannibalization of folks who might have on pass anyway?
+
+Then secondarily to that, do you worry at all that if cost is an issue for some of these younger skiers, that it's more of an all-in cost, right, if they have to get out – if they're taking a destination trip and they're going out of Colorado or Whistler, Park City, et cetera, that maybe the airlines aren't giving them the same discount or maybe they're not getting the same hotel discount? Is there any thought to – that this will be enough to get them over the finish line to buy a longer duration pass? 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. So what I'd say is two things. One is, yes, we, of course – when we're doing any kind of analysis like this, we're looking very closely at what we think is the cannibalization in terms of, hey, wait, we had a bunch of folks buying this today and now we're giving them a discount, and so we're going to lose revenue on those folks who are going to buy it anyway and we have to make up for – in that with volume elsewhere.
+
+But I think it's important to remember that, that same dynamic is true in reverse. So, ultimately, like when you raise price, you have to realize that some people are not going to keep paying those prices. And you're right that on – that, of course, all of this happens on margin, so it's not like there's like a bunch of people who all of a sudden say, oh, we're not going to do it, but it's on the margin.
+
+And I think based on what we've seen historically, that has allowed us to assess, right, what the pricing dynamic is here. So to the extent that we saw people coming out of the program from this cohort but not in other cohorts and we were taking price up quite a bit over the last four years, yeah, you start to realize that that may have had an impact.
+
+And, yes, it's true that folks, you could say, that there are other parts of the vacation that may not have come down right now, but there are other parts of the vacation that were the same, right, over the last four to five years. So when we're looking at it, I think one of the things that we have learned over the last couple of decades is that pass pricing in general is quite elastic.
+
+Yes, there is a group of people, it's true that, yes, it doesn't really matter to them in some cases because we've just taken the overall price down from where it was, $1,600 20 years ago and might have been $2,500 today, yeah, so those people who are at the very top of the income, yes. But actually, what we've seen is when we've moved pass pricing in the past, we do see volume going up and down. I think one of the things we saw this year with lift tickets was some of that price elasticity as well.
+
+That's not a bad thing. I think people feel like, oh, well, if you have price elasticity, does that mean you don't have pricing power? No. I think what we feel is that we just have to – it's constantly optimizing it to make sure that we're setting the right price which, of course, is what we did way back when, when we introduced the Epic Pass in the first place. 
+ Chris Woronka;Analyst - analyst 
+
+ Okay. Yes, fair enough. Fair points. Thanks, Rob. And then just as a follow-up, it's kind of another, I guess, customer research question for you, but do you – when you think about reasons why someone's not taking a ski vacation this year, obviously, weather is a good reason, but there could be other reasons. Do you look at something like the cruise industry? Do you guys study that and get a lot of information on that? Do you worry that you're losing customers to that industry and maybe not entirely related to the weather? Do you think about price points and multi-gen family travel, things like that? Thanks. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. I mean, I think the cruise industry clearly has done well. But when I look at overall visits to ski resorts last year, actually, they were pretty good, one of the better years, right, on record ever. And so I think that's in the face of the cruise industry being fully back or whatever, and so I don't see that necessarily as, yeah, that people are going out. I think it's really for us more about, yeah, overall, weather is definitely a factor, the overall cost of vacation, people's willingness to ski in general. But I don't know that that's like – that there's – that the cruise industry per se is taking from us.
+
+But I do think that our sport has to stay competitive and aggressive. And I think that, to the – one of the things that I think the cruise industry does, and we do look at the cruise industry quite a bit, and I would say one of the things they do well is they are really strong marketers with all kinds of different offers to different groups all the time, slicing and dicing their market, their experiences, what they're providing, the cross-sell, upsell technology.
+
+I think we've seen some really strong results there, especially from Royal Caribbean, and I think that's all stuff that I think we can learn from, which I think you're seeing us kind of use in how we're trying to pivot the company right now. 
+ Chris Woronka;Analyst - analyst 
+
+ Okay. Super helpful. Thanks, Rob. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Thanks. 
+ Operator; - operator 
+
+ We'll move next to Stephen Grambling with Morgan Stanley. Your line is open. 
+ Stephen W. Grambling;Analyst - analyst 
+
+ Hey, thank you. I realize most of the questions have been around pricing, but when we think about what's in your control from a customer experience standpoint, what initiatives are you most excited about, Rob, as we get ahead of next season? 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. I think the thing that I'm most proud about is, yeah, is just the talent and the staffing that we have, our team members on the ground at the resorts, who I think are doing an incredible job. And I think I've heard that anecdotally, and it's showing up in the actual results that we're seeing, they make a big difference in the guest experience. And in my mind, that started I think as we made investments in frontline wages back in 2022.
+
+And I think we've become much more selective, we – top of the funnel in terms of our recruiting and using technology across our HR system to bring people in and then be able to select who we think are best aligned with the values that we have. We're then seeing, right, higher seasonal employee return rates and engagement scores and retention rates. And that's now – we're seeing this now after three, four years, and all of a sudden, I think it's really coming together. So when I think about next year, I think that's a huge opportunity for us as we go forward.
+
+I think the other piece is technology, guest-facing technology, where I think there's really an opportunity with rentals, with the My Epic app, with the stats that we're providing, with the digitized engagement that we're providing in ski school by adding commerce onto the app. All of these things are things where we're pretty far out in front in many cases like Mobile Pass, where you don't need a lift ticket or card on your neck anymore, your phone acts as that.
+
+So it's kind of like we're creating an ecosystem where, yeah, I think that – and we're bringing our employees in on the technological ecosystem that we're creating. I don't think we're totally there yet. I think we've got another like, yeah, absolutely, couple of steps until we're where we want to be, but we're seeing really good, strong results right now.
+
+I mean, candidly, in a year like this, yeah, to have record guest satisfaction scores across the system, yeah, it's highly unusual, like – and to have guest satisfaction scores up in Colorado and Utah, yeah. And again, Utah, obviously, Park City's up because we had the strike last year, but it's up even when you're looking back over two years. And so in our minds, like that speaks – when conditions aren't good, usually, we see that go down.
+
+So the fact that we're seeing it up, we really say, yeah, that is the whole system working well, which, yeah, starts and ends with the folks on the ground who have the connection to our guests. 
+ Stephen W. Grambling;Analyst - analyst 
+
+ Thanks. And, Rob, you mentioned the technology side, and I think last quarter, you flagged content management system being rolled out as well and kind of alluded to it on this call, but is that fully implemented? And how do you think about the path to offering more personalized, not only pricing, but even some of those experiences and promotions? Are there still systems that need to be implemented and/or is there an iteration that we should be thinking about over a couple of years? 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Yeah. So, no, that new content management system or CMS is – we're putting it in now, so it's in capital year 2026 but it'll be in place for next year, for 2026-2027. And, yeah, that will absolutely allow us much greater personalization and agility in how we manage that system. Obviously, we're putting new functionality into the app. And so when you combine that, yes, it does allow us to be much more personalized with people.
+
+I think there's another couple of steps for us to get to because we ultimately want to get – for next year, we'll have lift tickets and passes in the commerce in the app, but we ultimately want to have rentals, we ultimately want to have – right now, they're pop-outs where you can still do it but it's not the same experience and, obviously, ski school.
+
+And at that point, we really have like an incredibly cohesive guest experience, including kind of, yeah, an FAQ bot of sorts that we have early stages of now where people can get their answer – questions answered and things like that. So I think we're – yeah, next year will be a big step forward, and two years from now, really we'll be in an outstanding spot. 
+ Stephen W. Grambling;Analyst - analyst 
+
+ Thank you. 
+ Operator; - operator 
+
+ This concludes the Q&A portion of today's call. I would now like to turn the call back over to Rob Katz for closing remarks. 
+ Robert A. Katz;Chairperson & Chief Executive Officer - corprep 
+
+ Thank you, operator. To wrap up, this season reinforced the resilience of our model and the importance of staying focused on what we can control. We remain confident in the long-term outlook and our balance sheet strength, and I again want to thank our frontline teams for their exceptional dedication and execution this season. Thank you, all, for your interest and for your time. 
+ Operator; - operator 
+
+ This concludes today's Vail Resorts' fiscal second quarter 2026 earnings conference call and webcast. You may disconnect your line at this time and have a wonderful day.
