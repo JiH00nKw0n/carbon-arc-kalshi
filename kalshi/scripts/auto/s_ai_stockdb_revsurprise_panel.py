@@ -22,7 +22,6 @@ ROOT = Path(__file__).resolve().parents[3]
 KALSHI_ROOT = ROOT / "kalshi"
 FEATURES = KALSHI_ROOT / "outputs" / "auto" / "kalshi_company_event_features.csv"
 OUT_CSV = KALSHI_ROOT / "outputs" / "auto" / "kalshi_stockdb_revenue_surprise_panel.csv"
-OUT_MD = KALSHI_ROOT / "docs" / "analysis_kalshi_stockdb_revenue_surprise_panel.md"
 
 DEFAULT_ENV_PATHS = [
     ROOT.parent / "mcp-server" / ".env",
@@ -64,12 +63,12 @@ def load_env(paths):
     return env
 
 
-def load_tickers(path, include_all_features):
+def load_tickers(path):
     if not path.exists():
         raise SystemExit(f"features CSV missing: {path}")
     d = pd.read_csv(path)
-    if not include_all_features and "feature_family" in d.columns:
-        d = d[d["feature_family"] == "numeric_kpi_ladder"].copy()
+    if "feature_family" in d.columns:
+        d = d[d["feature_family"] == "kpi_ladder"].copy()
     tickers = sorted(
         str(t).strip().upper()
         for t in d.get("matched_ticker", pd.Series(dtype=str)).dropna().unique()
@@ -78,6 +77,12 @@ def load_tickers(path, include_all_features):
     if not tickers:
         raise SystemExit(f"no matched tickers in {path}")
     return tickers
+
+
+def with_columns(frame, **columns):
+    data = {column: frame[column] for column in frame.columns}
+    data.update(columns)
+    return pd.DataFrame(data, index=frame.index)
 
 
 async def fetch_panel(args, tickers, env):
@@ -113,233 +118,226 @@ async def fetch_panel(args, tickers, env):
         if stocks.empty:
             return stocks
         stock_ids = stocks["stock_id"].tolist()
-        actual_rows = []
-        consensus_rows = []
-        skipped = []
-        for idx, row in enumerate(stocks.itertuples(), 1):
-            stock_id = row.stock_id
-            print(f"[db] fetching {idx}/{len(stock_ids)} {row.ticker}", flush=True)
-            try:
-                actual_part = await asyncio.wait_for(conn.fetch(
-                    """
-                    SELECT DISTINCT ON (stock_id, calendar_date)
-                           stock_id,
-                           calendar_date AS "FE_FP_END",
-                           item_value AS "ACTUAL",
-                           market_effect_date AS "REPORT_DATE",
-                           published_at
-                    FROM stock_earnings
-                    WHERE stock_id = $1
-                      AND item_type = 'SALES'
-                      AND period_type = 1
-                      AND calendar_date >= $2::date
-                      AND market_effect_date IS NOT NULL
-                    ORDER BY stock_id, calendar_date,
-                             published_at DESC NULLS LAST,
-                             market_effect_date DESC NULLS LAST
-                    """,
-                    stock_id,
-                    args.start_date,
-                ), timeout=args.query_timeout_seconds)
-                consensus_part = await asyncio.wait_for(conn.fetch(
-                    """
-                    SELECT stock_id,
-                           calendar_date AS "FE_FP_END",
-                           effective_from,
-                           estimates_average,
-                           number_of_estimates
-                    FROM stock_consensuses
-                    WHERE stock_id = $1
-                      AND item_type = 'SALES'
-                      AND period_type = 1
-                      AND calendar_date >= $2::date
-                    ORDER BY stock_id, calendar_date, effective_from
-                    """,
-                    stock_id,
-                    args.start_date,
-                ), timeout=args.query_timeout_seconds)
-            except Exception as exc:
-                skipped.append({"ticker": row.ticker, "stock_id": stock_id, "reason": type(exc).__name__})
-                print(f"[db-warning] skipped {row.ticker}: {type(exc).__name__}", flush=True)
-                continue
-            actual_rows.extend(actual_part)
-            consensus_rows.extend(consensus_part)
-            if idx % 10 == 0 or idx == len(stock_ids):
-                print(f"[db] fetched {idx}/{len(stock_ids)} stock ids", flush=True)
-        args.skipped_stock_fetches = skipped
+        print(
+            f"[db] fetching point-in-time panel for {len(stock_ids)} stock ids",
+            flush=True,
+        )
+        panel_rows = await conn.fetch(
+            """
+            WITH actuals AS (
+                SELECT DISTINCT ON (stock_id, calendar_date)
+                       stock_id,
+                       calendar_date AS "FE_FP_END",
+                       item_value AS "ACTUAL",
+                       market_effect_date AS "REPORT_DATE",
+                       published_at
+                FROM stock_earnings
+                WHERE stock_id = ANY($1::text[])
+                  AND item_type = 'SALES'
+                  AND period_type = 1
+                  AND calendar_date >= $2::date
+                  AND market_effect_date IS NOT NULL
+                ORDER BY stock_id, calendar_date,
+                         published_at DESC NULLS LAST,
+                         market_effect_date DESC NULLS LAST
+            )
+            SELECT actuals.*,
+                   early.estimates_average AS "CONS_EARLY",
+                   early.effective_from AS "CONS_EARLY_DATE",
+                   early.number_of_estimates AS "CONS_EARLY_N",
+                   printed.estimates_average AS "CONS_PRINT",
+                   printed.effective_from AS "CONS_PRINT_DATE",
+                   printed.number_of_estimates AS "CONS_PRINT_N"
+            FROM actuals
+            LEFT JOIN LATERAL (
+                SELECT estimates_average, effective_from, number_of_estimates
+                FROM stock_consensuses
+                WHERE stock_id = actuals.stock_id
+                  AND calendar_date = actuals."FE_FP_END"
+                  AND item_type = 'SALES'
+                  AND period_type = 1
+                  AND effective_from <= actuals."FE_FP_END" + $3::int
+                ORDER BY effective_from DESC,
+                         number_of_estimates DESC NULLS LAST,
+                         external_id
+                LIMIT 1
+            ) early ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT estimates_average, effective_from, number_of_estimates
+                FROM stock_consensuses
+                WHERE stock_id = actuals.stock_id
+                  AND calendar_date = actuals."FE_FP_END"
+                  AND item_type = 'SALES'
+                  AND period_type = 1
+                  AND effective_from <= actuals."REPORT_DATE" - $4::int
+                ORDER BY effective_from DESC,
+                         number_of_estimates DESC NULLS LAST,
+                         external_id
+                LIMIT 1
+            ) printed ON TRUE
+            ORDER BY stock_id, "FE_FP_END"
+            """,
+            stock_ids,
+            args.start_date,
+            args.early_days,
+            args.print_lag_days,
+            timeout=args.query_timeout_seconds,
+        )
+        print("[db] fetching fiscal labels", flush=True)
+        fiscal_document_rows = await conn.fetch(
+            """
+            SELECT sd.stock_id,
+                   sd.calendar_date AS "FE_FP_END",
+                   sd.name
+            FROM stocks s
+            JOIN stock_documents sd ON sd.stock_id = s.id
+            WHERE s.ticker = ANY($1::text[])
+              AND s.is_primary IS TRUE
+              AND sd.doc_type = 'earnings_call'
+              AND sd.calendar_date >= $2::date
+              AND sd.name IS NOT NULL
+            """,
+            tickers,
+            args.start_date,
+            timeout=args.query_timeout_seconds,
+        )
     finally:
         await conn.close()
-    actuals = pd.DataFrame([dict(r) for r in actual_rows])
-    consensus = pd.DataFrame([dict(r) for r in consensus_rows])
-    return build_panel_from_raw(stocks, actuals, consensus, args)
-
-
-def pick_consensus(actuals, consensus, as_of_col, prefix):
-    if actuals.empty or consensus.empty:
-        return pd.DataFrame({"row_id": actuals.get("row_id", pd.Series(dtype=int))})
-    base = actuals[["row_id", "stock_id", "FE_FP_END", as_of_col]].copy()
-    m = base.merge(consensus, on=["stock_id", "FE_FP_END"], how="left")
-    m = m[m["effective_from"].notna() & (m["effective_from"] <= m[as_of_col])].copy()
-    if m.empty:
-        return pd.DataFrame({"row_id": base["row_id"]})
-    m = m.sort_values(
-        ["row_id", "effective_from", "number_of_estimates"],
-        ascending=[True, True, True],
+    panel = pd.DataFrame([dict(r) for r in panel_rows])
+    if panel.empty:
+        return panel
+    panel = with_columns(
+        panel,
+        FE_FP_END=pd.to_datetime(panel["FE_FP_END"], errors="coerce"),
     )
-    picked = m.groupby("row_id", as_index=False).tail(1)
-    picked = picked[["row_id", "effective_from", "estimates_average", "number_of_estimates"]].rename(
-        columns={
-            "effective_from": f"{prefix}_DATE",
-            "estimates_average": prefix,
-            "number_of_estimates": f"{prefix}_N",
-        }
+    fiscal_periods = fiscal_period_map(
+        pd.DataFrame([dict(r) for r in fiscal_document_rows])
     )
-    return picked
-
-
-def build_panel_from_raw(stocks, actuals, consensus, args):
-    if actuals.empty:
-        return actuals
-    actuals = actuals.copy().reset_index(drop=True)
-    actuals["row_id"] = actuals.index
-    actuals["FE_FP_END"] = pd.to_datetime(actuals["FE_FP_END"], errors="coerce")
-    actuals["REPORT_DATE"] = pd.to_datetime(actuals["REPORT_DATE"], errors="coerce")
-    actuals["as_of_early"] = actuals["FE_FP_END"] + pd.Timedelta(days=args.early_days)
-    actuals["as_of_print"] = actuals["REPORT_DATE"] - pd.Timedelta(days=args.print_lag_days)
-    consensus = consensus.copy()
-    if not consensus.empty:
-        consensus["FE_FP_END"] = pd.to_datetime(consensus["FE_FP_END"], errors="coerce")
-        consensus["effective_from"] = pd.to_datetime(consensus["effective_from"], errors="coerce")
-        consensus["estimates_average"] = pd.to_numeric(consensus["estimates_average"], errors="coerce")
-        consensus["number_of_estimates"] = pd.to_numeric(consensus["number_of_estimates"], errors="coerce")
-
-    early = pick_consensus(actuals, consensus, "as_of_early", "CONS_EARLY")
-    printed = pick_consensus(actuals, consensus, "as_of_print", "CONS_PRINT")
-    panel = (
-        actuals.merge(stocks, on="stock_id", how="left")
-        .merge(early, on="row_id", how="left")
-        .merge(printed, on="row_id", how="left")
-    )
-    cols = [
-        "ticker", "stock_id", "stock_name", "exchange", "country",
-        "FE_FP_END", "REPORT_DATE", "published_at", "ACTUAL",
-        "CONS_EARLY", "CONS_EARLY_DATE", "CONS_EARLY_N",
-        "CONS_PRINT", "CONS_PRINT_DATE", "CONS_PRINT_N",
+    if not fiscal_periods.empty:
+        fiscal_periods = with_columns(
+            fiscal_periods,
+            FE_FP_END=pd.to_datetime(
+                fiscal_periods["FE_FP_END"], errors="coerce"
+            ),
+        )
+        panel = panel.merge(
+            fiscal_periods,
+            on=["stock_id", "FE_FP_END"],
+            how="left",
+            validate="many_to_one",
+        )
+    panel = panel.merge(stocks, on="stock_id", how="left", validate="many_to_one")
+    columns = [
+        "ticker",
+        "stock_id",
+        "stock_name",
+        "exchange",
+        "country",
+        "FE_FP_END",
+        "FISCAL_YEAR",
+        "FISCAL_QUARTER",
+        "REPORT_DATE",
+        "published_at",
+        "ACTUAL",
+        "CONS_EARLY",
+        "CONS_EARLY_DATE",
+        "CONS_EARLY_N",
+        "CONS_PRINT",
+        "CONS_PRINT_DATE",
+        "CONS_PRINT_N",
     ]
-    return panel[[c for c in cols if c in panel.columns]].sort_values(["ticker", "FE_FP_END"])
+    return panel[[column for column in columns if column in panel]].sort_values(
+        ["ticker", "FE_FP_END"]
+    )
+
+
+def fiscal_period_map(documents):
+    if documents.empty:
+        return pd.DataFrame(
+            columns=["stock_id", "FE_FP_END", "FISCAL_YEAR", "FISCAL_QUARTER"]
+        )
+    parsed = documents.copy()
+    labels = parsed["name"].fillna("").str.extract(
+        r"(?i)\bQ([1-4])\s*[,/-]?\s*(20\d{2})\b"
+    )
+    parsed = with_columns(
+        parsed,
+        FISCAL_QUARTER=pd.to_numeric(labels[0], errors="coerce"),
+        FISCAL_YEAR=pd.to_numeric(labels[1], errors="coerce"),
+    )
+    parsed = parsed.dropna(subset=["FISCAL_YEAR", "FISCAL_QUARTER"])
+    counts = (
+        parsed.groupby(
+            ["stock_id", "FE_FP_END", "FISCAL_YEAR", "FISCAL_QUARTER"],
+            as_index=False,
+        )
+        .size()
+        .sort_values(
+            ["stock_id", "FE_FP_END", "size", "FISCAL_YEAR", "FISCAL_QUARTER"],
+            ascending=[True, True, False, False, False],
+        )
+    )
+    return counts.groupby(["stock_id", "FE_FP_END"], as_index=False).head(1).drop(
+        columns="size"
+    )
 
 
 def add_surprises(panel):
     d = panel.copy()
-    for col in ["FE_FP_END", "REPORT_DATE", "CONS_EARLY_DATE", "CONS_PRINT_DATE"]:
-        if col in d.columns:
-            d[col] = pd.to_datetime(d[col], errors="coerce")
-    for col in ["ACTUAL", "CONS_EARLY", "CONS_PRINT"]:
-        d[col] = pd.to_numeric(d[col], errors="coerce")
+    date_columns = {
+        column: pd.to_datetime(d[column], errors="coerce")
+        for column in [
+            "FE_FP_END",
+            "REPORT_DATE",
+            "CONS_EARLY_DATE",
+            "CONS_PRINT_DATE",
+        ]
+        if column in d.columns
+    }
+    numeric_columns = {
+        column: pd.to_numeric(d[column], errors="coerce")
+        for column in ["ACTUAL", "CONS_EARLY", "CONS_PRINT"]
+    }
+    d = with_columns(d, **date_columns, **numeric_columns)
     valid_early = d["CONS_EARLY"].notna() & (d["CONS_EARLY"] != 0)
     valid_print = d["CONS_PRINT"].notna() & (d["CONS_PRINT"] != 0)
-    d["surprise_early"] = pd.NA
-    d.loc[valid_early, "surprise_early"] = (
-        (d.loc[valid_early, "ACTUAL"] - d.loc[valid_early, "CONS_EARLY"])
-        / d.loc[valid_early, "CONS_EARLY"]
+    surprise_early = (
+        (d["ACTUAL"] - d["CONS_EARLY"]) / d["CONS_EARLY"]
+    ).where(valid_early)
+    surprise_print = (
+        (d["ACTUAL"] - d["CONS_PRINT"]) / d["CONS_PRINT"]
+    ).where(valid_print)
+    actual_q4 = d.groupby("ticker")["ACTUAL"].shift(4)
+    return with_columns(
+        d,
+        surprise_early=pd.to_numeric(surprise_early, errors="coerce"),
+        surprise_print=pd.to_numeric(surprise_print, errors="coerce"),
+        actual_q4=actual_q4,
+        rev_yoy=d["ACTUAL"] / actual_q4 - 1,
+        cons_early_growth=d["CONS_EARLY"] / actual_q4 - 1,
     )
-    d["surprise_print"] = pd.NA
-    d.loc[valid_print, "surprise_print"] = (
-        (d.loc[valid_print, "ACTUAL"] - d.loc[valid_print, "CONS_PRINT"])
-        / d.loc[valid_print, "CONS_PRINT"]
-    )
-    d["surprise_early"] = pd.to_numeric(d["surprise_early"], errors="coerce")
-    d["surprise_print"] = pd.to_numeric(d["surprise_print"], errors="coerce")
-    d["actual_q4"] = d.groupby("ticker")["ACTUAL"].shift(4)
-    d["rev_yoy"] = d["ACTUAL"] / d["actual_q4"] - 1
-    d["cons_early_growth"] = d["CONS_EARLY"] / d["actual_q4"] - 1
-    return d
-
-
-def write_report(path, args, tickers, panel):
-    good = panel.dropna(subset=["surprise_early"])
-    lines = [
-        "# Kalshi matched tickers: Stock DB revenue-surprise Y panel",
-        "",
-        f"> Generated by `kalshi/scripts/auto/s_ai_stockdb_revsurprise_panel.py`.",
-        "",
-        "## Inputs",
-        "",
-        f"- features: `{args.features.relative_to(ROOT) if args.features.is_relative_to(ROOT) else args.features}`",
-        f"- ticker source filter: {'all Kalshi company features' if args.include_all_features else 'numeric KPI ladder features only'}",
-        f"- requested tickers: {len(tickers):,}",
-        f"- start date: {args.start_date}",
-        f"- CONS_EARLY rule: latest quarterly SALES consensus at fiscal quarter end + {args.early_days}d",
-        f"- CONS_PRINT rule: latest quarterly SALES consensus at least {args.print_lag_days}d before report market-effect date",
-        "",
-        "## Output coverage",
-        "",
-        f"- rows: {len(panel):,}",
-        f"- rows with `surprise_early`: {len(good):,}",
-        f"- tickers with `surprise_early`: {good['ticker'].nunique() if not good.empty else 0:,}",
-        f"- date range: {panel['FE_FP_END'].min().date() if len(panel) else ''}..{panel['FE_FP_END'].max().date() if len(panel) else ''}",
-        f"- missing CONS_EARLY rows: {panel['CONS_EARLY'].isna().sum() if len(panel) else 0:,}",
-        f"- missing CONS_PRINT rows: {panel['CONS_PRINT'].isna().sum() if len(panel) else 0:,}",
-    ]
-    if not good.empty:
-        lines += [
-            f"- surprise_early mean: {good['surprise_early'].mean():+.4f}",
-            f"- surprise_early sd: {good['surprise_early'].std():.4f}",
-            "",
-            "## Sample",
-            "",
-            "| ticker | FE_FP_END | REPORT_DATE | ACTUAL | CONS_EARLY | surprise_early |",
-            "|---|---:|---:|---:|---:|---:|",
-        ]
-        sample = good.sort_values(["REPORT_DATE", "ticker"], ascending=[False, True]).head(12)
-        for r in sample.itertuples():
-            lines.append(
-                f"| {r.ticker} | {r.FE_FP_END.date()} | {r.REPORT_DATE.date()} | "
-                f"{r.ACTUAL:.3f} | {r.CONS_EARLY:.3f} | {r.surprise_early:+.4f} |"
-            )
-    skipped = getattr(args, "skipped_stock_fetches", [])
-    if skipped:
-        lines += [
-            "",
-            "## Skipped Stock DB Fetches",
-            "",
-            "| ticker | reason |",
-            "|---|---|",
-        ]
-        for row in skipped:
-            lines.append(f"| {row['ticker']} | {row['reason']} |")
-    lines += [
-        "",
-        f"Output CSV: `{args.out_csv.relative_to(ROOT) if args.out_csv.is_relative_to(ROOT) else args.out_csv}`",
-    ]
-    path.write_text("\n".join(lines) + "\n")
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--features", type=Path, default=FEATURES)
     ap.add_argument("--out-csv", type=Path, default=OUT_CSV)
-    ap.add_argument("--out-md", type=Path, default=OUT_MD)
     ap.add_argument("--start-date", default="2019-01-01")
     ap.add_argument("--early-days", type=int, default=7)
     ap.add_argument("--print-lag-days", type=int, default=1)
-    ap.add_argument("--query-timeout-seconds", type=float, default=20)
-    ap.add_argument("--include-all-features", action="store_true")
+    ap.add_argument("--query-timeout-seconds", type=float, default=90)
     ap.add_argument("--env-path", action="append", type=Path, default=[])
     args = ap.parse_args()
     args.start_date = date.fromisoformat(args.start_date)
 
-    tickers = load_tickers(args.features, args.include_all_features)
+    tickers = load_tickers(args.features)
     env_paths = args.env_path or DEFAULT_ENV_PATHS
     env = load_env(env_paths)
     panel = asyncio.run(fetch_panel(args, tickers, env))
     panel = add_surprises(panel)
     args.out_csv.parent.mkdir(parents=True, exist_ok=True)
-    args.out_md.parent.mkdir(parents=True, exist_ok=True)
     panel.to_csv(args.out_csv, index=False)
-    write_report(args.out_md, args, tickers, panel)
     print(f"[written] {args.out_csv}")
-    print(f"[written] {args.out_md}")
     print(
         f"rows={len(panel)} tickers={panel['ticker'].nunique() if len(panel) else 0} "
         f"surprise_rows={panel['surprise_early'].notna().sum() if len(panel) else 0}"

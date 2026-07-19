@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""
-Mini LLM ablation for Kalshi X on the leakage-safe pre-report panel.
+"""Run the four-arm Kalshi raw-ladder LLM experiment.
 
-Runs four end-to-end BPredict arms:
-  fin, fin+kalshi, fin+text, fin+kalshi+text
+Arms:
+  fin
+  fin+kalshi_ladder
+  fin+earnings_call
+  fin+kalshi_ladder+earnings_call
 
-This is intentionally smaller than the full Factor1 runner because the Kalshi
-channel is event-based, not a regular monthly/quarterly X time series yet.
+Each arm is repeated independently. Evaluation uses the mean prediction while
+the per-run outputs remain available for model-variance checks.
 """
 import argparse
 import asyncio
@@ -15,7 +17,7 @@ import json
 import os
 import re
 import time
-import warnings
+from collections import Counter
 from pathlib import Path
 
 import asyncpg
@@ -25,25 +27,31 @@ import pandas as pd
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
-warnings.filterwarnings("ignore", category=FutureWarning, message="ChainedAssignmentError*")
-
 ROOT = Path(__file__).resolve().parents[3]
 KALSHI_ROOT = ROOT / "kalshi"
-PRE_PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_prereport_x_revsurprise_panel.csv"
+PRE_PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_prereport_ladder_panel.csv"
 Y_PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_stockdb_revenue_surprise_panel.csv"
-OUT_CSV = KALSHI_ROOT / "outputs" / "auto" / "kalshi_llm_ablation_preds.csv"
-OUT_JSONL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_llm_ablation_run_log.jsonl"
-OUT_MD = KALSHI_ROOT / "docs" / "analysis_kalshi_llm_ablation.md"
-TX_CACHE = KALSHI_ROOT / "outputs" / "auto" / "kalshi_transcripts"
+OUT_CSV = KALSHI_ROOT / "outputs" / "auto" / "kalshi_llm_ladder_ablation_preds.csv"
+OUT_JSONL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_llm_ladder_ablation_run_log.jsonl"
+ELIGIBLE_CSV = KALSHI_ROOT / "outputs" / "auto" / "kalshi_llm_eligible_targets.csv"
+EARNINGS_CALL_CACHE = KALSHI_ROOT / "outputs" / "auto" / "prior_earnings_call_transcripts"
 
 GPT_MODEL = os.getenv("GPT_PARSER_MODEL", "gpt-5.5-2026-04-23")
 GPT_EFFORT = os.getenv("GPT_REASONING_EFFORT", "medium")
-MAX_TRANSCRIPT_CHARS = 48_000
+MAX_EARNINGS_CALL_CHARS = 48_000
+KNOWLEDGE_CUTOFF = pd.Timestamp("2025-12-01")
+HISTORY_ROWS = 6
 LONG_CTX_THRESHOLD = 272_000
 PRICING = {
     "short": {"in": 5.0, "cached": 0.5, "out": 30.0},
     "long": {"in": 10.0, "cached": 1.0, "out": 45.0},
 }
+ARMS = [
+    "fin",
+    "fin+kalshi_ladder",
+    "fin+earnings_call",
+    "fin+kalshi_ladder+earnings_call",
+]
 SYS = (
     "You are an equity revenue-surprise nowcaster. You only see information available BEFORE the "
     "upcoming quarter's earnings report; you do NOT know the actual result. The target is the REVENUE "
@@ -61,41 +69,155 @@ class BPredict(BaseModel):
     rationale: str
 
 
-def rel(path):
-    path = Path(path)
+def with_columns(frame, **columns):
+    data = {column: frame[column] for column in frame.columns}
+    data.update(columns)
+    return pd.DataFrame(data, index=frame.index)
+
+
+def parse_ladders(raw):
     try:
-        return path.resolve().relative_to(ROOT)
-    except ValueError:
-        return path
+        value = json.loads(raw) if isinstance(raw, str) and raw.strip() else []
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"invalid kalshi_ladders_json: {exc}") from exc
+    if not isinstance(value, list):
+        raise ValueError("kalshi_ladders_json must be a list")
+    return value
+
+
+def validate_publication_cutoff(panel, label="Kalshi pre-report ladder panel"):
+    required = {
+        "published_at",
+        "pre_as_of_ts",
+        "pre_cutoff_source",
+        "pre_candle_search_rule",
+        "pre_event_count",
+        "pre_total_priced_rungs",
+        "kalshi_ladders_json",
+    }
+    missing = sorted(required - set(panel.columns))
+    if missing:
+        raise SystemExit(
+            f"{label} lacks cutoff/provenance fields: {', '.join(missing)}. "
+            "Regenerate it with s_ak_kalshi_prereport_features.py."
+        )
+
+    problems = []
+    for index, row in panel.iterrows():
+        raw_event_count = pd.to_numeric(row["pre_event_count"], errors="coerce")
+        raw_rung_count = pd.to_numeric(row["pre_total_priced_rungs"], errors="coerce")
+        event_count = int(raw_event_count) if pd.notna(raw_event_count) else 0
+        rung_count = int(raw_rung_count) if pd.notna(raw_rung_count) else 0
+        if event_count == 0 and rung_count == 0:
+            continue
+        published_at = pd.to_datetime(row["published_at"], errors="coerce", utc=True)
+        as_of_ts = pd.to_numeric(row["pre_as_of_ts"], errors="coerce")
+        if (
+            pd.isna(published_at)
+            or pd.isna(as_of_ts)
+            or row["pre_cutoff_source"] != "published_at_minus_buffer"
+            or row["pre_candle_search_rule"] != "market_open_to_publication_cutoff"
+            or float(as_of_ts) >= published_at.timestamp()
+        ):
+            problems.append(f"row {index}: invalid publication cutoff")
+            continue
+        try:
+            ladders = parse_ladders(row["kalshi_ladders_json"])
+        except ValueError as exc:
+            problems.append(f"row {index}: {exc}")
+            continue
+        if len(ladders) != event_count:
+            problems.append(f"row {index}: event count mismatch")
+        actual_rungs = 0
+        for ladder in ladders:
+            rungs = ladder.get("rungs") if isinstance(ladder, dict) else None
+            if not isinstance(rungs, list) or len(rungs) < 2:
+                problems.append(f"row {index}: event with fewer than two rungs")
+                continue
+            actual_rungs += len(rungs)
+            for rung in rungs:
+                candle_ts = pd.to_numeric(rung.get("candle_ts"), errors="coerce")
+                market_open_at = pd.to_datetime(
+                    rung.get("market_open_at"), errors="coerce", utc=True
+                )
+                probability = pd.to_numeric(rung.get("probability"), errors="coerce")
+                if (
+                    pd.isna(candle_ts)
+                    or float(candle_ts) > float(as_of_ts)
+                    or float(candle_ts) >= published_at.timestamp()
+                    or pd.isna(market_open_at)
+                    or float(candle_ts) < market_open_at.timestamp()
+                ):
+                    problems.append(f"row {index}: rung at/after cutoff")
+                if pd.isna(probability) or not 0 <= float(probability) <= 1:
+                    problems.append(f"row {index}: invalid rung probability")
+                if not rung.get("price_source"):
+                    problems.append(f"row {index}: missing rung price source")
+        if actual_rungs != rung_count:
+            problems.append(f"row {index}: rung count mismatch")
+    if problems:
+        sample = "; ".join(problems[:8])
+        raise SystemExit(f"{label} failed provenance validation ({len(problems)} issue(s)): {sample}")
 
 
 def read_env(path):
-    out = {}
-    if not path.exists():
-        return out
-    for raw in path.read_text().splitlines():
-        s = raw.strip()
-        if not s or s.startswith("#") or "=" not in s:
-            continue
-        k, v = s.split("=", 1)
-        out[k.replace("export ", "").strip()] = v.strip().strip('"').strip("'")
-    return out
-
-
-def load_env_values(paths):
     values = {}
-    for path in paths:
-        values.update(read_env(path))
+    if not path.exists():
+        return values
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key.replace("export ", "").strip()] = value.strip().strip('"').strip("'")
     return values
 
 
-def make_openai_client():
-    env = load_env_values([
-        ROOT / ".env",
+def server_env_paths():
+    return [
         ROOT.parent / "mcp-server" / ".env",
         ROOT.parent / "agent-server" / ".env",
+        ROOT.parent / "analytics-server" / ".env",
         ROOT.parent / "linq-mcp-server" / ".env.local",
-    ])
+        ROOT / ".env",
+    ]
+
+
+def server_env():
+    values = {}
+    for path in server_env_paths():
+        for key, value in read_env(path).items():
+            values.setdefault(key, value)
+    for key, value in os.environ.items():
+        if value:
+            values[key] = value
+    return values
+
+
+def aws_credentials():
+    process = {
+        key: os.getenv(key, "")
+        for key in [
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
+        ]
+    }
+    if process["AWS_ACCESS_KEY_ID"] and process["AWS_SECRET_ACCESS_KEY"]:
+        return process
+    for path in server_env_paths():
+        values = read_env(path)
+        if values.get("AWS_ACCESS_KEY_ID") and values.get("AWS_SECRET_ACCESS_KEY"):
+            return {
+                "AWS_ACCESS_KEY_ID": values["AWS_ACCESS_KEY_ID"],
+                "AWS_SECRET_ACCESS_KEY": values["AWS_SECRET_ACCESS_KEY"],
+                "AWS_SESSION_TOKEN": values.get("AWS_SESSION_TOKEN", ""),
+            }
+    return {}
+
+
+def make_openai_client():
+    env = server_env()
     gateway_url = (os.getenv("LLM_GATEWAY_URL") or env.get("LLM_GATEWAY_URL") or "").rstrip("/")
     gateway_key = os.getenv("LLM_GATEWAY_API_KEY") or env.get("LLM_GATEWAY_API_KEY")
     if gateway_url and gateway_key:
@@ -103,50 +225,63 @@ def make_openai_client():
             api_key=gateway_key,
             base_url=f"{gateway_url}/v1",
             default_headers={
-                "x-gw-server": "carbon-arc-kalshi",
-                "x-gw-feature": "kalshi-llm-ablation",
+                "x-gw-server": "kalshi-experiment",
+                "x-gw-feature": "raw-ladder-ablation",
             },
         )
     api_key = os.getenv("OPENAI_API_KEY") or env.get("OPENAI_API_KEY")
-    return AsyncOpenAI(api_key=api_key) if api_key else AsyncOpenAI()
+    if not api_key:
+        raise SystemExit("missing LLM_GATEWAY_URL/API_KEY or OPENAI_API_KEY")
+    return AsyncOpenAI(api_key=api_key)
 
 
-def gpt5_cost(usage):
-    pin = getattr(usage, "prompt_tokens", 0) or 0
-    pout = getattr(usage, "completion_tokens", 0) or 0
-    det = getattr(usage, "prompt_tokens_details", None)
-    cached = (getattr(det, "cached_tokens", 0) or 0) if det is not None else 0
-    price = PRICING["long" if pin > LONG_CTX_THRESHOLD else "short"]
-    uncached = max(pin - cached, 0)
-    return (uncached * price["in"] + cached * price["cached"] + pout * price["out"]) / 1e6
+def gpt_cost(usage):
+    prompt_tokens = getattr(usage, "prompt_tokens", 0) or 0
+    output_tokens = getattr(usage, "completion_tokens", 0) or 0
+    details = getattr(usage, "prompt_tokens_details", None)
+    cached_tokens = (getattr(details, "cached_tokens", 0) or 0) if details else 0
+    price = PRICING["long" if prompt_tokens > LONG_CTX_THRESHOLD else "short"]
+    uncached_tokens = max(prompt_tokens - cached_tokens, 0)
+    return (
+        uncached_tokens * price["in"]
+        + cached_tokens * price["cached"]
+        + output_tokens * price["out"]
+    ) / 1e6
 
 
 def stock_env():
-    env = read_env(ROOT.parent / "mcp-server" / ".env")
-    required = ["STOCK_DB_HOST", "STOCK_DB_PORT", "STOCK_DB_NAME", "STOCK_DB_USER", "STOCK_DB_PASSWORD"]
-    missing = [k for k in required if not env.get(k)]
+    env = server_env()
+    required = [
+        "STOCK_DB_HOST",
+        "STOCK_DB_PORT",
+        "STOCK_DB_NAME",
+        "STOCK_DB_USER",
+        "STOCK_DB_PASSWORD",
+    ]
+    missing = [key for key in required if not env.get(key)]
     if missing:
         raise SystemExit(f"missing stock DB env keys: {missing}")
     return env
 
 
 def configure_s3_env():
-    agent = read_env(ROOT.parent / "agent-server" / ".env")
-    mcp = read_env(ROOT.parent / "mcp-server" / ".env")
-    for k in ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]:
-        if mcp.get(k):
-            os.environ[k] = mcp[k]
-    if agent.get("AWS_S3_BUCKET_NAME"):
-        os.environ["AWS_S3_BUCKET_NAME"] = agent["AWS_S3_BUCKET_NAME"]
-    for k in ["AWS_REGION", "AWS_DEFAULT_REGION"]:
-        if agent.get(k):
-            os.environ[k] = agent[k]
-    os.environ.pop("AWS_SESSION_TOKEN", None)
+    env = server_env()
+    credentials = aws_credentials()
+    for key in ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]:
+        if credentials.get(key):
+            os.environ[key] = credentials[key]
+    if credentials.get("AWS_SESSION_TOKEN"):
+        os.environ["AWS_SESSION_TOKEN"] = credentials["AWS_SESSION_TOKEN"]
+    else:
+        os.environ.pop("AWS_SESSION_TOKEN", None)
+    for key in ["AWS_REGION", "AWS_DEFAULT_REGION", "AWS_S3_BUCKET_NAME"]:
+        if env.get(key):
+            os.environ[key] = env[key]
     if not os.getenv("AWS_S3_BUCKET_NAME"):
         raise SystemExit("missing AWS_S3_BUCKET_NAME")
 
 
-async def fetch_docs(tickers):
+async def fetch_earnings_call_docs(tickers):
     env = stock_env()
     conn = await asyncpg.connect(
         host=env["STOCK_DB_HOST"],
@@ -164,7 +299,8 @@ async def fetch_docs(tickers):
                    sd.file_key,
                    sd.name,
                    sd.fiscal_date,
-                   sd.event_start_at::date AS call_date
+                   COALESCE(sd.calendar_date, sd.fiscal_date) AS period_end_date,
+                   sd.event_start_at AS call_at
             FROM stock_documents sd
             JOIN stocks s ON s.id = sd.stock_id
             WHERE s.ticker = ANY($1::text[])
@@ -173,18 +309,24 @@ async def fetch_docs(tickers):
               AND sd.file_key LIKE '%_corrected.html'
               AND sd.fiscal_date IS NOT NULL
               AND sd.event_start_at IS NOT NULL
-            ORDER BY s.ticker, call_date, sd.file_key
+            ORDER BY s.ticker, period_end_date, call_at, sd.file_key
             """,
             list(tickers),
         )
     finally:
         await conn.close()
-    docs = pd.DataFrame([dict(r) for r in rows])
+    docs = pd.DataFrame([dict(row) for row in rows])
     if docs.empty:
         return docs
-    docs["call_date"] = pd.to_datetime(docs["call_date"], errors="coerce")
-    docs = docs.drop_duplicates(["ticker", "file_key"]).sort_values(["ticker", "call_date"])
-    return docs
+    docs = with_columns(
+        docs,
+        fiscal_date=pd.to_datetime(docs["fiscal_date"], errors="coerce"),
+        period_end_date=pd.to_datetime(docs["period_end_date"], errors="coerce"),
+        call_at=pd.to_datetime(docs["call_at"], errors="coerce", utc=True),
+    )
+    return docs.drop_duplicates(["ticker", "file_key"]).sort_values(
+        ["ticker", "period_end_date", "call_at"]
+    )
 
 
 def html_to_text(raw):
@@ -196,257 +338,476 @@ def html_to_text(raw):
     return text.strip()
 
 
-def download_text(s3, file_key):
-    TX_CACHE.mkdir(parents=True, exist_ok=True)
-    out = TX_CACHE / (Path(file_key).name + ".txt")
-    if out.exists() and out.stat().st_size > 500:
-        return out.read_text(errors="replace")
-    obj = s3.get_object(Bucket=os.environ["AWS_S3_BUCKET_NAME"], Key=file_key)
-    raw = obj["Body"].read().decode("utf-8", "replace")
+def cache_earnings_call_text(s3, file_key):
+    EARNINGS_CALL_CACHE.mkdir(parents=True, exist_ok=True)
+    output = EARNINGS_CALL_CACHE / f"{Path(file_key).name}.txt"
+    if output.exists() and output.stat().st_size > 500:
+        return output.read_text(errors="replace")
+    response = s3.get_object(Bucket=os.environ["AWS_S3_BUCKET_NAME"], Key=file_key)
+    raw = response["Body"].read().decode("utf-8", "replace")
     text = html_to_text(raw)
-    out.write_text(text)
+    output.write_text(text)
     return text
 
 
-def prior_doc(docs, ticker, report_date):
+def prior_earnings_call_candidates(docs, ticker, report_date):
+    if docs.empty:
+        return docs
     cutoff = pd.Timestamp(report_date) - pd.Timedelta(days=31)
-    cand = docs[(docs["ticker"].eq(ticker)) & (docs["call_date"] <= cutoff)].sort_values("call_date")
-    if cand.empty:
-        return None
-    return cand.iloc[-1].to_dict()
+    if cutoff.tzinfo is None:
+        cutoff = cutoff.tz_localize("UTC")
+    candidates = docs[
+        docs["ticker"].eq(ticker)
+        & (docs["call_at"] <= cutoff)
+    ].sort_values(["call_at", "period_end_date"], ascending=[False, False])
+    if candidates.empty:
+        return candidates
+    latest_call_date = candidates.iloc[0]["call_at"].date()
+    return candidates[candidates["call_at"].dt.date.eq(latest_call_date)].drop_duplicates("file_key")
 
 
-def fin_table(hist, target):
-    out = ["fiscal_q_end | actual($M) | consensus($M) | surprise%"]
-    for r in hist.tail(6).itertuples():
-        out.append(f"{r.FE_FP_END.date()} | {r.ACTUAL:,.0f} | {r.CONS_EARLY:,.0f} | {r.surprise_early*100:+.2f}%")
-    out.append(f"{target.FE_FP_END.date()} | (pending) | {target.CONS_EARLY:,.0f} | <- PREDICT")
-    return "\n".join(out)
-
-
-def maybe(v, fmt="{:.4g}"):
+def format_number(value, digits=4):
     try:
-        if pd.isna(v):
+        if value is None or pd.isna(value):
             return "n/a"
-        return fmt.format(float(v))
-    except Exception:
+        return f"{float(value):.{digits}g}"
+    except (TypeError, ValueError):
         return "n/a"
 
 
-def kalshi_table(row):
-    lines = [
-        "KALSHI PRE-REPORT MARKET SIGNAL:",
-        f"as_of_date: {row.pre_as_of_date}",
-        f"event_ticker: {row.event_ticker}",
-        f"metric: {row.metric_label}",
-        f"feature_family: {row.feature_family}",
-        f"priced_markets: {int(row.pre_n_priced)}/{int(row.pre_n_markets)}",
-        f"pre_implied_value: {maybe(row.pre_implied_value)}",
-        f"pre_prob_lowest: {maybe(row.pre_prob_lowest)}",
-        f"pre_prob_highest: {maybe(row.pre_prob_highest)}",
-        f"pre_volume_sum: {maybe(row.pre_volume_sum)}",
-        f"pre_open_interest_sum: {maybe(row.pre_open_interest_sum)}",
-    ]
+def fin_table(history, target):
+    lines = ["fiscal_q_end | actual($M) | consensus($M) | surprise%"]
+    for row in history.tail(HISTORY_ROWS).itertuples():
+        lines.append(
+            f"{row.FE_FP_END.date()} | {row.ACTUAL:,.0f} | {row.CONS_EARLY:,.0f} | "
+            f"{row.surprise_early * 100:+.2f}%"
+        )
+    lines.append(
+        f"{target.FE_FP_END.date()} | (pending) | {target.CONS_EARLY:,.0f} | <- PREDICT"
+    )
     return "\n".join(lines)
 
 
-def metrics(pred, true):
-    d = pd.DataFrame({"pred": pred, "true": true}).dropna()
-    if d.empty:
-        return {"n": 0, "rmse": np.nan, "mae": np.nan, "corr": np.nan, "r2": np.nan, "sign": np.nan}
-    err = d["pred"] - d["true"]
-    sse = float((err ** 2).sum())
-    sst = float(((d["true"] - d["true"].mean()) ** 2).sum())
-    corr = d["pred"].corr(d["true"]) if len(d) > 1 and d["pred"].std() > 1e-12 else np.nan
-    return {
-        "n": int(len(d)),
-        "rmse": float(np.sqrt((err ** 2).mean())),
-        "mae": float(err.abs().mean()),
-        "corr": float(corr) if pd.notna(corr) else np.nan,
-        "r2": float(1 - sse / sst) if sst > 1e-12 else np.nan,
-        "sign": float((np.sign(d["pred"]) == np.sign(d["true"])).mean()),
-    }
+def kalshi_ladder_table(history, target):
+    lines = [
+        "KALSHI RAW PRE-PUBLICATION KPI MARKET LADDERS:",
+        (
+            "Probability selection: YES bid/ask midpoint only for a spread <= 0.20; "
+            "otherwise the candle's last trade, then previous trade."
+        ),
+        (
+            "These are raw, uncalibrated binary-market observations. They were not "
+            "monotonic-smoothed or integrated into a scalar. No settled outcome is shown."
+        ),
+    ]
+    periods = [(row, "historical") for row in history.tail(HISTORY_ROWS).itertuples(index=False)]
+    periods.append((target, "upcoming"))
+    for row, role in periods:
+        lines += [
+            "",
+            f"fiscal_q_end: {row.FE_FP_END.date()} ({role})",
+            f"cutoff_utc: {row.pre_as_of_at}",
+        ]
+        for ladder in parse_ladders(row.kalshi_ladders_json):
+            lines += [
+                f"event: {ladder['event_ticker']}",
+                f"KPI: {ladder.get('metric_label') or 'unknown'}",
+                f"period: {ladder.get('period_label') or 'unknown'}",
+                (
+                    f"coverage: {ladder['n_priced_rungs']}/{ladder['n_ladder_markets']} rungs; "
+                    f"raw monotonicity violations: {ladder['monotonicity_violations']}"
+                ),
+                (
+                    "market | YES condition | probability | source | bid / ask / last / previous "
+                    "| spread | candle_utc | daily_volume | open_interest"
+                ),
+            ]
+            for rung in ladder["rungs"]:
+                quote = " / ".join(
+                    format_number(rung.get(key), 3)
+                    for key in ["yes_bid", "yes_ask", "last", "previous"]
+                )
+                lines.append(
+                    f"{rung['market_ticker']} | KPI {rung['threshold_operator']} "
+                    f"{rung['strike']:,.6g} | {rung['probability']:.3f} | "
+                    f"{rung['price_source']} | {quote} | "
+                    f"{format_number(rung.get('spread'), 3)} | {rung['candle_at']} | "
+                    f"{format_number(rung.get('daily_volume'))} | "
+                    f"{format_number(rung.get('open_interest'))}"
+                )
+    return "\n".join(lines)
 
 
-def common_rmse_delta(out, base_arm, add_arm):
-    s = out.dropna(subset=[base_arm, add_arm, "true_pct"])
-    if s.empty:
-        return 0, np.nan, np.nan, np.nan
-    base_rmse = float(np.sqrt(((s[base_arm] - s["true_pct"]) ** 2).mean()))
-    add_rmse = float(np.sqrt(((s[add_arm] - s["true_pct"]) ** 2).mean()))
-    return int(len(s)), base_rmse, add_rmse, add_rmse - base_rmse
-
-
-async def bounded_acall(client, sem, key, schema, user, timeout, attempts):
-    async with sem:
+async def bounded_call(client, semaphore, key, prompt, timeout, attempts):
+    async with semaphore:
         for attempt in range(attempts):
             try:
-                comp = await asyncio.wait_for(
+                completion = await asyncio.wait_for(
                     client.beta.chat.completions.parse(
                         model=GPT_MODEL,
-                        messages=[{"role": "system", "content": SYS}, {"role": "user", "content": user}],
-                        response_format=schema,
+                        messages=[
+                            {"role": "system", "content": SYS},
+                            {"role": "user", "content": prompt},
+                        ],
+                        response_format=BPredict,
                         reasoning_effort=GPT_EFFORT,
                     ),
                     timeout=timeout,
                 )
-                return key, comp.choices[0].message.parsed, gpt5_cost(comp.usage)
+                return (
+                    key,
+                    completion.choices[0].message.parsed,
+                    gpt_cost(completion.usage),
+                    "",
+                )
             except Exception as exc:
                 if attempt == attempts - 1:
-                    print(f"[llm-warning] {key} failed: {type(exc).__name__}", flush=True)
-                    return key, None, 0.0
-                await asyncio.sleep(2 ** attempt)
+                    return key, None, 0.0, f"{type(exc).__name__}: {str(exc)[:200]}"
+                await asyncio.sleep(2**attempt)
+
+
+def build_prompts(target):
+    row = target["row"]
+    intro = (
+        f"Company {row.ticker}. Predict the UPCOMING quarter ({row.FE_FP_END.date()}) REVENUE SURPRISE "
+        "= (actual - consensus)/consensus, in %.\n\n"
+    )
+    financials = (
+        "FINANCIAL HISTORY (FactSet, public):\n"
+        + fin_table(target["history"], row)
+        + "\n\n"
+    )
+    ladder = kalshi_ladder_table(target["ladder_history"], row) + "\n\n"
+    earnings_call = (
+        "\nPRIOR-QUARTER EARNINGS CALL:\n"
+        + target["earnings_call_text"]
+    )
+    instruction = "Predict the revenue surprise %."
+    return {
+        "fin": intro + financials + instruction,
+        "fin+kalshi_ladder": intro + financials + ladder + instruction,
+        "fin+earnings_call": intro + financials + instruction + earnings_call,
+        "fin+kalshi_ladder+earnings_call": (
+            intro + financials + ladder + instruction + earnings_call
+        ),
+    }
+
+
+def load_successful_calls(path):
+    path = Path(path)
+    if not path.exists():
+        return {}
+    calls = {}
+    with path.open() as source:
+        for line in source:
+            record = json.loads(line)
+            if record.get("prediction") is None:
+                continue
+            key = (
+                record["ticker"],
+                record["FE_FP_END"],
+                record["arm"],
+                int(record["repeat"]),
+            )
+            calls[key] = (
+                BPredict(
+                    predicted_revenue_surprise_pct=float(record["prediction"]),
+                    confidence=int(record["confidence"]),
+                    rationale=record.get("rationale", ""),
+                ),
+                float(record.get("estimated_cost_usd", 0.0)),
+                "",
+            )
+    return calls
 
 
 async def main_async(args):
     configure_s3_env()
-    pre = pd.read_csv(args.pre_panel)
-    y = pd.read_csv(args.y_panel)
-    for d in (pre, y):
-        d["FE_FP_END"] = pd.to_datetime(d["FE_FP_END"], errors="coerce")
-        d["REPORT_DATE"] = pd.to_datetime(d["REPORT_DATE"], errors="coerce")
-    pre = pre[(pre["REPORT_DATE"] > pd.Timestamp("2025-12-01")) & (pre["pre_n_priced"] > 0)].copy()
-    if args.numeric_only:
-        pre = pre[pre["feature_family"].eq("numeric_kpi_ladder")].copy()
-    if args.limit:
-        pre = pre.head(args.limit).copy()
+    pre_all = pd.read_csv(args.pre_panel)
+    y_panel = pd.read_csv(args.y_panel)
+    validate_publication_cutoff(pre_all)
+    pre_all = with_columns(
+        pre_all,
+        FE_FP_END=pd.to_datetime(pre_all["FE_FP_END"], errors="coerce"),
+        REPORT_DATE=pd.to_datetime(pre_all["REPORT_DATE"], errors="coerce"),
+        published_at=pd.to_datetime(pre_all["published_at"], errors="coerce", utc=True),
+    )
+    y_panel = with_columns(
+        y_panel,
+        FE_FP_END=pd.to_datetime(y_panel["FE_FP_END"], errors="coerce"),
+        REPORT_DATE=pd.to_datetime(y_panel["REPORT_DATE"], errors="coerce"),
+    )
+    covered = pre_all[
+        pd.to_numeric(pre_all["pre_event_count"], errors="coerce").fillna(0).gt(0)
+    ].copy()
+    pre = covered[covered["REPORT_DATE"] > KNOWLEDGE_CUTOFF].copy()
+    if args.evaluation_start:
+        pre = pre[pre["REPORT_DATE"] >= pd.Timestamp(args.evaluation_start)]
+    pre = pre.sort_values(["REPORT_DATE", "ticker"]).copy()
+    assert (pre["REPORT_DATE"] > KNOWLEDGE_CUTOFF).all(), "LLM KNOWLEDGE-CUTOFF GUARD"
 
-    docs = await fetch_docs(pre["ticker"].dropna().unique())
-    s3 = boto3.client("s3", region_name=os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION"))
+    docs = await fetch_earnings_call_docs(pre["ticker"].dropna().unique())
+    s3 = boto3.client(
+        "s3", region_name=os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION")
+    )
     targets = []
-    for row in pre.sort_values(["REPORT_DATE", "ticker"]).itertuples():
-        hist = y[(y["ticker"].eq(row.ticker)) & (y["FE_FP_END"] < row.FE_FP_END)].sort_values("FE_FP_END")
-        if len(hist.dropna(subset=["surprise_early"])) < 3:
+    skip_reasons = Counter()
+    for row in pre.itertuples(index=False):
+        history = y_panel[
+            y_panel["ticker"].eq(row.ticker)
+            & (y_panel["FE_FP_END"] < row.FE_FP_END)
+        ].sort_values("FE_FP_END")
+        history = history.dropna(subset=["ACTUAL", "CONS_EARLY", "surprise_early"])
+        if len(history) < 3:
+            skip_reasons["fewer_than_3_history_rows"] += 1
             continue
-        doc = prior_doc(docs, row.ticker, row.REPORT_DATE)
-        if doc is None:
-            continue
-        text = download_text(s3, doc["file_key"])[:MAX_TRANSCRIPT_CHARS]
-        targets.append({"row": row, "hist": hist, "doc": doc, "text": text})
-        print(f"[target] {row.ticker} {row.FE_FP_END.date()} via {row.event_ticker}", flush=True)
-
-    client = make_openai_client()
-    sem = asyncio.Semaphore(args.concurrency)
-    jobs = []
-    for i, t in enumerate(targets):
-        row = t["row"]
-        base = (
-            f"Company {row.ticker}. Predict the UPCOMING quarter ({row.FE_FP_END.date()}) "
-            "REVENUE SURPRISE = (actual - consensus)/consensus, in %. "
-            "Use only information available before the earnings report.\n\n"
+        ladder_history = covered[
+            covered["ticker"].eq(row.ticker)
+            & (covered["FE_FP_END"] < row.FE_FP_END)
+            & (covered["published_at"] < row.published_at)
+        ].sort_values("FE_FP_END")
+        call_candidates = prior_earnings_call_candidates(
+            docs, row.ticker, row.REPORT_DATE
         )
-        fin = "FINANCIAL HISTORY (Stock DB point-in-time consensus):\n" + fin_table(t["hist"], row) + "\n\n"
-        kx = kalshi_table(row) + "\n\n"
-        tr = "\nPRIOR-QUARTER EARNINGS CALL:\n" + t["text"]
-        instr = "Predict the revenue surprise %."
-        jobs += [
-            bounded_acall(client, sem, (i, "fin"), BPredict, base + fin + instr, args.request_timeout_seconds, args.max_attempts),
-            bounded_acall(client, sem, (i, "fin+kalshi"), BPredict, base + fin + kx + instr, args.request_timeout_seconds, args.max_attempts),
-            bounded_acall(client, sem, (i, "fin+text"), BPredict, base + fin + instr + tr, args.request_timeout_seconds, args.max_attempts),
-            bounded_acall(client, sem, (i, "fin+kalshi+text"), BPredict, base + fin + kx + instr + tr, args.request_timeout_seconds, args.max_attempts),
-        ]
+        if call_candidates.empty:
+            skip_reasons["no_prior_quarter_earnings_call"] += 1
+            continue
+        call_doc = None
+        call_text = ""
+        last_error = None
+        for candidate in call_candidates.to_dict("records"):
+            try:
+                call_text = cache_earnings_call_text(s3, candidate["file_key"])
+                call_doc = candidate
+                break
+            except Exception as exc:
+                last_error = exc
+        if call_doc is None:
+            error_code = (
+                getattr(last_error, "response", {})
+                .get("Error", {})
+                .get("Code", "")
+                if last_error
+                else ""
+            )
+            print(
+                f"[document-warning] {row.ticker}: "
+                f"{type(last_error).__name__ if last_error else 'unknown'}"
+                f"{':' + error_code if error_code else ''}",
+                flush=True,
+            )
+            skip_reasons["earnings_call_fetch_failed"] += 1
+            continue
+        targets.append(
+            {
+                "row": row,
+                "history": history,
+                "ladder_history": ladder_history,
+                "earnings_call_doc": call_doc,
+                "earnings_call_text": call_text[:MAX_EARNINGS_CALL_CHARS],
+            }
+        )
+        print(
+            f"[target] {row.ticker} {row.FE_FP_END.date()} "
+            f"events={row.pre_event_count} rungs={row.pre_total_priced_rungs}",
+            flush=True,
+        )
+        if args.limit and len(targets) >= args.limit:
+            break
 
-    print(f"[run] targets={len(targets)} calls={len(jobs)} model={GPT_MODEL} effort={GPT_EFFORT}", flush=True)
-    t0 = time.perf_counter()
+    if args.eligibility_only:
+        eligible_rows = []
+        for target in targets:
+            row = target["row"]
+            eligible_rows.append(
+                {
+                    "ticker": row.ticker,
+                    "FE_FP_END": row.FE_FP_END.date().isoformat(),
+                    "FISCAL_YEAR": int(row.FISCAL_YEAR),
+                    "FISCAL_QUARTER": int(row.FISCAL_QUARTER),
+                    "REPORT_DATE": row.REPORT_DATE.date().isoformat(),
+                    "kalshi_event_count": int(row.pre_event_count),
+                    "kalshi_priced_rungs": int(row.pre_total_priced_rungs),
+                    "financial_history_quarters": len(target["history"]),
+                    "kalshi_history_quarters": min(
+                        len(target["ladder_history"]), HISTORY_ROWS
+                    ),
+                    "earnings_call_period_end": str(
+                        pd.Timestamp(
+                            target["earnings_call_doc"]["period_end_date"]
+                        ).date()
+                    ),
+                }
+            )
+        eligible = pd.DataFrame(eligible_rows)
+        args.out_eligible_csv.parent.mkdir(parents=True, exist_ok=True)
+        eligible.to_csv(args.out_eligible_csv, index=False)
+        print(
+            f"[eligible] targets={len(eligible)} "
+            f"tickers={eligible['ticker'].nunique() if not eligible.empty else 0} "
+            f"excluded={dict(skip_reasons)}",
+            flush=True,
+        )
+        print(f"[written] {args.out_eligible_csv}", flush=True)
+        return
+
+    prompts = [build_prompts(target) for target in targets]
+    client = make_openai_client()
+    semaphore = asyncio.Semaphore(args.concurrency)
+    prior_calls = load_successful_calls(args.out_jsonl) if args.resume else {}
+    result_map = {}
+    jobs = []
+    for target_index, prompt_set in enumerate(prompts):
+        row = targets[target_index]["row"]
+        for arm in ARMS:
+            for repeat in range(1, args.repeats + 1):
+                prior_key = (
+                    row.ticker,
+                    row.FE_FP_END.date().isoformat(),
+                    arm,
+                    repeat,
+                )
+                if prior_key in prior_calls:
+                    result_map[(target_index, arm, repeat)] = prior_calls[prior_key]
+                    continue
+                jobs.append(
+                    bounded_call(
+                        client,
+                        semaphore,
+                        (target_index, arm, repeat),
+                        prompt_set[arm],
+                        args.request_timeout_seconds,
+                        args.max_attempts,
+                    )
+                )
+
+    total_calls = len(targets) * len(ARMS) * args.repeats
+    print(
+        f"[run] targets={len(targets)} arms={len(ARMS)} repeats={args.repeats} "
+        f"calls={total_calls} pending={len(jobs)} model={GPT_MODEL} effort={GPT_EFFORT}",
+        flush=True,
+    )
+    started = time.perf_counter()
     results = []
-    for j, fut in enumerate(asyncio.as_completed(jobs), 1):
-        results.append(await fut)
-        if j % 4 == 0 or j == len(jobs):
-            print(f"... {j}/{len(jobs)} calls ({time.perf_counter() - t0:.0f}s)", flush=True)
-    res = {k: v for k, v, _ in results}
-    cost = sum(c for _, _, c in results)
+    for completed, future in enumerate(asyncio.as_completed(jobs), 1):
+        results.append(await future)
+        if completed % 8 == 0 or completed == len(jobs):
+            print(
+                f"... {completed}/{len(jobs)} calls "
+                f"({time.perf_counter() - started:.0f}s)",
+                flush=True,
+            )
 
-    rows = []
+    result_map.update(
+        {key: (prediction, cost, error) for key, prediction, cost, error in results}
+    )
+    total_cost = sum(cost for _, cost, _ in result_map.values())
+    output_rows = []
     args.out_jsonl.parent.mkdir(parents=True, exist_ok=True)
     with open(args.out_jsonl, "w") as log:
-        for i, t in enumerate(targets):
-            row = t["row"]
-            true_pct = float(row.surprise_early) * 100
+        for target_index, target in enumerate(targets):
+            row = target["row"]
             item = {
                 "ticker": row.ticker,
                 "FE_FP_END": row.FE_FP_END.date().isoformat(),
+                "FISCAL_YEAR": int(row.FISCAL_YEAR),
+                "FISCAL_QUARTER": int(row.FISCAL_QUARTER),
                 "REPORT_DATE": row.REPORT_DATE.date().isoformat(),
-                "event_ticker": row.event_ticker,
-                "metric_label": row.metric_label,
-                "feature_family": row.feature_family,
-                "true_pct": true_pct,
-                "call_date": str(t["doc"]["call_date"].date()),
-                "file_key": t["doc"]["file_key"],
+                "published_at": row.published_at.isoformat(),
+                "kalshi_event_count": int(row.pre_event_count),
+                "kalshi_priced_rungs": int(row.pre_total_priced_rungs),
+                "kalshi_history_quarters": min(len(target["ladder_history"]), HISTORY_ROWS),
+                "kalshi_event_tickers": row.kalshi_event_tickers,
+                "true_pct": float(row.surprise_early) * 100.0,
+                "earnings_call_period_end": str(
+                    pd.Timestamp(
+                        target["earnings_call_doc"]["period_end_date"]
+                    ).date()
+                ),
             }
-            for arm in ["fin", "fin+kalshi", "fin+text", "fin+kalshi+text"]:
-                pred = res.get((i, arm))
-                item[arm] = pred.predicted_revenue_surprise_pct if pred else np.nan
-                item[f"{arm}_confidence"] = pred.confidence if pred else np.nan
-                item[f"{arm}_rationale"] = pred.rationale if pred else ""
-            rows.append(item)
-            log.write(json.dumps(item) + "\n")
+            for arm in ARMS:
+                values = []
+                confidences = []
+                for repeat in range(1, args.repeats + 1):
+                    prediction, cost, error = result_map.get(
+                        (target_index, arm, repeat), (None, 0.0, "missing result")
+                    )
+                    value = (
+                        float(prediction.predicted_revenue_surprise_pct)
+                        if prediction
+                        else np.nan
+                    )
+                    item[f"{arm}__r{repeat}"] = value
+                    if prediction:
+                        values.append(value)
+                        confidences.append(float(prediction.confidence))
+                    log.write(
+                        json.dumps(
+                            {
+                                "ticker": row.ticker,
+                                "FE_FP_END": row.FE_FP_END.date().isoformat(),
+                                "arm": arm,
+                                "repeat": repeat,
+                                "model": GPT_MODEL,
+                                "reasoning_effort": GPT_EFFORT,
+                                "prediction": value if np.isfinite(value) else None,
+                                "confidence": prediction.confidence if prediction else None,
+                                "rationale": prediction.rationale if prediction else "",
+                                "estimated_cost_usd": cost,
+                                "error": error,
+                            },
+                            ensure_ascii=True,
+                        )
+                        + "\n"
+                    )
+                item[arm] = float(np.mean(values)) if values else np.nan
+                item[f"{arm}_run_sd"] = (
+                    float(np.std(values, ddof=1))
+                    if len(values) > 1
+                    else 0.0
+                    if values
+                    else np.nan
+                )
+                item[f"{arm}_successful_repeats"] = len(values)
+                item[f"{arm}_confidence"] = (
+                    float(np.mean(confidences)) if confidences else np.nan
+                )
+            output_rows.append(item)
 
-    out = pd.DataFrame(rows)
+    output = pd.DataFrame(output_rows)
     args.out_csv.parent.mkdir(parents=True, exist_ok=True)
-    args.out_md.parent.mkdir(parents=True, exist_ok=True)
-    out.to_csv(args.out_csv, index=False)
-
-    arms = ["fin", "fin+kalshi", "fin+text", "fin+kalshi+text"]
-    mets = {arm: metrics(out[arm], out["true_pct"]) for arm in arms}
-    lines = [
-        "# Kalshi pre-report X LLM ablation",
-        "",
-        f"> Generated by `kalshi/scripts/auto/s_al_kalshi_llm_ablation.py`.",
-        "",
-        f"- model: `{GPT_MODEL}`",
-        f"- reasoning effort: `{GPT_EFFORT}`",
-        f"- targets: {len(out):,}",
-        f"- calls: {len(jobs):,}",
-        f"- estimated cost: ${cost:.2f}",
-        f"- feature filter: {'numeric only' if args.numeric_only else 'all pre-report joined features'}",
-        "",
-        "## Metrics",
-        "",
-        "| arm | n | RMSE pct | MAE pct | corr | R2 | sign |",
-        "|---|---:|---:|---:|---:|---:|---:|",
-    ]
-    for arm in arms:
-        m = mets[arm]
-        lines.append(
-            f"| {arm} | {m['n']} | {m['rmse']:.3f} | {m['mae']:.3f} | "
-            f"{m['corr']:+.3f} | {m['r2']:+.3f} | {m['sign']:.3f} |"
-        )
-    if len(out):
-        n_fk, rmse_fin, rmse_fk, delta_fk = common_rmse_delta(out, "fin", "fin+kalshi")
-        n_full, rmse_ft, rmse_fkt, delta_full = common_rmse_delta(out, "fin+text", "fin+kalshi+text")
-        lines += [
-            "",
-            "## Common-row Deltas",
-            "",
-            f"- `fin+kalshi` vs `fin` on common rows (n={n_fk}): {rmse_fk:.3f} - {rmse_fin:.3f} = {delta_fk:+.3f} pct points",
-            f"- `fin+kalshi+text` vs `fin+text` on common rows (n={n_full}): {rmse_fkt:.3f} - {rmse_ft:.3f} = {delta_full:+.3f} pct points",
-            "",
-            "Negative delta means Kalshi improved that comparison.",
-        ]
-    lines += [
-        "",
-        f"Predictions CSV: `{rel(args.out_csv)}`",
-        f"Run log JSONL: `{rel(args.out_jsonl)}`",
-    ]
-    args.out_md.write_text("\n".join(lines) + "\n")
+    output.to_csv(args.out_csv, index=False)
     print(f"[written] {args.out_csv}")
     print(f"[written] {args.out_jsonl}")
-    print(f"[written] {args.out_md}")
+    print(
+        f"targets={len(output)} calls={total_calls} "
+        f"successful={sum(output[f'{arm}_successful_repeats'].sum() for arm in ARMS)} "
+        f"estimated_cost_usd={total_cost:.2f} excluded={dict(skip_reasons)}"
+    )
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--pre-panel", type=Path, default=PRE_PANEL)
-    ap.add_argument("--y-panel", type=Path, default=Y_PANEL)
-    ap.add_argument("--out-csv", type=Path, default=OUT_CSV)
-    ap.add_argument("--out-jsonl", type=Path, default=OUT_JSONL)
-    ap.add_argument("--out-md", type=Path, default=OUT_MD)
-    ap.add_argument("--numeric-only", action="store_true")
-    ap.add_argument("--limit", type=int, default=0)
-    ap.add_argument("--concurrency", type=int, default=16)
-    ap.add_argument("--request-timeout-seconds", type=float, default=120)
-    ap.add_argument("--max-attempts", type=int, default=1)
-    args = ap.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--pre-panel", type=Path, default=PRE_PANEL)
+    parser.add_argument("--y-panel", type=Path, default=Y_PANEL)
+    parser.add_argument("--out-csv", type=Path, default=OUT_CSV)
+    parser.add_argument("--out-jsonl", type=Path, default=OUT_JSONL)
+    parser.add_argument("--out-eligible-csv", type=Path, default=ELIGIBLE_CSV)
+    parser.add_argument("--eligibility-only", action="store_true")
+    parser.add_argument("--evaluation-start", default="")
+    parser.add_argument("--repeats", type=int, default=1)
+    parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--concurrency", type=int, default=16)
+    parser.add_argument("--request-timeout-seconds", type=float, default=180)
+    parser.add_argument("--max-attempts", type=int, default=2)
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Reuse successful calls in the existing JSONL and retry only missing calls.",
+    )
+    args = parser.parse_args()
+    if args.repeats < 1:
+        raise SystemExit("--repeats must be at least 1")
     asyncio.run(main_async(args))
 
 

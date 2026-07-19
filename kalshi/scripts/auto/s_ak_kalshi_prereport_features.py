@@ -1,277 +1,469 @@
 #!/usr/bin/env python3
-"""
-Rebuild Kalshi X features from pre-report candlesticks.
+"""Build company-quarter inputs from raw pre-publication Kalshi KPI ladders.
 
-The earlier public market snapshot is useful for inventory, but finalized market
-prices after the earnings release leak the target. This script uses the latest
-daily candlestick available at REPORT_DATE - 1 day for each matched Kalshi event.
+Every eligible KPI event mapped to a target quarter is retained. Each rung
+stores its source quote, selected probability, and actual candle timestamp.
+No integrated scalar or post-settlement market result is produced.
 """
 import argparse
-import warnings
-from datetime import datetime, timezone
+import json
+import re
+import time
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import requests
 
-warnings.filterwarnings("ignore", category=FutureWarning, message="ChainedAssignmentError*")
-
 ROOT = Path(__file__).resolve().parents[3]
 KALSHI_ROOT = ROOT / "kalshi"
-JOINED = KALSHI_ROOT / "outputs" / "auto" / "kalshi_x_revsurprise_panel_all_features.csv"
+JOINED = KALSHI_ROOT / "outputs" / "auto" / "kalshi_x_revsurprise_events.csv"
 INVENTORY = KALSHI_ROOT / "outputs" / "auto" / "kalshi_company_markets.csv"
-OUT_CSV = KALSHI_ROOT / "outputs" / "auto" / "kalshi_prereport_x_revsurprise_panel.csv"
-OUT_MD = KALSHI_ROOT / "docs" / "analysis_kalshi_prereport_x_revsurprise.md"
+OUT_CSV = KALSHI_ROOT / "outputs" / "auto" / "kalshi_prereport_ladder_panel.csv"
 BASE = "https://external-api.kalshi.com/trade-api/v2"
+HEADERS = {
+    "accept": "application/json",
+    "user-agent": "kalshi-raw-ladder-experiment/2.0",
+}
+NUMBER_RE = re.compile(r"(-?[\d,.]+(?:\.\d+)?)\s*(thousand|million|billion|%)?", re.I)
+TARGET_COLUMNS = [
+    "ticker",
+    "stock_id",
+    "stock_name",
+    "exchange",
+    "country",
+    "FE_FP_END",
+    "FISCAL_YEAR",
+    "FISCAL_QUARTER",
+    "REPORT_DATE",
+    "published_at",
+    "ACTUAL",
+    "CONS_EARLY",
+    "CONS_EARLY_DATE",
+    "CONS_EARLY_N",
+    "CONS_PRINT",
+    "CONS_PRINT_DATE",
+    "CONS_PRINT_N",
+    "surprise_early",
+    "surprise_print",
+    "actual_q4",
+    "rev_yoy",
+    "cons_early_growth",
+]
 
 
-def rel(path):
-    path = Path(path)
+def clean(value):
+    if value is None or pd.isna(value):
+        return ""
+    return re.sub(r"\s+", " ", str(value).replace("\n", " ")).strip()
+
+
+def number(value):
     try:
-        return path.resolve().relative_to(ROOT)
-    except ValueError:
-        return path
-
-
-def num(v):
-    try:
-        if pd.isna(v) or str(v).strip() == "":
+        if value is None or pd.isna(value) or str(value).strip() == "":
             return np.nan
-        return float(v)
+        return float(value)
     except (TypeError, ValueError):
         return np.nan
 
 
-def nested(d, *keys):
-    cur = d
-    for key in keys:
-        if not isinstance(cur, dict):
-            return np.nan
-        cur = cur.get(key)
-    return num(cur)
+def quote_value(candle, quote, field):
+    block = candle.get(quote)
+    if not isinstance(block, dict):
+        return np.nan
+    dollars = number(block.get(f"{field}_dollars"))
+    if np.isfinite(dollars):
+        return dollars
+    raw = number(block.get(field))
+    if np.isfinite(raw) and 1 < raw <= 100:
+        return raw / 100.0
+    return raw
 
 
-def candle_prob(c):
-    bid = nested(c, "yes_bid", "close_dollars")
-    ask = nested(c, "yes_ask", "close_dollars")
-    price = nested(c, "price", "close_dollars")
-    prev = nested(c, "price", "previous_dollars")
-    if np.isfinite(bid) and np.isfinite(ask) and ask >= bid:
-        return float(np.clip((bid + ask) / 2, 0, 1)), "yes_mid_close"
-    if np.isfinite(price):
-        return float(np.clip(price, 0, 1)), "price_close"
-    if np.isfinite(prev):
-        return float(np.clip(prev, 0, 1)), "previous_price"
-    return np.nan, ""
-
-
-def empty_ladder():
+def select_probability(candle, max_mid_spread):
+    bid = quote_value(candle, "yes_bid", "close")
+    ask = quote_value(candle, "yes_ask", "close")
+    last = quote_value(candle, "price", "close")
+    previous = quote_value(candle, "price", "previous")
+    valid_book = (
+        np.isfinite(bid)
+        and np.isfinite(ask)
+        and 0 <= bid <= ask <= 1
+        and ask > 0
+    )
+    spread = float(ask - bid) if valid_book else np.nan
+    if valid_book and spread <= max_mid_spread:
+        probability = (bid + ask) / 2.0
+        source = "yes_quote_midpoint"
+    elif np.isfinite(last) and 0 <= last <= 1:
+        probability = last
+        source = "last_trade_close"
+    elif np.isfinite(previous) and 0 <= previous <= 1:
+        probability = previous
+        source = "previous_trade"
+    else:
+        probability = np.nan
+        source = ""
     return {
-        "pre_n_strikes": 0,
-        "pre_strike_min": np.nan,
-        "pre_strike_max": np.nan,
-        "pre_strike_step_median": np.nan,
-        "pre_prob_lowest": np.nan,
-        "pre_prob_highest": np.nan,
-        "pre_implied_value": np.nan,
-        "pre_implied_value_no_tail": np.nan,
-        "pre_implied_value_incremental": np.nan,
+        "probability": float(probability) if np.isfinite(probability) else np.nan,
+        "price_source": source,
+        "yes_bid": float(bid) if np.isfinite(bid) else None,
+        "yes_ask": float(ask) if np.isfinite(ask) else None,
+        "last": float(last) if np.isfinite(last) else None,
+        "previous": float(previous) if np.isfinite(previous) else None,
+        "spread": float(spread) if np.isfinite(spread) else None,
+        "wide_spread_fallback": bool(
+            valid_book and spread > max_mid_spread and source in {"last_trade_close", "previous_trade"}
+        ),
     }
 
 
-def latest_candle(series_ticker, market_ticker, as_of_ts, window_days, timeout):
-    start_ts = int(as_of_ts - window_days * 86400)
+def parsed_strike(row):
+    strike = number(row.get("floor_strike"))
+    if np.isfinite(strike):
+        return strike
+    match = NUMBER_RE.search(clean(row.get("yes_sub_title")))
+    if not match:
+        return np.nan
+    value = float(match.group(1).replace(",", ""))
+    scale = {
+        "thousand": 1_000.0,
+        "million": 1_000_000.0,
+        "billion": 1_000_000_000.0,
+        "%": 1.0,
+    }.get((match.group(2) or "").lower(), 1.0)
+    return value * scale
+
+
+def threshold_operator(row):
+    return ">=" if clean(row.get("strike_type")).lower() == "greater_or_equal" else ">"
+
+
+def survival_rungs(group):
+    g = group.copy()
+    strike_type = g["strike_type"].fillna("").str.lower()
+    subtitle = g["yes_sub_title"].fillna("").str.strip().str.lower()
+    above = subtitle.str.startswith("above")
+    at_least = subtitle.str.startswith("at least") | subtitle.str.contains(r"\bor more\b", regex=True)
+    valid_direction = (
+        (strike_type.isin(["greater", "structured"]) & above)
+        | (strike_type.eq("greater_or_equal") & at_least)
+        | (strike_type.eq("") & above)
+    )
+    g = g[valid_direction].copy()
+    g["ladder_strike"] = g.apply(parsed_strike, axis=1)
+    return g.dropna(subset=["ladder_strike", "market_ticker"]).drop_duplicates("market_ticker")
+
+
+def first_numeric(*values):
+    for value in values:
+        parsed = number(value)
+        if np.isfinite(parsed):
+            return float(parsed)
+    return None
+
+
+def market_open_timestamp(value):
+    opened_at = pd.to_datetime(value, errors="coerce", utc=True)
+    return int(opened_at.timestamp()) if pd.notna(opened_at) else None
+
+
+def latest_candle(session, base_url, series_ticker, market_ticker, start_ts, as_of_ts, timeout):
     params = {
         "start_ts": start_ts,
         "end_ts": int(as_of_ts),
         "period_interval": 1440,
-        "include_latest_before_start": "true",
     }
-    urls = [
-        f"{BASE}/series/{series_ticker}/markets/{market_ticker}/candlesticks",
-        f"{BASE}/historical/markets/{market_ticker}/candlesticks",
+    endpoints = [
+        (
+            "series_candlesticks",
+            f"{base_url}/series/{series_ticker}/markets/{market_ticker}/candlesticks",
+        ),
+        (
+            "historical_candlesticks",
+            f"{base_url}/historical/markets/{market_ticker}/candlesticks",
+        ),
     ]
-    last_error = ""
-    for url in urls:
-        try:
-            r = requests.get(url, params=params, timeout=timeout)
-        except requests.RequestException as exc:
-            last_error = type(exc).__name__
-            continue
-        if r.status_code == 404:
-            last_error = "404"
-            continue
-        if not r.ok:
-            last_error = f"http_{r.status_code}"
-            continue
-        candles = r.json().get("candlesticks", [])
-        candles = [c for c in candles if c.get("end_period_ts") and c["end_period_ts"] <= as_of_ts]
-        if not candles:
-            last_error = "empty"
-            continue
-        return sorted(candles, key=lambda c: c["end_period_ts"])[-1], ""
-    return None, last_error or "missing"
+    last_error = "missing"
+    for endpoint_name, url in endpoints:
+        for attempt in range(3):
+            try:
+                response = session.get(url, params=params, timeout=timeout)
+            except requests.RequestException as exc:
+                last_error = type(exc).__name__
+                time.sleep(0.25 * (attempt + 1))
+                continue
+            if response.status_code == 404:
+                last_error = "404"
+                break
+            if response.status_code in {429, 500, 502, 503, 504}:
+                last_error = f"http_{response.status_code}"
+                time.sleep(0.5 * (attempt + 1))
+                continue
+            if not response.ok:
+                last_error = f"http_{response.status_code}"
+                break
+            candles = response.json().get("candlesticks", []) or []
+            eligible = [
+                candle
+                for candle in candles
+                if start_ts <= number(candle.get("end_period_ts")) <= as_of_ts
+            ]
+            if not eligible:
+                last_error = "empty_in_window"
+                break
+            candle = max(eligible, key=lambda value: number(value.get("end_period_ts")))
+            return candle, endpoint_name, ""
+    return None, "", last_error
 
 
-def implied_ladder(g):
-    if g.empty or not {"floor_strike", "pre_prob"}.issubset(g.columns):
-        return empty_ladder()
-    g = g.dropna(subset=["floor_strike", "pre_prob"]).copy()
-    g["strike"] = pd.to_numeric(g["floor_strike"], errors="coerce")
-    g = g.dropna(subset=["strike"]).sort_values("strike")
-    if len(g) < 2:
-        out = empty_ladder()
-        out.update({
-            "pre_n_strikes": int(len(g)),
-            "pre_strike_min": g["strike"].min() if len(g) else np.nan,
-            "pre_strike_max": g["strike"].max() if len(g) else np.nan,
-            "pre_strike_step_median": np.nan,
-            "pre_prob_lowest": g["pre_prob"].iloc[0] if len(g) else np.nan,
-            "pre_prob_highest": g["pre_prob"].iloc[-1] if len(g) else np.nan,
-        })
-        return out
-    strikes = g["strike"].to_numpy(float)
-    probs = np.clip(g["pre_prob"].to_numpy(float), 0, 1)
-    gaps = np.diff(strikes)
-    step = float(np.nanmedian(gaps[gaps > 0])) if np.any(gaps > 0) else 0.0
-    incremental = float(np.sum(probs[:-1] * gaps) + probs[-1] * step)
-    no_tail = float(strikes[0] + np.sum(probs[:-1] * gaps))
-    implied = float(strikes[0] + incremental)
+def monotonicity_violations(rungs):
+    ordered = sorted(rungs, key=lambda row: (row["strike"], row["market_ticker"]))
+    return sum(
+        right["probability"] > left["probability"] + 1e-12
+        for left, right in zip(ordered, ordered[1:])
+        if right["strike"] > left["strike"]
+    )
+
+
+def build_event_ladder(
+    session,
+    base_url,
+    target,
+    event_markets,
+    as_of,
+    max_mid_spread,
+    timeout,
+    errors,
+):
+    candidates = survival_rungs(event_markets)
+    rungs = []
+    for market in candidates.to_dict("records"):
+        open_ts = market_open_timestamp(market.get("open_time"))
+        if open_ts is None:
+            errors.append(
+                {
+                    "event_ticker": clean(target.get("event_ticker")),
+                    "market_ticker": clean(market.get("market_ticker")),
+                    "error": "missing_open_time",
+                }
+            )
+            continue
+        if open_ts > int(as_of.timestamp()):
+            errors.append(
+                {
+                    "event_ticker": clean(target.get("event_ticker")),
+                    "market_ticker": clean(market.get("market_ticker")),
+                    "error": "market_not_open_as_of_cutoff",
+                }
+            )
+            continue
+        candle, endpoint, error = latest_candle(
+            session,
+            base_url,
+            clean(market.get("series_ticker")),
+            clean(market.get("market_ticker")),
+            open_ts,
+            int(as_of.timestamp()),
+            timeout,
+        )
+        if candle is None:
+            errors.append(
+                {
+                    "event_ticker": clean(target.get("event_ticker")),
+                    "market_ticker": clean(market.get("market_ticker")),
+                    "error": error,
+                }
+            )
+            continue
+        selected = select_probability(candle, max_mid_spread)
+        if not np.isfinite(selected["probability"]):
+            errors.append(
+                {
+                    "event_ticker": clean(target.get("event_ticker")),
+                    "market_ticker": clean(market.get("market_ticker")),
+                    "error": "no_usable_price",
+                }
+            )
+            continue
+        candle_ts = int(number(candle.get("end_period_ts")))
+        candle_at = pd.to_datetime(candle_ts, unit="s", utc=True)
+        rungs.append(
+            {
+                "market_ticker": clean(market.get("market_ticker")),
+                "market_title": clean(market.get("market_title")),
+                "yes_contract": clean(market.get("yes_sub_title")),
+                "strike": float(market["ladder_strike"]),
+                "threshold_operator": threshold_operator(market),
+                **selected,
+                "candle_ts": candle_ts,
+                "candle_at": candle_at.isoformat(),
+                "market_open_at": pd.to_datetime(open_ts, unit="s", utc=True).isoformat(),
+                "candle_age_hours": round((as_of - candle_at).total_seconds() / 3600.0, 3),
+                "daily_volume": first_numeric(
+                    candle.get("volume_fp"), candle.get("volume")
+                ),
+                "open_interest": first_numeric(
+                    candle.get("open_interest_fp"), candle.get("open_interest")
+                ),
+                "candle_endpoint": endpoint,
+            }
+        )
+    rungs.sort(key=lambda row: (row["strike"], row["market_ticker"]))
+    if len(rungs) < 2:
+        return None
     return {
-        "pre_n_strikes": int(len(g)),
-        "pre_strike_min": float(strikes[0]),
-        "pre_strike_max": float(strikes[-1]),
-        "pre_strike_step_median": step,
-        "pre_prob_lowest": float(probs[0]),
-        "pre_prob_highest": float(probs[-1]),
-        "pre_implied_value": implied,
-        "pre_implied_value_no_tail": no_tail,
-        "pre_implied_value_incremental": incremental,
+        "series_ticker": clean(target.get("series_ticker")),
+        "series_title": clean(target.get("series_title")),
+        "event_ticker": clean(target.get("event_ticker")),
+        "metric_label": clean(target.get("metric_label")),
+        "period_label": clean(target.get("period_label")),
+        "n_ladder_markets": int(len(candidates)),
+        "n_priced_rungs": int(len(rungs)),
+        "monotonicity_violations": int(monotonicity_violations(rungs)),
+        "rungs": rungs,
     }
 
 
-def cluster_boot(d, x, y, n=2000, seed=2026):
-    d = d.dropna(subset=[x, y])
-    if len(d) < 10 or d[x].std() < 1e-12 or d[y].std() < 1e-12:
-        return np.nan, np.nan, len(d)
-    r0 = d[x].corr(d[y])
-    ticks = d["ticker"].dropna().unique()
-    rng = np.random.default_rng(seed)
-    bs = []
-    for _ in range(n):
-        sample_ticks = rng.choice(ticks, len(ticks), True)
-        s = pd.concat([d[d["ticker"] == t] for t in sample_ticks], ignore_index=True)
-        if s[x].std() > 1e-12 and s[y].std() > 1e-12:
-            bs.append(s[x].corr(s[y]))
-    bs = np.asarray(bs)
-    p = 2 * min((bs > 0).mean(), (bs < 0).mean()) if len(bs) else np.nan
-    return float(r0), float(p), int(len(d))
+def target_key(row):
+    return (
+        clean(row.get("ticker")).upper(),
+        clean(row.get("FE_FP_END")),
+        clean(row.get("REPORT_DATE")),
+    )
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--joined", type=Path, default=JOINED)
-    ap.add_argument("--inventory", type=Path, default=INVENTORY)
-    ap.add_argument("--out-csv", type=Path, default=OUT_CSV)
-    ap.add_argument("--out-md", type=Path, default=OUT_MD)
-    ap.add_argument("--window-days", type=int, default=45)
-    ap.add_argument("--timeout", type=float, default=20)
-    args = ap.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--joined", type=Path, default=JOINED)
+    parser.add_argument("--inventory", type=Path, default=INVENTORY)
+    parser.add_argument("--out-csv", type=Path, default=OUT_CSV)
+    parser.add_argument("--base-url", default=BASE)
+    parser.add_argument("--max-mid-spread", type=float, default=0.20)
+    parser.add_argument("--timeout", type=float, default=20)
+    parser.add_argument("--publication-buffer-minutes", type=float, default=1.0)
+    args = parser.parse_args()
 
     joined = pd.read_csv(args.joined)
-    inv = pd.read_csv(args.inventory)
-    joined["REPORT_DATE"] = pd.to_datetime(joined["REPORT_DATE"], errors="coerce")
-    joined["FE_FP_END"] = pd.to_datetime(joined["FE_FP_END"], errors="coerce")
+    inventory = pd.read_csv(args.inventory)
+    required = {"ticker", "FE_FP_END", "REPORT_DATE", "published_at", "event_ticker"}
+    missing = sorted(required - set(joined.columns))
+    if missing:
+        raise SystemExit(f"joined panel missing columns: {missing}")
 
-    rows = []
+    joined_columns = {column: joined[column] for column in joined.columns}
+    joined_columns["published_at"] = pd.to_datetime(
+        joined["published_at"], errors="coerce", utc=True
+    )
+    joined = pd.DataFrame(joined_columns, index=joined.index)
+    groups = {}
+    for row in joined.to_dict("records"):
+        key = target_key(row)
+        group = groups.setdefault(
+            key,
+            {
+                "target": {column: row.get(column) for column in TARGET_COLUMNS if column in row},
+                "event_rows": {},
+            },
+        )
+        group["event_rows"][clean(row.get("event_ticker"))] = row
+
+    session = requests.Session()
+    session.headers.update(HEADERS)
     errors = []
-    for idx, target in enumerate(joined.itertuples(), 1):
-        if pd.isna(target.REPORT_DATE):
-            continue
-        as_of = target.REPORT_DATE - pd.Timedelta(days=1)
-        as_of_ts = int(datetime(as_of.year, as_of.month, as_of.day, 23, 59, tzinfo=timezone.utc).timestamp())
-        event_markets = inv[inv["event_ticker"].eq(target.event_ticker)].copy()
-        priced = []
-        for m in event_markets.itertuples():
-            candle, err = latest_candle(m.series_ticker, m.market_ticker, as_of_ts, args.window_days, args.timeout)
-            if candle is None:
-                errors.append({"event_ticker": target.event_ticker, "market_ticker": m.market_ticker, "error": err})
-                continue
-            prob, source = candle_prob(candle)
-            row = m._asdict()
-            row.update({
-                "pre_prob": prob,
-                "pre_price_source": source,
-                "pre_candle_ts": candle.get("end_period_ts"),
-                "pre_volume_fp": num(candle.get("volume_fp")),
-                "pre_open_interest_fp": num(candle.get("open_interest_fp")),
-            })
-            priced.append(row)
-        pg = pd.DataFrame(priced)
-        greater = pg[pg["strike_type"].fillna("").str.lower().eq("greater")] if not pg.empty else pg
-        ladder = implied_ladder(greater) if not pg.empty else implied_ladder(pg)
-        out = target._asdict()
-        out.update({
-            "pre_as_of_date": as_of.date().isoformat(),
-            "pre_as_of_ts": as_of_ts,
-            "pre_n_markets": int(len(event_markets)),
-            "pre_n_priced": int(len(pg)),
-            "pre_volume_sum": float(pg["pre_volume_fp"].sum()) if not pg.empty else np.nan,
-            "pre_open_interest_sum": float(pg["pre_open_interest_fp"].sum()) if not pg.empty else np.nan,
-            "pre_price_sources": "|".join(sorted(set(str(x) for x in pg["pre_price_source"].dropna()))) if not pg.empty else "",
-            **ladder,
-        })
-        rows.append(out)
-        print(f"[{idx}/{len(joined)}] {target.ticker} {target.event_ticker}: priced {len(pg)}/{len(event_markets)}", flush=True)
+    output_rows = []
+    for index, group in enumerate(groups.values(), 1):
+        target = group["target"]
+        published_at = pd.to_datetime(target.get("published_at"), errors="coerce", utc=True)
+        ladders = []
+        if pd.notna(published_at):
+            as_of = published_at - pd.Timedelta(minutes=args.publication_buffer_minutes)
+            for event_ticker, event_row in sorted(group["event_rows"].items()):
+                event_markets = inventory[inventory["event_ticker"].eq(event_ticker)].copy()
+                ladder = build_event_ladder(
+                    session,
+                    args.base_url,
+                    event_row,
+                    event_markets,
+                    as_of,
+                    args.max_mid_spread,
+                    args.timeout,
+                    errors,
+                )
+                if ladder:
+                    ladders.append(ladder)
+        else:
+            as_of = pd.NaT
 
-    out = pd.DataFrame(rows)
+        all_rungs = [rung for ladder in ladders for rung in ladder["rungs"]]
+        candle_timestamps = [rung["candle_ts"] for rung in all_rungs]
+        event_market_total = sum(ladder["n_ladder_markets"] for ladder in ladders)
+        row = dict(target)
+        row.update(
+            {
+                "pre_as_of_at": as_of.isoformat() if pd.notna(as_of) else "",
+                "pre_as_of_ts": int(as_of.timestamp()) if pd.notna(as_of) else np.nan,
+                "pre_cutoff_source": (
+                    "published_at_minus_buffer" if pd.notna(as_of) else "missing_published_at"
+                ),
+                "pre_candle_search_rule": (
+                    "market_open_to_publication_cutoff"
+                    if pd.notna(as_of)
+                    else "missing_published_at"
+                ),
+                "pre_event_count": int(len(ladders)),
+                "pre_total_ladder_markets": int(event_market_total),
+                "pre_total_priced_rungs": int(len(all_rungs)),
+                "pre_daily_volume_sum": float(
+                    sum(rung["daily_volume"] or 0.0 for rung in all_rungs)
+                ),
+                "pre_open_interest_sum": float(
+                    sum(rung["open_interest"] or 0.0 for rung in all_rungs)
+                ),
+                "pre_oldest_candle_ts": min(candle_timestamps) if candle_timestamps else np.nan,
+                "pre_latest_candle_ts": max(candle_timestamps) if candle_timestamps else np.nan,
+                "pre_max_candle_age_hours": (
+                    max(rung["candle_age_hours"] for rung in all_rungs)
+                    if all_rungs
+                    else np.nan
+                ),
+                "pre_wide_spread_fallback_rungs": int(
+                    sum(rung["wide_spread_fallback"] for rung in all_rungs)
+                ),
+                "pre_monotonicity_violations": int(
+                    sum(ladder["monotonicity_violations"] for ladder in ladders)
+                ),
+                "kalshi_event_tickers": "|".join(
+                    ladder["event_ticker"] for ladder in ladders
+                ),
+                "kalshi_ladders_json": json.dumps(
+                    ladders, separators=(",", ":"), ensure_ascii=True
+                ),
+            }
+        )
+        output_rows.append(row)
+        print(
+            f"[{index}/{len(groups)}] {target.get('ticker')} {clean(target.get('FE_FP_END'))}: "
+            f"events={len(ladders)} rungs={len(all_rungs)}",
+            flush=True,
+        )
+
+    out = pd.DataFrame(output_rows)
+    if not out.empty:
+        out = out.sort_values(["REPORT_DATE", "ticker"]).reset_index(drop=True)
     args.out_csv.parent.mkdir(parents=True, exist_ok=True)
-    args.out_md.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(args.out_csv, index=False)
 
-    lines = [
-        "# Kalshi pre-report X -> revenue surprise",
-        "",
-        f"> Generated by `kalshi/scripts/auto/s_ak_kalshi_prereport_features.py`.",
-        "",
-        f"- input joined panel: `{rel(args.joined)}`",
-        f"- input inventory: `{rel(args.inventory)}`",
-        f"- as-of rule: latest daily candlestick at `REPORT_DATE - 1 day`, lookback {args.window_days} days",
-        f"- rows: {len(out):,}",
-        f"- tickers: {out['ticker'].nunique() if not out.empty else 0:,}",
-        f"- rows with pre-report prices: {int((out['pre_n_priced'] > 0).sum()) if not out.empty else 0:,}",
-        f"- market candle fetch misses: {len(errors):,}",
-    ]
-    test = out[pd.to_datetime(out["REPORT_DATE"], errors="coerce") > pd.Timestamp("2025-12-01")].copy()
-    lines += [
-        "",
-        "## Post-cutoff correlation tests",
-        "",
-        "| X | r | p_boot | n |",
-        "|---|---:|---:|---:|",
-    ]
-    for x in [
-        "pre_implied_value",
-        "pre_implied_value_no_tail",
-        "pre_implied_value_incremental",
-        "pre_prob_lowest",
-        "pre_prob_highest",
-        "pre_volume_sum",
-        "pre_open_interest_sum",
-    ]:
-        if x not in test.columns:
-            continue
-        r, p, n = cluster_boot(test, x, "surprise_early")
-        lines.append(f"| {x} | {r:+.3f} | {p:.3f} | {n} |")
-    lines += [
-        "",
-        "Leakage note: unlike the public latest/finalized snapshot, these X values are taken before the report date.",
-        f"Output CSV: `{rel(args.out_csv)}`",
-    ]
-    args.out_md.write_text("\n".join(lines) + "\n")
+    covered = out[out["pre_event_count"].gt(0)] if not out.empty else out
+    error_counts = Counter(row["error"] for row in errors)
     print(f"[written] {args.out_csv}")
-    print(f"[written] {args.out_md}")
+    print(
+        f"targets={len(out)} covered={len(covered)} "
+        f"events={int(covered['pre_event_count'].sum()) if not covered.empty else 0} "
+        f"rungs={int(covered['pre_total_priced_rungs'].sum()) if not covered.empty else 0} "
+        f"misses={dict(error_counts)}"
+    )
 
 
 if __name__ == "__main__":
