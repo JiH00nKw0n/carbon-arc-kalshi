@@ -49,8 +49,8 @@ F,Ford Motor Company,KXFA,Ford Annual KPI,KPIs,KXFA-28JANUSSALES,2028-01-31T21:0
 FDX,FedEx Corporation,KXFDX,FedEx KPI,Companies|KPIs,KXFDX-26JUNADV,2026-06-23T20:57:47+00:00,Q4 2026,avg daily package volume,11,11,16000000.0,18000000.0,>,kpi_ladder
 FUTU,Futu Holdings Limited,KXFUTU,FUTU KPI,Companies|KPIs,KXFUTU-26AUGFUNDED,2026-08-21T04:00:00+00:00,Q2 2026,total funded accounts,11,11,3700000.0,4200000.0,>,kpi_ladder
 FUTU,Futu Holdings Limited,KXFUTU,FUTU KPI,Companies|KPIs,KXFUTU-26MAYFUNDED,2026-05-28T15:59:00+00:00,Q1 2026,total funded accounts,7,7,3500000.0,3750000.0,>,kpi_ladder
-GOOG,Alphabet Inc.,KXGOOG,Google KPI,Companies|KPIs,KXGOOG-26OCTHEAD,2026-10-31T14:00:00+00:00,Q2 2026,total number of employees,10,10,194500.0,197500.0,>,kpi_ladder
-GOOG,Alphabet Inc.,KXGOOGA,Google KPI,KPIs,KXGOOGA-28JANHEAD,2028-01-01T15:00:00+00:00,,total number of employees,6,6,188000.0,208000.0,>,kpi_ladder
+GOOGL,Alphabet Inc.,KXGOOG,Google KPI,Companies|KPIs,KXGOOG-26OCTHEAD,2026-10-31T14:00:00+00:00,Q2 2026,total number of employees,10,10,194500.0,197500.0,>,kpi_ladder
+GOOGL,Alphabet Inc.,KXGOOGA,Google KPI,KPIs,KXGOOGA-28JANHEAD,2028-01-01T15:00:00+00:00,,total number of employees,6,6,188000.0,208000.0,>,kpi_ladder
 HD,Home Depot Inc.,KXHD,Home Depot KPI,Companies|KPIs,KXHD-26AUGTXN,2026-09-17T10:00:00+00:00,Q2 2026,customer transactions,7,7,390000000.0,450000000.0,>,kpi_ladder
 HD,Home Depot Inc.,KXHD,Home Depot KPI,Companies|KPIs,KXHD-26MAYTRAN,2026-05-19T15:57:15+00:00,Q1 2026,customer transactions,6,6,388000000.0,398000000.0,>,kpi_ladder
 HIMS,Hims & Hers Health Inc.,KXHIMS,Hims KPI,Companies|KPIs,KXHIMS-26AUGSUBS,2026-09-02T20:00:00+00:00,Q2 2026,subscribers,15,15,2600000.0,3040000.0,>,kpi_ladder
@@ -174,7 +174,7 @@ WMT,Walmart Foot Traffic,KXWMTFT,Walmart Foot Traffic,KPIs,KXWMTFT-26AUG08,2026-
 META,Meta daily active people,KXMETADAP,Meta daily active people,KPIs,METADAP-24-Q1,2024-04-24T20:00:00+00:00,Q1 2024,meta users,3,3,3.19,3.3,>,kpi_ladder
 META,Meta daily active people,KXMETADAP,Meta daily active people,KPIs,METADAP-24-Q2,2024-07-31T20:00:00+00:00,Q2 2024,meta users,3,3,3.21,3.27,>,kpi_ladder
 META,Meta daily active people,KXMETADAP,Meta daily active people,KPIs,METADAP-24-Q3,2024-10-31T01:19:42.392454+00:00,Q3 2024,meta users,2,2,3.3,3.4,>,kpi_ladder
-NFLX,Netflix subscribers this quarter,KXNETFLIXSUBS,Netflix subscribers this quarter,KPIs,NETFLIXSUBS-24-Q1,2024-04-15T20:00:00+00:00,Q1 2024,netflix subscribers gain,3,3,2.0,6.0,>,kpi_ladder
+NFLX,Netflix subscribers this quarter,KXNETFLIXSUBS,Netflix subscribers this quarter,KPIs,NETFLIXSUBS-24-Q1,2024-04-15T20:00:00+00:00,Q1 2024,netflix subscribers,3,3,2.0,6.0,>,kpi_ladder
 NFLX,Netflix subscribers this quarter,KXNETFLIXSUBS,Netflix subscribers this quarter,KPIs,NETFLIXSUBS-24-Q2,2024-07-19T14:03:14.047302+00:00,Q2 2024,netflix subscribers gain,3,3,2.0,9.33,>,kpi_ladder
 NFLX,Netflix subscribers this quarter,KXNETFLIXSUBS,Netflix subscribers this quarter,KPIs,NETFLIXSUBS-24-Q3,2024-10-18T14:04:50.601587+00:00,Q3 2024,netflix subscribers gain,3,3,6.0,8.0,>,kpi_ladder
 NFLX,Netflix subscribers this quarter,KXNETFLIXSUBS,Netflix subscribers this quarter,KPIs,NETFLIXSUBS-24-Q4,2025-01-25T05:36:06.063872+00:00,Q4 2024,netflix subscribers gain,3,3,6000000.0,8000000.0,>,kpi_ladder
@@ -184,7 +184,7 @@ SPOT,Spotify subscribers,KXSPOTIFYSUBS,Spotify subscribers,KPIs,SPOTIFYSUBS-24-Q
 TSLA,Tesla deliveries,KXTESLA,Tesla deliveries,KPIs,TESLA-24-Q1,2024-04-01T03:59:00+00:00,Q1 2024,how many tesla deliveries will there be this quarter,11,11,400000.0,540000.0,>=,kpi_ladder
 TSLA,Tesla deliveries,KXTESLA,Tesla deliveries,KPIs,TESLA-24-Q2,2024-07-01T03:59:00+00:00,Q2 2024,how many tesla deliveries will there be this quarter,14,14,350000.0,500000.0,>=,kpi_ladder
 TSLA,Tesla deliveries,KXTESLA,Tesla deliveries,KPIs,TESLA-24-Q3,2024-10-01T03:59:00+00:00,Q3 2024,how many tesla deliveries will there be this quarter,10,10,370000.0,490000.0,>=,kpi_ladder
-TSLA,Tesla deliveries,KXTESLA,Tesla deliveries,KPIs,TESLA-24-Q4,2025-01-02T15:02:06.614535+00:00,Q4 2024,how many tesla deliveries will there be this quarter,10,10,410000.0,550000.0,>=,kpi_ladder
+TSLA,Tesla deliveries,KXTESLA,Tesla deliveries,KPIs,TESLA-24-Q4,2025-01-01T04:59:00+00:00,Q4 2024,how many tesla deliveries will there be this quarter,10,10,410000.0,550000.0,>=,kpi_ladder
 TSLA,Tesla production,KXTESLAPROD,Tesla production,KPIs,TESLAPROD-24-Q2,2024-07-02T14:33:05.307941+00:00,Q2 2024,tesla production,7,7,350000.0,470000.0,>,kpi_ladder
-TSLA,Tesla production,KXTESLAPROD,Tesla production,KPIs,TESLAPROD-24-Q3,2024-10-01T03:59:00+00:00,Q3 2024,tesla production,11,11,400000.0,540000.0,>,kpi_ladder
+TSLA,Tesla production,KXTESLAPROD,Tesla production,KPIs,TESLAPROD-24-Q3,2024-10-02T14:09:38.816686+00:00,Q3 2024,tesla production,11,11,400000.0,540000.0,>,kpi_ladder
 TSLA,Tesla production,KXTESLAPROD,Tesla production,KPIs,TESLAPROD-24-Q4,2025-01-02T15:03:22.816884+00:00,Q4 2024,tesla production,4,4,400000.0,469796.0,>,kpi_ladder

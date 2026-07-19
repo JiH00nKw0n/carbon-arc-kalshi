@@ -169,7 +169,7 @@ def cross_fit_calibrate(data, arm, seed, folds=5):
     return calibrated
 
 
-def synergy(data):
+def benchmark_statistics(data):
     truth = data["true_pct"].to_numpy(float)
     variance = np.square(truth - truth.mean()).mean()
     correlations = {}
@@ -184,17 +184,22 @@ def synergy(data):
     skill_value = skills[ARMS[3]] - (
         skills[ARMS[1]] + skills[ARMS[2]] - skills[ARMS[0]]
     )
-    return float(correlation_value), float(skill_value)
+    return (
+        float(correlations[ARMS[3]]),
+        float(correlation_value),
+        float(skills[ARMS[3]]),
+        float(skill_value),
+    )
 
 
-def clustered_synergy(data, samples, seed):
+def clustered_benchmark_statistics(data, samples, seed):
     rng = np.random.default_rng(seed)
     companies = [group for _, group in data.groupby("ticker")]
-    values = np.empty((samples, 2))
+    values = np.empty((samples, 4))
     for index in range(samples):
         selected = rng.integers(0, len(companies), len(companies))
         sample = pd.concat([companies[item] for item in selected], ignore_index=True)
-        values[index] = synergy(sample)
+        values[index] = benchmark_statistics(sample)
     return values
 
 
@@ -241,7 +246,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--series", type=Path, default=OUTPUTS / "kalshi_company_series.csv")
     parser.add_argument("--features", type=Path, default=OUTPUTS / "kalshi_company_event_features.csv")
-    parser.add_argument("--y-panel", type=Path, default=OUTPUTS / "kalshi_stockdb_revenue_surprise_panel.csv")
+    parser.add_argument(
+        "--y-panel",
+        type=Path,
+        default=OUTPUTS / "kalshi_factset_revenue_surprise_panel.csv",
+    )
+    parser.add_argument(
+        "--factset-audit",
+        type=Path,
+        default=OUTPUTS / "kalshi_factset_query_audit.json",
+    )
     parser.add_argument("--events", type=Path, default=OUTPUTS / "kalshi_x_revsurprise_events.csv")
     parser.add_argument("--ladders", type=Path, default=OUTPUTS / "kalshi_prereport_ladder_panel.csv")
     parser.add_argument("--preds", type=Path, default=OUTPUTS / "kalshi_llm_ladder_ablation_preds.csv")
@@ -256,6 +270,7 @@ def main():
     series = pd.read_csv(args.series)
     features = pd.read_csv(args.features)
     y_panel = pd.read_csv(args.y_panel)
+    factset_audit = json.loads(args.factset_audit.read_text())
     events = pd.read_csv(args.events)
     ladders = pd.read_csv(args.ladders)
     predictions = pd.read_csv(args.preds)
@@ -279,6 +294,8 @@ def main():
         predictions,
         FE_FP_END=pd.to_datetime(predictions["FE_FP_END"], errors="raise"),
     )
+    if factset_audit.get("row_count") != len(y_panel):
+        raise SystemExit("FactSet query audit does not match the Y panel")
     exact_post = events[events["REPORT_DATE"] > KNOWLEDGE_CUTOFF].copy()
     covered = ladders[
         pd.to_numeric(ladders["pre_event_count"], errors="coerce").fillna(0).gt(0)
@@ -304,6 +321,7 @@ def main():
     rungs = ladder_rungs(final_ladders)
     price_sources = Counter(rung.get("price_source", "missing") for rung in rungs)
     max_age = max(float(rung["candle_age_hours"]) for rung in rungs)
+    repeated_firms = int((predictions.groupby("ticker").size() > 1).sum())
 
     calls = len(run_log)
     successful_calls = sum(record.get("prediction") is not None for record in run_log)
@@ -335,7 +353,7 @@ def main():
             "period parses as `Qx YYYY`",
         ],
         [
-            "Valid Stock DB targets",
+            "Valid direct FactSet targets",
             len(valid_y),
             valid_y["ticker"].nunique(),
             len(valid_y),
@@ -437,10 +455,12 @@ def main():
         comparison_stats.append((delta, lower, upper, permutation_p))
 
     matched = predictions.dropna(subset=ARMS + ["true_pct"]).reset_index(drop=True)
-    observed_synergy = synergy(matched)
-    synergy_bootstrap = clustered_synergy(matched, args.bootstrap_samples, SEED + 200)
+    observed_benchmark = benchmark_statistics(matched)
+    benchmark_bootstrap = clustered_benchmark_statistics(
+        matched, args.bootstrap_samples, SEED
+    )
     surrogate_p = company_shuffle_surrogate(
-        matched, ARMS[-1], args.bootstrap_samples, SEED + 300
+        matched, ARMS[-1], args.bootstrap_samples, SEED
     )
 
     ticker_attrition = []
@@ -476,7 +496,7 @@ def main():
         elif not ticker_y.empty:
             terminal_stage = "no exact fiscal-period match"
         else:
-            terminal_stage = "no Stock DB target"
+            terminal_stage = "no direct FactSet target"
         ticker_attrition.append(
             [
                 ticker,
@@ -525,6 +545,11 @@ def main():
         f"- estimated gateway cost: USD {cost:.2f}",
         f"- fiscal period range: {predictions['FE_FP_END'].min().date()} to {predictions['FE_FP_END'].max().date()}",
         f"- truth: mean {predictions['true_pct'].mean():+.3f}%, sample SD {predictions['true_pct'].std():.3f}%, positive rate {(predictions['true_pct'] > 0).mean():.3f}",
+        f"- financial source: `{factset_audit['source']}`",
+        f"- FactSet query: {factset_audit['fsym_id_count']} regional IDs, "
+        f"{factset_audit['row_count']} rows, {len(factset_audit['batches'])} batches",
+        f"- early consensus: `{factset_audit['early_rule']}`",
+        f"- pre-print consensus: `{factset_audit['print_rule']}`",
         "",
         "## Universe construction",
         "",
@@ -540,12 +565,10 @@ def main():
     )
     lines += [
         "",
-        "The earlier 45-day candle-age cap was not part of the Carbon Arc benchmark. "
-        "Removing it and searching from each contract's actual `open_time` restored DIS "
-        "Q1 FY2026, period end 2025-12-31 (six rungs; oldest age 1,110.7 hours). FDX "
-        "remains excluded because "
-        "Stock DB has no precise `published_at`, so a leakage-safe intraday cutoff cannot "
-        "be constructed.",
+        "The earlier 45-day candle-age cap was not part of the Carbon Arc benchmark and "
+        "is not used. Candle lookup starts at each contract's actual `open_time`; rows "
+        "without a precise FactSet publication timestamp or a valid pre-publication "
+        "ladder remain excluded.",
         "",
         "## Final sample",
         "",
@@ -581,7 +604,7 @@ def main():
     ]
     lines.extend(
         markdown_table(
-            ["arm", "n", "RMSE", "MAE", "corr", "corr2", "R2", "sign accuracy"],
+            ["arm", "n", "RMSE", "MAE", "corr", "corr2", "OOS R2", "sign accuracy"],
             [
                 [
                     arm,
@@ -599,8 +622,9 @@ def main():
     )
     lines += [
         "",
-        "RMSE and MAE are in revenue-surprise percentage points. R2 is evaluated on the "
-        "paired sample; correlation squared is the benchmark's scale-free calibration ceiling.",
+        "RMSE and MAE are in revenue-surprise percentage points. OOS R2 is `1 - SSE/SST` "
+        "on the paired post-cutoff sample; correlation squared is the benchmark's "
+        "scale-free calibration ceiling.",
         "",
         "## Predefined incremental comparisons",
         "",
@@ -630,25 +654,31 @@ def main():
         "| metric | observed | bootstrap mean | company-bootstrap 95% CI | p(<=0) |",
         "|---|---:|---:|---:|---:|",
     ]
-    for index, label in enumerate(["correlation synergy", "MSE-skill synergy"]):
-        lower, upper = np.percentile(synergy_bootstrap[:, index], [2.5, 97.5])
+    benchmark_labels = [
+        "corr(fin+ladder+call)",
+        "synergy(corr)",
+        "skill(fin+ladder+call) [OOS R2]",
+        "synergy(MSE-skill)",
+    ]
+    for index, label in enumerate(benchmark_labels):
+        lower, upper = np.percentile(benchmark_bootstrap[:, index], [2.5, 97.5])
         lines.append(
-            f"| {label} | {observed_synergy[index]:+.3f} | "
-            f"{synergy_bootstrap[:, index].mean():+.3f} | "
+            f"| {label} | {observed_benchmark[index]:+.3f} | "
+            f"{benchmark_bootstrap[:, index].mean():+.3f} | "
             f"[{lower:+.3f}, {upper:+.3f}] | "
-            f"{(synergy_bootstrap[:, index] <= 0).mean():.3f} |"
+            f"{(benchmark_bootstrap[:, index] <= 0).mean():.3f} |"
         )
     lines += [
         "",
         f"Company-shuffle surrogate for `{ARMS[-1]}`: p={surrogate_p:.3f}.",
         "",
-        "| arm | raw R2 | calibrated R2 | corr2 ceiling |",
+        "| arm | raw OOS R2 | calibrated OOS R2 | corr2 ceiling |",
         "|---|---:|---:|---:|",
     ]
     truth = matched["true_pct"].to_numpy(float)
     for arm in ARMS:
         raw_result = metrics(matched[arm], truth)
-        calibrated = cross_fit_calibrate(matched, arm, SEED + 400)
+        calibrated = cross_fit_calibrate(matched, arm, SEED)
         calibrated_result = metrics(calibrated, truth)
         lines.append(
             f"| {arm} | {raw_result['r2']:+.3f} | "
@@ -662,11 +692,11 @@ def main():
         "company-clustered 95% confidence interval fully below zero, and a company-level "
         "sign-permutation p-value below 0.05. Neither comparison passes all three gates.",
         "",
-        "The evaluation has 36 observations across 28 firms, with only eight firms observed "
-        "twice. Each arm was called once, so model-run variance is not estimated. The sample "
-        "is concentrated in Q4 FY2025 and Q1 FY2026, and the DIS ladder is 46 days stale "
-        "because that market stopped trading well before the earnings publication. These "
-        "constraints limit power and generalization.",
+        f"The evaluation has {len(predictions)} observations across "
+        f"{predictions['ticker'].nunique()} firms; {repeated_firms} firms have more than "
+        f"one target. Each arm was called {len(repeats)} time(s) per target, so model-run "
+        f"variance is not estimated. The oldest retained quote is {max_age / 24:.1f} days "
+        "before publication. These constraints limit power and generalization.",
         "",
         "## Usable-ladder ticker attrition",
         "",
@@ -695,7 +725,8 @@ def main():
         f"- per-call log: `{rel(args.run_log)}`",
         f"- pre-publication ladders: `{rel(args.ladders)}`",
         f"- exact event mappings: `{rel(args.events)}`",
-        f"- Stock DB target panel: `{rel(args.y_panel)}`",
+        f"- direct FactSet target panel: `{rel(args.y_panel)}`",
+        f"- direct FactSet query audit: `{rel(args.factset_audit)}`",
     ]
 
     args.out_md.parent.mkdir(parents=True, exist_ok=True)

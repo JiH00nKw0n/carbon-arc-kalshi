@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 ROOT = Path(__file__).resolve().parents[3]
 KALSHI_ROOT = ROOT / "kalshi"
 PRE_PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_prereport_ladder_panel.csv"
-Y_PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_stockdb_revenue_surprise_panel.csv"
+Y_PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_factset_revenue_surprise_panel.csv"
 OUT_CSV = KALSHI_ROOT / "outputs" / "auto" / "kalshi_llm_ladder_ablation_preds.csv"
 OUT_JSONL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_llm_ladder_ablation_run_log.jsonl"
 ELIGIBLE_CSV = KALSHI_ROOT / "outputs" / "auto" / "kalshi_llm_eligible_targets.csv"

@@ -3,6 +3,7 @@ import json
 import os
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -22,9 +23,10 @@ def load_script(name):
 
 features_script = load_script("s_ag_kalshi_company_features")
 join_script = load_script("s_ah_kalshi_x_revsurprise")
-stock_script = load_script("s_ai_stockdb_revsurprise_panel")
+factset_script = load_script("s_ai_factset_revsurprise_panel")
 ladder_script = load_script("s_ak_kalshi_prereport_features")
 runner_script = load_script("s_al_kalshi_llm_ablation")
+analysis_script = load_script("s_an_kalshi_ladder_analysis")
 
 
 class QuoteSelectionTest(unittest.TestCase):
@@ -162,7 +164,34 @@ class LadderIdentificationTest(unittest.TestCase):
         self.assertEqual(rungs.loc[rungs["market_ticker"].eq("C"), "ladder_strike"].iloc[0], 120_000_000)
 
 
-class StockPanelTest(unittest.TestCase):
+class FactSetPanelTest(unittest.TestCase):
+    def test_sql_uses_carbon_arc_consensus_timing(self):
+        sql = factset_script.factset_sql(["X5HN6G-R"], date(2024, 1, 1))
+
+        self.assertIn(
+            "c.CONS_END_DATE <= DATEADD(day, 7, a.FE_FP_END)", sql
+        )
+        self.assertIn("c.CONS_END_DATE < a.REPORT_DATE", sql)
+        self.assertNotIn("c.CONS_START_DATE <=", sql)
+
+    def test_sse_response_is_parsed(self):
+        tool_payload = {
+            "success": True,
+            "rows": [{"FSYM_ID": "X5HN6G-R", "ACTUAL": 1.0}],
+        }
+        envelope = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "content": [
+                    {"type": "text", "text": json.dumps(tool_payload)}
+                ]
+            },
+        }
+        body = "event: message\ndata: " + json.dumps(envelope) + "\n\n"
+
+        self.assertEqual(factset_script.parse_mcp_response(body), tool_payload)
+
     def test_fiscal_labels_and_surprises_are_computed_without_mutating_inputs(self):
         documents = pd.DataFrame(
             [
@@ -173,7 +202,7 @@ class StockPanelTest(unittest.TestCase):
                 }
             ]
         )
-        periods = stock_script.fiscal_period_map(documents)
+        periods = factset_script.fiscal_period_map(documents)
         self.assertEqual(periods.iloc[0]["FISCAL_YEAR"], 2026)
         self.assertEqual(periods.iloc[0]["FISCAL_QUARTER"], 3)
 
@@ -189,10 +218,31 @@ class StockPanelTest(unittest.TestCase):
                 "CONS_PRINT": [100, 100, 100, 100, 145],
             }
         )
-        result = stock_script.add_surprises(panel)
+        result = factset_script.add_surprises(panel)
         self.assertAlmostEqual(result.iloc[-1]["surprise_early"], 10 / 140)
         self.assertEqual(result.iloc[-1]["actual_q4"], 100)
         self.assertNotIn("surprise_early", panel.columns)
+
+
+class BenchmarkMetricTest(unittest.TestCase):
+    def test_combined_skill_is_oos_r2(self):
+        frame = pd.DataFrame(
+            {
+                "ticker": ["A", "B", "C"],
+                "true_pct": [-1.0, 0.0, 2.0],
+                "fin": [-0.5, 0.5, 1.0],
+                "fin+kalshi_ladder": [-0.8, 0.2, 1.4],
+                "fin+earnings_call": [-0.4, 0.1, 1.2],
+                "fin+kalshi_ladder+earnings_call": [-0.9, 0.0, 1.8],
+            }
+        )
+        statistics = analysis_script.benchmark_statistics(frame)
+        combined = analysis_script.metrics(
+            frame["fin+kalshi_ladder+earnings_call"], frame["true_pct"]
+        )
+
+        self.assertAlmostEqual(statistics[0], combined["corr"])
+        self.assertAlmostEqual(statistics[2], combined["r2"])
 
 
 class CutoffValidationTest(unittest.TestCase):

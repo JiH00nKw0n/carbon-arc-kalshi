@@ -43,7 +43,7 @@ MARKET_COLS = [
 
 MANUAL_ALIASES = {
     "airbnb": "ABNB",
-    "alphabet": "GOOG",
+    "alphabet": "GOOGL",
     "amazon": "AMZN",
     "apple": "AAPL",
     "boeing": "BA",
@@ -63,7 +63,7 @@ MANUAL_ALIASES = {
     "ford motor company": "F",
     "futu": "FUTU",
     "futu holdings": "FUTU",
-    "google": "GOOG",
+    "google": "GOOGL",
     "home depot": "HD",
     "intel": "INTC",
     "jpmorgan": "JPM",
@@ -408,6 +408,14 @@ def main():
             print(f"[markets] {i}/{len(candidates)} series, market_rows={len(market_rows)}")
         time.sleep(args.sleep)
 
+    series_rows.sort(key=lambda row: row["series_ticker"])
+    market_rows.sort(
+        key=lambda row: (
+            row["series_ticker"],
+            row["event_ticker"],
+            row["market_ticker"],
+        )
+    )
     write_csv(args.out_series, SERIES_COLS, series_rows)
     write_csv(args.out_markets, MARKET_COLS, market_rows)
     print(f"[written] {args.out_series}")

@@ -77,7 +77,8 @@ diagnostic column and is not supplied to the model.
 3. Map explicit company names to approved stock tickers.
 4. Keep events with at least two numeric YES-above or YES-at-least contracts.
 5. Parse quarter labels as `Q1` through `Q4` plus fiscal year.
-6. Join to Stock DB by exact ticker, fiscal year, and fiscal quarter. Date
+6. Build Y directly from FactSet `FE_BASIC_ACT_QF` and `FE_BASIC_CONH_QF`, then
+   join Kalshi events by exact ticker, fiscal year, and fiscal quarter. Date
    distance only resolves duplicate candidates; it never substitutes for the
    fiscal-period match.
 7. Require a leakage-safe pre-publication ladder, at least three prior financial
@@ -92,8 +93,7 @@ The exact counts produced by the current artifacts are recorded in
 
 For every threshold contract:
 
-1. Set the information cutoff to the Stock DB earnings `published_at` timestamp
-   minus one minute.
+1. Set the information cutoff to FactSet `PUBLICATION_DATE` minus one minute.
 2. Search daily candles from that contract's actual Kalshi `open_time` through
    the cutoff. There is no maximum candle-age exclusion.
 3. Select the latest candle whose end timestamp is no later than the cutoff.
@@ -108,9 +108,9 @@ not a Kalshi quote-freshness rule and is not part of the Carbon Arc LLM ablation
 The cap was therefore removed. The correction restored Disney Q1 FY2026, whose
 last market candle was 46.3 days before the earnings publication.
 
-FedEx Q4 FY2026 remains excluded because its Stock DB target has no precise
-`published_at`. A date-only fallback could include post-result prices, so the
-pipeline does not manufacture an intraday cutoff.
+Rows without a precise FactSet `PUBLICATION_DATE` remain excluded. A date-only
+fallback could include post-result prices, so the pipeline does not manufacture
+an intraday cutoff.
 
 ## Rung price selection
 
@@ -179,7 +179,8 @@ delta = RMSE(+ ladder) - RMSE(base)
 ```
 
 A negative delta favors Kalshi. The report also includes MAE, Pearson
-correlation, correlation squared, paired-sample R2, and sign accuracy.
+correlation, correlation squared, OOS R2 (`1 - SSE/SST` on the post-cutoff
+sample), and sign accuracy.
 
 The Carbon Arc benchmark robustness outputs are retained: company-clustered
 synergy bootstrap, company-shuffle surrogate, and leak-free company-fold linear

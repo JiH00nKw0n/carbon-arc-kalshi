@@ -14,7 +14,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[3]
 KALSHI_ROOT = ROOT / "kalshi"
 FEATURES = KALSHI_ROOT / "outputs" / "auto" / "kalshi_company_event_features.csv"
-PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_stockdb_revenue_surprise_panel.csv"
+PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_factset_revenue_surprise_panel.csv"
 OUT_CSV = KALSHI_ROOT / "outputs" / "auto" / "kalshi_x_revsurprise_events.csv"
 
 
