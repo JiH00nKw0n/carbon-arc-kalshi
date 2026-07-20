@@ -1,0 +1,36 @@
+name: revenue_surprise_v1
+seed: 2026
+output_dir: prediction/outputs/runs
+
+run:
+  concurrency: 192          # semaphore (4x the old 48)
+  reps: 1
+  limit: 0                  # 0 = all targets; >0 = smoke
+  strong_only: true         # strong-O tier (matches the ~$490 basis); false = all-O (~$620)
+  drop_outlier_pct: 0
+  render_only: false        # true = dry render, no LLM spend
+  cutoff: 2025-12-01
+  n_calls: 2                # transcripts shown when an arm includes 'text'
+  hist_rows: 6
+  max_transcript_chars: 48000
+
+llm: {model: gpt-5.5-2026-04-23, effort: medium, max_retries: 6}
+
+data:                        # read-only reuse of existing artifacts (no re-fetch)
+  panel_out: prediction/outputs/panels     # rebuilt panels written here
+  screen_csv: factor1/data/altdata_ticker_screen.csv
+  sentiment_json: lm_sentiment.json
+
+grid:
+  channels: [card, web, foot]
+  targets:  [surprise_early, surprise_print, rev_yoy]
+  variants: [BASE, TOOL]     # BASE = prompt only; TOOL = same prompt + on-demand lookup tools
+  arms:
+    - {name: fin,        blocks: [fin]}
+    - {name: fin+x,      blocks: [fin, x]}
+    - {name: fin+text,   blocks: [fin, text]}
+    - {name: fin+x+text, blocks: [fin, x, text]}
+  baselines: [N0, N1, N2, N3, N4, N3b, N4b, N5]
+
+evaluate: {headline_arm: fin+x+text, synergy_arms: [fin, fin+x, fin+text, fin+x+text],
+           bootstrap: 5000, surrogate_n: 5000, calib_folds: 5}

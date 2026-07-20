@@ -1,0 +1,160 @@
+"""LLM boundary — an AsyncOpenAI structured-output client. No vendor object crosses out.
+
+Pricing, the long-context threshold, the cost formula, and the system prompt are copied verbatim
+from f1_llm.py so cost/behavior match the proven runs. `predict_structured` mirrors f1_llm.acall: a
+gpt-5.5 structured-parse call under a shared concurrency semaphore, with an exponential-backoff retry
+loop that yields an empty result (parsed=None, cost=0) after the final attempt fails. When the
+request carries tools, the parse step first runs a tool_call/tool_result loop (see `_parse_once`).
+
+The OpenAI API key is read from the environment (``OPENAI_API_KEY``); ``load_dotenv()`` pulls it from
+a ``.env`` file at the project root if one is present.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+from dataclasses import dataclass
+from typing import Any, Callable, Optional, Protocol
+
+from dotenv import load_dotenv
+from openai import AsyncOpenAI
+from pydantic import BaseModel
+
+from prediction.registry import register_llm
+
+__all__ = [
+    "LLMConfig", "LLMRequest", "LLMResult", "LLMClient",
+    "OpenAIStructuredClient", "SYS", "PRICING", "LONG_CTX_THRESHOLD", "gpt5_cost",
+]
+
+# gpt-5.5 pricing $/1M (OpenAI): SHORT (<=272K input tok) vs LONG (>272K). Verbatim from f1_llm.py.
+PRICING = {"short": {"in": 5.0, "cached": 0.5, "out": 30.0},
+           "long":  {"in": 10.0, "cached": 1.0, "out": 45.0}}
+LONG_CTX_THRESHOLD = 272_000
+
+SYS = (
+    "You are an equity revenue-surprise nowcaster. You only see information available BEFORE the "
+    "upcoming quarter's earnings report; you do NOT know the actual result. The target is the REVENUE "
+    "surprise = (actual - analyst consensus)/consensus, i.e. the part NOT already priced into estimates. "
+    "Score the deviation from consensus expectations, not absolute fundamentals. Be calibrated and "
+    "conservative. Output only the requested structured fields."
+)
+
+
+def gpt5_cost(usage) -> float:
+    """$ for one gpt-5.5 call from its usage object (tiered by input length, cache-aware). Verbatim."""
+    pin = getattr(usage, "prompt_tokens", 0) or 0
+    pout = getattr(usage, "completion_tokens", 0) or 0
+    details = getattr(usage, "prompt_tokens_details", None)
+    cached = (getattr(details, "cached_tokens", 0) or 0) if details is not None else 0
+    tier = PRICING["long" if pin > LONG_CTX_THRESHOLD else "short"]
+    return (max(pin - cached, 0) * tier["in"] + cached * tier["cached"] + pout * tier["out"]) / 1e6
+
+
+@dataclass(frozen=True)
+class LLMConfig:
+    """Everything the client needs: model, reasoning effort, retry budget, concurrency gate size."""
+    model: str
+    effort: str = "medium"
+    max_retries: int = 6
+    concurrency: int = 192
+    max_tool_rounds: int = 4       # cap on tool_call -> tool_result rounds before the structured answer
+
+
+@dataclass(frozen=True)
+class LLMRequest:
+    """One structured-output ask: system + user text and the Pydantic schema to parse into.
+
+    ``tools`` (OpenAI tool schema list) and ``dispatch`` (``name, args -> str``) are set only for the
+    TOOL variant; when present the client runs a tool_call/tool_result loop before the final parse.
+    """
+    system: str
+    user: str
+    schema: type[BaseModel]
+    tools: Optional[list] = None
+    dispatch: Optional[Callable[[str, dict], str]] = None
+
+
+@dataclass(frozen=True)
+class LLMResult:
+    """The parsed structured output (None if every attempt failed) plus the call's dollar cost."""
+    parsed: Optional[BaseModel]
+    cost_usd: float
+
+
+class LLMClient(Protocol):
+    """The boundary contract the predictor depends on (one concrete + a test fake implement it)."""
+
+    async def predict_structured(self, request: LLMRequest) -> LLMResult: ...
+
+
+@register_llm("openai")
+class OpenAIStructuredClient:
+    """AsyncOpenAI structured-parse client: shared semaphore + backoff retry, cost per call."""
+
+    def __init__(self, config: LLMConfig):
+        self._config = config
+        load_dotenv()                                     # load .env from the project root if present
+        self._client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self._semaphore: Optional[asyncio.Semaphore] = None
+
+    async def predict_structured(self, request: LLMRequest) -> LLMResult:
+        async with self._gate():
+            return await self._parse_with_retry(request)
+
+    async def _parse_with_retry(self, request: LLMRequest) -> LLMResult:
+        for attempt in range(self._config.max_retries):
+            try:
+                return await self._parse_once(request)
+            except Exception:  # transient API/parse failure — back off and retry, as in f1_llm.acall
+                if attempt == self._config.max_retries - 1:
+                    return LLMResult(parsed=None, cost_usd=0.0)
+                await asyncio.sleep(2 ** attempt)
+        return LLMResult(parsed=None, cost_usd=0.0)
+
+    async def _parse_once(self, request: LLMRequest) -> LLMResult:
+        """One structured parse; when the request carries tools, loop tool_call -> tool_result first.
+
+        The transcript accumulates across rounds so the model sees each tool result. A round that
+        returns a parsed schema object ends the loop; a round that only calls tools feeds their
+        results back and continues, up to ``max_tool_rounds``.
+        """
+        messages = [{"role": "system", "content": request.system},
+                    {"role": "user", "content": request.user}]
+        rounds = self._config.max_tool_rounds if request.tools else 1
+        cost = 0.0
+        for _ in range(rounds):
+            completion = await self._parse_call(request, messages)
+            cost += gpt5_cost(completion.usage)
+            message = completion.choices[0].message
+            if message.parsed is not None:
+                return LLMResult(parsed=message.parsed, cost_usd=cost)
+            if message.tool_calls and request.dispatch is not None:
+                _append_tool_exchange(messages, message, request.dispatch)
+                continue
+            break
+        return LLMResult(parsed=None, cost_usd=cost)
+
+    async def _parse_call(self, request: LLMRequest, messages: list[dict]):
+        params: dict[str, Any] = dict(
+            model=self._config.model, messages=messages,
+            response_format=request.schema, reasoning_effort=self._config.effort)
+        if request.tools:
+            params["tools"] = request.tools
+        return await self._client.beta.chat.completions.parse(**params)
+
+    def _gate(self) -> asyncio.Semaphore:
+        if self._semaphore is None:                       # lazy: bind the gate to the active event loop
+            self._semaphore = asyncio.Semaphore(self._config.concurrency)
+        return self._semaphore
+
+
+def _append_tool_exchange(messages: list[dict], message, dispatch: Callable[[str, dict], str]) -> None:
+    """Append the assistant's tool_calls turn, then one tool-result message per call it made."""
+    messages.append({"role": "assistant", "content": message.content,
+                     "tool_calls": [tc.model_dump() for tc in message.tool_calls]})
+    for call in message.tool_calls:
+        args = json.loads(call.function.arguments or "{}")
+        result = dispatch(call.function.name, args)
+        messages.append({"role": "tool", "tool_call_id": call.id, "content": str(result)})
