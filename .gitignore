@@ -15,8 +15,27 @@ outputs/
 factor1/data/*
 !factor1/data/altdata_ticker_screen.csv
 factor3/data/
+factor1_traffic/data/
+factor1_traffic/outputs/
 **/transcripts/
 *_pit.json
+
+# factor1_yswitch — raw licensed data & event-level panels MUST NOT be committed.
+# (panels carry FactSet ACTUAL/consensus + Carbon Arc raw values.)
+factor1_yswitch/data/
+factor1_yswitch/**/data/
+factor1_yswitch/**/panel_*.csv
+factor1_yswitch/llm_identify/cache/
+# zipped data bundles (contain licensed raw CSV/pit JSON) — never commit
+factor1_yswitch/**/*.zip
+# ...but DO commit the write-ups & self-contained report (aggregate findings, no raw data).
+# The global `outputs/` rule (line 10) ignores whole dirs; must re-include the dir path
+# first, then the files, before re-excluding the licensed panels/data inside.
+!factor1_yswitch/outputs/
+!factor1_yswitch/llm_identify/outputs/
+factor1_yswitch/outputs/*.csv
+factor1_yswitch/llm_identify/outputs/*.csv
+factor1_yswitch/**/panel_*.csv
 
 # Python
 __pycache__/
