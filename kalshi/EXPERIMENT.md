@@ -17,12 +17,12 @@ The following components are fixed:
 |---|---|
 | Y | `(actual revenue - early consensus) / early consensus` |
 | financial input | up to six prior quarterly actuals, early consensus values, and surprises, plus target-quarter early consensus |
-| Z | most recent corrected earnings call at least 31 days before the target report |
+| Z | two most recent corrected earnings calls available before the prediction cutoff |
 | model | `gpt-5.5-2026-04-23`, medium reasoning effort |
 | prompt | same revenue-surprise nowcasting system prompt and arm ordering as Factor 1 |
 | evaluation guard | `REPORT_DATE > 2025-12-01` |
 | row matching | every arm is evaluated on the same target rows |
-| LLM repeats | one independent call per arm and target |
+| LLM repeats | three independent calls per arm and target; report their mean |
 | primary metric | RMSE in revenue-surprise percentage points |
 
 The sole experimental substitution is:
@@ -70,6 +70,15 @@ later than fiscal quarter end plus seven days. This is the fixed Factor 1 target
 definition. `CONS_PRINT`, the latest snapshot before the report date, remains a
 diagnostic column and is not supplied to the model.
 
+### Target-specific eligibility
+
+Revenue surprise and revenue YoY are separate prediction tasks. The runner
+computes their eligibility independently because each task requires a different
+non-null historical target column. Default manifests, predictions, and call
+logs carry `_surprise` or `_yoy` in the filename, and every artifact row records
+its `target` and `truth_column`. Resume mode never reuses a call from the other
+target.
+
 ## Universe construction
 
 1. Fetch every series returned by the official Kalshi `tags=KPIs` filter.
@@ -82,7 +91,7 @@ diagnostic column and is not supplied to the model.
    distance only resolves duplicate candidates; it never substitutes for the
    fiscal-period match.
 7. Require a leakage-safe pre-publication ladder, at least three prior financial
-   rows, and a readable eligible prior earnings call.
+   rows, and two readable prior earnings calls.
 8. Apply the model-knowledge guard and evaluate all four arms on one paired row
    set.
 
@@ -149,8 +158,12 @@ candle is observable.
 
 ### Earnings-call Z text
 
-The most recent corrected earnings-call document dated at least 31 days before
-the target report, truncated to 48,000 characters. The same document is used in
+The two most recent corrected earnings-call documents whose call timestamps are
+strictly before the prediction cutoff (`PUBLICATION_DATE` minus one minute) and
+whose fiscal period ends before the target fiscal period. The period check keeps
+the target-quarter call out even when source timestamps are slightly misordered.
+The arbitrary 31-day buffer is not used. The transcripts are presented oldest
+to newest, each truncated to 48,000 characters, and the same pair is used in
 both Z arms.
 
 ## Four paired arms
@@ -162,8 +175,9 @@ both Z arms.
 | `fin+earnings_call` | financial table and prior-call Z |
 | `fin+kalshi_ladder+earnings_call` | financial table, raw Kalshi X, and prior-call Z |
 
-Each arm is called independently once. No prediction from one arm is supplied
-to another arm.
+Each arm is called independently three times. The primary prediction is the
+mean of those calls, and every repeat remains available for run-variance
+diagnostics. No prediction from one arm is supplied to another arm.
 
 ## Evaluation
 
@@ -197,7 +211,8 @@ predefined gates pass:
 
 ## Reproducibility
 
-The complete command sequence is in [`README.md`](README.md). The final analyzer
-recomputes universe counts, ladder diagnostics, LLM metrics, paired inference,
+The complete command sequence is in [`README.md`](README.md). The analyzers
+recompute universe counts, ladder diagnostics, LLM metrics, paired inference,
 synergy, calibration, and ticker attrition from the generated CSV and JSONL
-artifacts. It writes the sole generated narrative report, [`RESULTS.md`](RESULTS.md).
+artifacts. They write the early-surprise report, [`RESULTS.md`](RESULTS.md), and
+the paper-aligned revenue-YoY report, [`YOY_RESULTS.md`](YOY_RESULTS.md).

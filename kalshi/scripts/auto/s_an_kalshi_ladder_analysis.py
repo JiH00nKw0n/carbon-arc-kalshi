@@ -258,8 +258,16 @@ def main():
     )
     parser.add_argument("--events", type=Path, default=OUTPUTS / "kalshi_x_revsurprise_events.csv")
     parser.add_argument("--ladders", type=Path, default=OUTPUTS / "kalshi_prereport_ladder_panel.csv")
-    parser.add_argument("--preds", type=Path, default=OUTPUTS / "kalshi_llm_ladder_ablation_preds.csv")
-    parser.add_argument("--run-log", type=Path, default=OUTPUTS / "kalshi_llm_ladder_ablation_run_log.jsonl")
+    parser.add_argument(
+        "--preds",
+        type=Path,
+        default=OUTPUTS / "kalshi_llm_ladder_ablation_surprise_preds.csv",
+    )
+    parser.add_argument(
+        "--run-log",
+        type=Path,
+        default=OUTPUTS / "kalshi_llm_ladder_ablation_surprise_run_log.jsonl",
+    )
     parser.add_argument("--out-md", type=Path, default=KALSHI_ROOT / "RESULTS.md")
     parser.add_argument("--bootstrap-samples", type=int, default=5_000)
     parser.add_argument("--permutation-samples", type=int, default=50_000)
@@ -305,6 +313,12 @@ def main():
 
     if predictions.duplicated(["ticker", "FE_FP_END"]).any():
         raise SystemExit("prediction rows are not unique by ticker + FE_FP_END")
+    if set(predictions["target"].dropna()) != {"surprise"}:
+        raise SystemExit(f"expected target=surprise in {args.preds}")
+    if set(predictions["truth_column"].dropna()) != {"surprise_early"}:
+        raise SystemExit(f"expected truth_column=surprise_early in {args.preds}")
+    if any(record.get("target") != "surprise" for record in run_log):
+        raise SystemExit(f"non-surprise call found in {args.run_log}")
     missing_arms = sorted(set(ARMS) - set(predictions.columns))
     if missing_arms:
         raise SystemExit(f"predictions missing arms: {missing_arms}")
@@ -328,6 +342,23 @@ def main():
     call_errors = sum(bool(record.get("error")) for record in run_log)
     cost = sum(float(record.get("estimated_cost_usd", 0.0)) for record in run_log)
     repeats = sorted(repeat_ids(predictions.columns, "fin"))
+    call_keys = {
+        (
+            record["ticker"],
+            record["FE_FP_END"],
+            record["arm"],
+            int(record["repeat"]),
+        )
+        for record in run_log
+    }
+    expected_calls = len(predictions) * len(ARMS) * len(repeats)
+    if len(call_keys) != calls:
+        raise SystemExit(f"duplicate call keys found in {args.run_log}")
+    if calls != expected_calls or successful_calls != expected_calls or call_errors:
+        raise SystemExit(
+            f"incomplete surprise run: expected {expected_calls}, found "
+            f"{calls} calls, {successful_calls} successes, and {call_errors} errors"
+        )
 
     stage_rows = [
         ["Official KPI series", len(series), "n/a", 0, "official `tags=KPIs` response"],
@@ -416,6 +447,11 @@ def main():
     arm_results = {
         arm: metrics(predictions[arm], predictions["true_pct"]) for arm in ARMS
     }
+    consensus_rmse = rmse(predictions["true_pct"])
+    full_arm = ARMS[-1]
+    full_errors = (predictions[full_arm] - predictions["true_pct"]).abs()
+    consensus_errors = predictions["true_pct"].abs()
+    consensus_win_rate = float((full_errors < consensus_errors).mean())
     comparison_rows = []
     comparison_details = []
     comparison_stats = []
@@ -515,11 +551,28 @@ def main():
         delta < 0 and upper < 0 and permutation_p < 0.05
         for delta, _, upper, permutation_p in comparison_stats
     )
-    conclusion = (
-        "Both predefined ladder comparisons pass the robustness gates."
-        if robust
-        else "The point estimates favor Kalshi, but the predefined robustness gates do not pass."
-    )
+    deltas = [result[0] for result in comparison_stats]
+    if robust:
+        conclusion = "Both predefined ladder comparisons pass the robustness gates."
+    elif all(delta < 0 for delta in deltas):
+        conclusion = (
+            "Both point estimates favor Kalshi, but the predefined robustness gates "
+            "do not pass."
+        )
+    elif any(delta < 0 for delta in deltas):
+        conclusion = (
+            "The two point estimates are mixed, and neither comparison passes the "
+            "predefined robustness gates."
+        )
+    else:
+        conclusion = (
+            "Neither point estimate favors Kalshi, and the predefined robustness gates "
+            "do not pass."
+        )
+
+    def delta_description(delta):
+        direction = "reduced" if delta < 0 else "increased"
+        return f"{direction} RMSE by {abs(delta):.3f} percentage points"
 
     lines = [
         "# Kalshi Raw-Ladder Revenue-Surprise Experiment: Results",
@@ -529,11 +582,10 @@ def main():
         "",
         "## Conclusion",
         "",
-        f"{conclusion} Adding the raw ladder reduced RMSE by "
-        f"{-comparison_stats[0][0]:.3f} percentage points over financial history and by "
-        f"{-comparison_stats[1][0]:.3f} percentage points after controlling for the prior "
-        "earnings call. Both company-bootstrap confidence intervals include zero, so the "
-        "sample does not establish statistically robust incremental value.",
+        f"{conclusion} Adding the raw ladder {delta_description(deltas[0])} over "
+        f"financial history and {delta_description(deltas[1])} after controlling for the "
+        "prior earnings calls. Both company-bootstrap confidence intervals include zero, "
+        "so the sample does not establish statistically robust incremental value.",
         "",
         "## Run record",
         "",
@@ -626,6 +678,18 @@ def main():
         "on the paired post-cutoff sample; correlation squared is the benchmark's "
         "scale-free calibration ceiling.",
         "",
+        "## Analyst-consensus benchmark",
+        "",
+        "The early-consensus forecast implies a 0.0% revenue surprise. Following the "
+        "paper's Figure 4, win rate is the share of targets where the full model is "
+        "closer to realized surprise than that consensus forecast.",
+        "",
+        "| prediction | RMSE | win rate vs consensus |",
+        "|---|---:|---:|",
+        f"| early consensus | {consensus_rmse:.3f} | - |",
+        f"| `{full_arm}` | {arm_results[full_arm]['rmse']:.3f} | "
+        f"{consensus_win_rate:.3f} |",
+        "",
         "## Predefined incremental comparisons",
         "",
         "Delta is `RMSE(+ ladder) - RMSE(base)`; negative favors Kalshi.",
@@ -695,7 +759,8 @@ def main():
         f"The evaluation has {len(predictions)} observations across "
         f"{predictions['ticker'].nunique()} firms; {repeated_firms} firms have more than "
         f"one target. Each arm was called {len(repeats)} time(s) per target, so model-run "
-        f"variance is not estimated. The oldest retained quote is {max_age / 24:.1f} days "
+        f"variance is {'estimated from repeated calls' if len(repeats) > 1 else 'not estimated'}. "
+        f"The oldest retained quote is {max_age / 24:.1f} days "
         "before publication. These constraints limit power and generalization.",
         "",
         "## Usable-ladder ticker attrition",

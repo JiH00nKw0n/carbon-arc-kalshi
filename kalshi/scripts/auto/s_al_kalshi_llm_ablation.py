@@ -29,16 +29,15 @@ from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parents[3]
 KALSHI_ROOT = ROOT / "kalshi"
+OUTPUTS = KALSHI_ROOT / "outputs" / "auto"
 PRE_PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_prereport_ladder_panel.csv"
 Y_PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_factset_revenue_surprise_panel.csv"
-OUT_CSV = KALSHI_ROOT / "outputs" / "auto" / "kalshi_llm_ladder_ablation_preds.csv"
-OUT_JSONL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_llm_ladder_ablation_run_log.jsonl"
-ELIGIBLE_CSV = KALSHI_ROOT / "outputs" / "auto" / "kalshi_llm_eligible_targets.csv"
 EARNINGS_CALL_CACHE = KALSHI_ROOT / "outputs" / "auto" / "prior_earnings_call_transcripts"
 
 GPT_MODEL = os.getenv("GPT_PARSER_MODEL", "gpt-5.5-2026-04-23")
 GPT_EFFORT = os.getenv("GPT_REASONING_EFFORT", "medium")
 MAX_EARNINGS_CALL_CHARS = 48_000
+PRIOR_EARNINGS_CALL_COUNT = 2
 KNOWLEDGE_CUTOFF = pd.Timestamp("2025-12-01")
 HISTORY_ROWS = 6
 LONG_CTX_THRESHOLD = 272_000
@@ -60,13 +59,70 @@ SYS = (
     "conservative. Output only the requested structured fields."
 )
 
+SYS_YOY = (
+    "You are an equity revenue nowcaster. You only see information available BEFORE the upcoming "
+    "quarter's earnings report; you do NOT know the actual result. The target is REVENUE YEAR-OVER-YEAR "
+    "GROWTH = (actual this quarter - actual in the same quarter last year)/actual last year. "
+    "Score the level of growth, not the deviation from consensus. Be calibrated and conservative. "
+    "Output only the requested structured fields."
+)
 
-class BPredict(BaseModel):
+# target key -> (truth column, reference column shown as the anchor, system prompt, instruction)
+TARGETS = {
+    "surprise": (
+        "surprise_early",
+        "CONS_EARLY",
+        SYS,
+        "Predict the revenue surprise %.",
+    ),
+    "yoy": (
+        "rev_yoy",
+        "cons_early_growth",
+        SYS_YOY,
+        "Predict the revenue year-over-year growth %.",
+    ),
+}
+
+
+def default_output_paths(target):
+    return {
+        "out_csv": OUTPUTS / f"kalshi_llm_ladder_ablation_{target}_preds.csv",
+        "out_jsonl": OUTPUTS / f"kalshi_llm_ladder_ablation_{target}_run_log.jsonl",
+        "out_eligible_csv": OUTPUTS / f"kalshi_llm_eligible_targets_{target}.csv",
+    }
+
+
+class SurprisePredict(BaseModel):
     predicted_revenue_surprise_pct: float = Field(
         description="predicted (actual-consensus)/consensus in percent for the upcoming quarter."
     )
     confidence: int = Field(description="0..100.")
     rationale: str
+
+
+class YoyPredict(BaseModel):
+    predicted_revenue_yoy_pct: float = Field(
+        description=(
+            "predicted (actual-this-quarter minus actual-same-quarter-last-year) "
+            "/ actual-same-quarter-last-year in percent."
+        )
+    )
+    confidence: int = Field(description="0..100.")
+    rationale: str
+
+
+PREDICTION_MODELS = {
+    "surprise": SurprisePredict,
+    "yoy": YoyPredict,
+}
+PREDICTION_FIELDS = {
+    "surprise": "predicted_revenue_surprise_pct",
+    "yoy": "predicted_revenue_yoy_pct",
+}
+
+
+def prediction_value(prediction, target):
+    return float(getattr(prediction, PREDICTION_FIELDS[target]))
 
 
 def with_columns(frame, **columns):
@@ -350,20 +406,87 @@ def cache_earnings_call_text(s3, file_key):
     return text
 
 
-def prior_earnings_call_candidates(docs, ticker, report_date):
+def prior_earnings_call_candidates(
+    docs,
+    ticker,
+    prediction_cutoff,
+    target_period_end=None,
+    call_limit=PRIOR_EARNINGS_CALL_COUNT,
+):
     if docs.empty:
         return docs
-    cutoff = pd.Timestamp(report_date) - pd.Timedelta(days=31)
+    cutoff = pd.Timestamp(prediction_cutoff)
+    if pd.isna(cutoff):
+        return docs.iloc[0:0].copy()
     if cutoff.tzinfo is None:
         cutoff = cutoff.tz_localize("UTC")
-    candidates = docs[
-        docs["ticker"].eq(ticker)
-        & (docs["call_at"] <= cutoff)
-    ].sort_values(["call_at", "period_end_date"], ascending=[False, False])
+    else:
+        cutoff = cutoff.tz_convert("UTC")
+    eligible = docs["ticker"].eq(ticker) & (docs["call_at"] < cutoff)
+    if target_period_end is not None:
+        target_period = pd.Timestamp(target_period_end).normalize()
+        eligible &= docs["period_end_date"] < target_period
+    candidates = docs[eligible].copy()
     if candidates.empty:
         return candidates
-    latest_call_date = candidates.iloc[0]["call_at"].date()
-    return candidates[candidates["call_at"].dt.date.eq(latest_call_date)].drop_duplicates("file_key")
+    candidates = with_columns(
+        candidates,
+        _call_period=candidates["period_end_date"].dt.normalize(),
+    )
+    candidates = candidates.dropna(subset=["_call_period"]).sort_values(
+        ["call_at", "period_end_date", "file_key"],
+        ascending=[False, False, False],
+    )
+    recent_periods = candidates["_call_period"].drop_duplicates().head(call_limit)
+    return candidates[candidates["_call_period"].isin(recent_periods)].copy()
+
+
+def load_prior_earnings_calls(s3, candidates, max_chars):
+    calls = []
+    last_error = None
+    for _, group in candidates.groupby("_call_period", sort=False):
+        selected = None
+        for candidate in group.to_dict("records"):
+            try:
+                text = cache_earnings_call_text(s3, candidate["file_key"])
+                selected = {
+                    "doc": candidate,
+                    "text": text[:max_chars],
+                }
+                break
+            except Exception as exc:
+                last_error = exc
+        if selected is None:
+            return [], last_error
+        calls.append(selected)
+    calls.sort(key=lambda call: call["doc"]["call_at"])
+    return calls, last_error
+
+
+def earnings_call_block(calls):
+    sections = []
+    for call in calls:
+        doc = call["doc"]
+        period_end = pd.Timestamp(doc["period_end_date"]).date().isoformat()
+        call_at = pd.Timestamp(doc["call_at"]).isoformat()
+        sections.append(
+            f"[EARNINGS CALL period_end={period_end} held_at={call_at}]\n{call['text']}"
+        )
+    return "\n\n".join(sections)
+
+
+def earnings_call_metadata(calls):
+    period_ends = [
+        pd.Timestamp(call["doc"]["period_end_date"]).date().isoformat()
+        for call in calls
+    ]
+    held_ats = [pd.Timestamp(call["doc"]["call_at"]).isoformat() for call in calls]
+    return {
+        "earnings_call_count": len(calls),
+        "earnings_call_period_ends": "|".join(period_ends),
+        "earnings_call_held_ats": "|".join(held_ats),
+        "earnings_call_period_end": period_ends[-1] if period_ends else "",
+    }
 
 
 def format_number(value, digits=4):
@@ -375,7 +498,27 @@ def format_number(value, digits=4):
         return "n/a"
 
 
-def fin_table(history, target):
+def fin_table(history, target, target_key="surprise"):
+    """Financial history H. The anchor column and the outcome column both follow the target:
+    for `surprise` the anchor is the consensus level, for `yoy` it is consensus-implied growth."""
+    if target_key == "yoy":
+        lines = ["fiscal_q_end | actual($M) | yr-ago actual($M) | revenue YoY%"]
+        for row in history.tail(HISTORY_ROWS).itertuples():
+            prior = getattr(row, "actual_q4", None)
+            prior_text = f"{prior:,.0f}" if prior is not None and pd.notna(prior) else "n/a"
+            lines.append(
+                f"{row.FE_FP_END.date()} | {row.ACTUAL:,.0f} | {prior_text} | "
+                f"{row.rev_yoy * 100:+.2f}%"
+            )
+        anchor = getattr(target, "cons_early_growth", None)
+        anchor_text = (
+            f"consensus-implied YoY {anchor * 100:+.2f}%"
+            if anchor is not None and pd.notna(anchor)
+            else "consensus-implied YoY n/a"
+        )
+        lines.append(f"{target.FE_FP_END.date()} | (pending) | {anchor_text} | <- PREDICT")
+        return "\n".join(lines)
+
     lines = ["fiscal_q_end | actual($M) | consensus($M) | surprise%"]
     for row in history.tail(HISTORY_ROWS).itertuples():
         lines.append(
@@ -438,7 +581,16 @@ def kalshi_ladder_table(history, target):
     return "\n".join(lines)
 
 
-async def bounded_call(client, semaphore, key, prompt, timeout, attempts):
+async def bounded_call(
+    client,
+    semaphore,
+    key,
+    prompt,
+    timeout,
+    attempts,
+    system_prompt,
+    response_format,
+):
     async with semaphore:
         for attempt in range(attempts):
             try:
@@ -446,10 +598,10 @@ async def bounded_call(client, semaphore, key, prompt, timeout, attempts):
                     client.beta.chat.completions.parse(
                         model=GPT_MODEL,
                         messages=[
-                            {"role": "system", "content": SYS},
+                            {"role": "system", "content": system_prompt},
                             {"role": "user", "content": prompt},
                         ],
-                        response_format=BPredict,
+                        response_format=response_format,
                         reasoning_effort=GPT_EFFORT,
                     ),
                     timeout=timeout,
@@ -466,23 +618,29 @@ async def bounded_call(client, semaphore, key, prompt, timeout, attempts):
                 await asyncio.sleep(2**attempt)
 
 
-def build_prompts(target):
+def build_prompts(target, target_key="surprise"):
     row = target["row"]
-    intro = (
-        f"Company {row.ticker}. Predict the UPCOMING quarter ({row.FE_FP_END.date()}) REVENUE SURPRISE "
-        "= (actual - consensus)/consensus, in %.\n\n"
-    )
+    if target_key == "yoy":
+        intro = (
+            f"Company {row.ticker}. Predict the UPCOMING quarter ({row.FE_FP_END.date()}) REVENUE "
+            "YEAR-OVER-YEAR GROWTH = (actual - actual same quarter last year)/actual last year, in %.\n\n"
+        )
+    else:
+        intro = (
+            f"Company {row.ticker}. Predict the UPCOMING quarter ({row.FE_FP_END.date()}) REVENUE SURPRISE "
+            "= (actual - consensus)/consensus, in %.\n\n"
+        )
     financials = (
         "FINANCIAL HISTORY (FactSet, public):\n"
-        + fin_table(target["history"], row)
+        + fin_table(target["history"], row, target_key)
         + "\n\n"
     )
     ladder = kalshi_ladder_table(target["ladder_history"], row) + "\n\n"
     earnings_call = (
-        "\nPRIOR-QUARTER EARNINGS CALL:\n"
-        + target["earnings_call_text"]
+        "\nPRIOR EARNINGS CALLS (oldest to newest):\n"
+        + earnings_call_block(target["earnings_calls"])
     )
-    instruction = "Predict the revenue surprise %."
+    instruction = TARGETS[target_key][3]
     return {
         "fin": intro + financials + instruction,
         "fin+kalshi_ladder": intro + financials + ladder + instruction,
@@ -493,7 +651,7 @@ def build_prompts(target):
     }
 
 
-def load_successful_calls(path):
+def load_successful_calls(path, target):
     path = Path(path)
     if not path.exists():
         return {}
@@ -501,7 +659,7 @@ def load_successful_calls(path):
     with path.open() as source:
         for line in source:
             record = json.loads(line)
-            if record.get("prediction") is None:
+            if record.get("target") != target or record.get("prediction") is None:
                 continue
             key = (
                 record["ticker"],
@@ -509,11 +667,14 @@ def load_successful_calls(path):
                 record["arm"],
                 int(record["repeat"]),
             )
+            prediction_model = PREDICTION_MODELS[target]
             calls[key] = (
-                BPredict(
-                    predicted_revenue_surprise_pct=float(record["prediction"]),
-                    confidence=int(record["confidence"]),
-                    rationale=record.get("rationale", ""),
+                prediction_model(
+                    **{
+                        PREDICTION_FIELDS[target]: float(record["prediction"]),
+                        "confidence": int(record["confidence"]),
+                        "rationale": record.get("rationale", ""),
+                    }
                 ),
                 float(record.get("estimated_cost_usd", 0.0)),
                 "",
@@ -522,6 +683,9 @@ def load_successful_calls(path):
 
 
 async def main_async(args):
+    target_key = args.target
+    truth_column, _reference_column, system_prompt, _instruction = TARGETS[target_key]
+    prediction_model = PREDICTION_MODELS[target_key]
     configure_s3_env()
     pre_all = pd.read_csv(args.pre_panel)
     y_panel = pd.read_csv(args.y_panel)
@@ -557,7 +721,7 @@ async def main_async(args):
             y_panel["ticker"].eq(row.ticker)
             & (y_panel["FE_FP_END"] < row.FE_FP_END)
         ].sort_values("FE_FP_END")
-        history = history.dropna(subset=["ACTUAL", "CONS_EARLY", "surprise_early"])
+        history = history.dropna(subset=["ACTUAL", truth_column])
         if len(history) < 3:
             skip_reasons["fewer_than_3_history_rows"] += 1
             continue
@@ -567,22 +731,22 @@ async def main_async(args):
             & (covered["published_at"] < row.published_at)
         ].sort_values("FE_FP_END")
         call_candidates = prior_earnings_call_candidates(
-            docs, row.ticker, row.REPORT_DATE
+            docs,
+            row.ticker,
+            row.pre_as_of_at,
+            target_period_end=row.FE_FP_END,
         )
-        if call_candidates.empty:
-            skip_reasons["no_prior_quarter_earnings_call"] += 1
+        if (
+            call_candidates.empty
+            or call_candidates["_call_period"].nunique()
+            < PRIOR_EARNINGS_CALL_COUNT
+        ):
+            skip_reasons["fewer_than_2_prior_earnings_calls"] += 1
             continue
-        call_doc = None
-        call_text = ""
-        last_error = None
-        for candidate in call_candidates.to_dict("records"):
-            try:
-                call_text = cache_earnings_call_text(s3, candidate["file_key"])
-                call_doc = candidate
-                break
-            except Exception as exc:
-                last_error = exc
-        if call_doc is None:
+        earnings_calls, last_error = load_prior_earnings_calls(
+            s3, call_candidates, args.max_earnings_call_chars
+        )
+        if len(earnings_calls) != PRIOR_EARNINGS_CALL_COUNT:
             error_code = (
                 getattr(last_error, "response", {})
                 .get("Error", {})
@@ -603,8 +767,7 @@ async def main_async(args):
                 "row": row,
                 "history": history,
                 "ladder_history": ladder_history,
-                "earnings_call_doc": call_doc,
-                "earnings_call_text": call_text[:MAX_EARNINGS_CALL_CHARS],
+                "earnings_calls": earnings_calls,
             }
         )
         print(
@@ -621,6 +784,8 @@ async def main_async(args):
             row = target["row"]
             eligible_rows.append(
                 {
+                    "target": target_key,
+                    "truth_column": truth_column,
                     "ticker": row.ticker,
                     "FE_FP_END": row.FE_FP_END.date().isoformat(),
                     "FISCAL_YEAR": int(row.FISCAL_YEAR),
@@ -632,11 +797,7 @@ async def main_async(args):
                     "kalshi_history_quarters": min(
                         len(target["ladder_history"]), HISTORY_ROWS
                     ),
-                    "earnings_call_period_end": str(
-                        pd.Timestamp(
-                            target["earnings_call_doc"]["period_end_date"]
-                        ).date()
-                    ),
+                    **earnings_call_metadata(target["earnings_calls"]),
                 }
             )
         eligible = pd.DataFrame(eligible_rows)
@@ -651,10 +812,12 @@ async def main_async(args):
         print(f"[written] {args.out_eligible_csv}", flush=True)
         return
 
-    prompts = [build_prompts(target) for target in targets]
+    prompts = [build_prompts(target, target_key) for target in targets]
     client = make_openai_client()
     semaphore = asyncio.Semaphore(args.concurrency)
-    prior_calls = load_successful_calls(args.out_jsonl) if args.resume else {}
+    prior_calls = (
+        load_successful_calls(args.out_jsonl, target_key) if args.resume else {}
+    )
     result_map = {}
     jobs = []
     for target_index, prompt_set in enumerate(prompts):
@@ -678,6 +841,8 @@ async def main_async(args):
                         prompt_set[arm],
                         args.request_timeout_seconds,
                         args.max_attempts,
+                        system_prompt,
+                        prediction_model,
                     )
                 )
 
@@ -708,6 +873,8 @@ async def main_async(args):
         for target_index, target in enumerate(targets):
             row = target["row"]
             item = {
+                "target": target_key,
+                "truth_column": truth_column,
                 "ticker": row.ticker,
                 "FE_FP_END": row.FE_FP_END.date().isoformat(),
                 "FISCAL_YEAR": int(row.FISCAL_YEAR),
@@ -718,12 +885,8 @@ async def main_async(args):
                 "kalshi_priced_rungs": int(row.pre_total_priced_rungs),
                 "kalshi_history_quarters": min(len(target["ladder_history"]), HISTORY_ROWS),
                 "kalshi_event_tickers": row.kalshi_event_tickers,
-                "true_pct": float(row.surprise_early) * 100.0,
-                "earnings_call_period_end": str(
-                    pd.Timestamp(
-                        target["earnings_call_doc"]["period_end_date"]
-                    ).date()
-                ),
+                "true_pct": float(getattr(row, truth_column)) * 100.0,
+                **earnings_call_metadata(target["earnings_calls"]),
             }
             for arm in ARMS:
                 values = []
@@ -732,11 +895,7 @@ async def main_async(args):
                     prediction, cost, error = result_map.get(
                         (target_index, arm, repeat), (None, 0.0, "missing result")
                     )
-                    value = (
-                        float(prediction.predicted_revenue_surprise_pct)
-                        if prediction
-                        else np.nan
-                    )
+                    value = prediction_value(prediction, target_key) if prediction else np.nan
                     item[f"{arm}__r{repeat}"] = value
                     if prediction:
                         values.append(value)
@@ -744,6 +903,7 @@ async def main_async(args):
                     log.write(
                         json.dumps(
                             {
+                                "target": target_key,
                                 "ticker": row.ticker,
                                 "FE_FP_END": row.FE_FP_END.date().isoformat(),
                                 "arm": arm,
@@ -790,12 +950,39 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pre-panel", type=Path, default=PRE_PANEL)
     parser.add_argument("--y-panel", type=Path, default=Y_PANEL)
-    parser.add_argument("--out-csv", type=Path, default=OUT_CSV)
-    parser.add_argument("--out-jsonl", type=Path, default=OUT_JSONL)
-    parser.add_argument("--out-eligible-csv", type=Path, default=ELIGIBLE_CSV)
+    parser.add_argument("--out-csv", type=Path)
+    parser.add_argument("--out-jsonl", type=Path)
+    parser.add_argument("--out-eligible-csv", type=Path)
     parser.add_argument("--eligibility-only", action="store_true")
     parser.add_argument("--evaluation-start", default="")
-    parser.add_argument("--repeats", type=int, default=1)
+    parser.add_argument(
+        "--target",
+        choices=sorted(TARGETS),
+        default="surprise",
+        help=(
+            "Prediction target. `surprise` = (actual - consensus)/consensus, which matches the "
+            "paper's Figure 4 analyst-consensus comparison. `yoy` = revenue year-over-year growth, "
+            "which is what the paper's Table 1 synergy results are computed on. The two are not "
+            "comparable: YoY is autocorrelated and scores a far higher R2 than the surprise residual."
+        ),
+    )
+    parser.add_argument(
+        "--repeats",
+        type=int,
+        default=3,
+        help="Independent calls per arm and target; the paper reports their mean.",
+    )
+    parser.add_argument(
+        "--max-earnings-call-chars",
+        type=int,
+        default=MAX_EARNINGS_CALL_CHARS,
+        help=(
+            "Truncation length for the Z transcript. The 48,000 default is an SSOT constant "
+            "from EXPERIMENT_SPEC.md so every X channel gets identical Z treatment; it is not a "
+            "context or cost limit (longest transcript is ~27.5k tokens against a 272k threshold). "
+            "Raise it to test whether truncating away the Q&A section is what makes the call arm hurt."
+        ),
+    )
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--concurrency", type=int, default=16)
     parser.add_argument("--request-timeout-seconds", type=float, default=180)
@@ -806,6 +993,9 @@ def main():
         help="Reuse successful calls in the existing JSONL and retry only missing calls.",
     )
     args = parser.parse_args()
+    for name, path in default_output_paths(args.target).items():
+        if getattr(args, name) is None:
+            setattr(args, name, path)
     if args.repeats < 1:
         raise SystemExit("--repeats must be at least 1")
     asyncio.run(main_async(args))

@@ -292,6 +292,7 @@ class ResumeTest(unittest.TestCase):
     def test_only_successful_calls_are_reused(self):
         records = [
             {
+                "target": "surprise",
                 "ticker": "TEST",
                 "FE_FP_END": "2026-03-31",
                 "arm": "fin",
@@ -303,6 +304,7 @@ class ResumeTest(unittest.TestCase):
                 "error": "",
             },
             {
+                "target": "surprise",
                 "ticker": "TEST",
                 "FE_FP_END": "2026-03-31",
                 "arm": "fin",
@@ -313,11 +315,24 @@ class ResumeTest(unittest.TestCase):
                 "estimated_cost_usd": 0.0,
                 "error": "timeout",
             },
+            {
+                "target": "yoy",
+                "ticker": "TEST",
+                "FE_FP_END": "2026-03-31",
+                "arm": "fin",
+                "repeat": 3,
+                "prediction": 9.99,
+                "confidence": 80,
+                "rationale": "wrong target",
+                "estimated_cost_usd": 0.01,
+                "error": "",
+            },
         ]
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "calls.jsonl"
             path.write_text("".join(json.dumps(record) + "\n" for record in records))
-            calls = runner_script.load_successful_calls(path)
+            calls = runner_script.load_successful_calls(path, "surprise")
+            yoy_calls = runner_script.load_successful_calls(path, "yoy")
 
         self.assertEqual(len(calls), 1)
         prediction, cost, error = calls[("TEST", "2026-03-31", "fin", 1)]
@@ -325,29 +340,93 @@ class ResumeTest(unittest.TestCase):
         self.assertEqual(cost, 0.01)
         self.assertEqual(error, "")
 
+        yoy_prediction, _, _ = yoy_calls[("TEST", "2026-03-31", "fin", 3)]
+        self.assertEqual(yoy_prediction.predicted_revenue_yoy_pct, 9.99)
+
+
+class TargetArtifactTest(unittest.TestCase):
+    def test_default_paths_are_explicit_and_target_specific(self):
+        surprise = runner_script.default_output_paths("surprise")
+        yoy = runner_script.default_output_paths("yoy")
+
+        self.assertNotEqual(surprise, yoy)
+        for name, path in surprise.items():
+            self.assertIn("surprise", path.name, name)
+        for name, path in yoy.items():
+            self.assertIn("yoy", path.name, name)
+
 
 class BaselineAdapterTest(unittest.TestCase):
-    def test_prior_call_uses_the_same_31_day_guard_as_factor1(self):
+    def test_two_most_recent_distinct_calls_precede_prediction_cutoff(self):
         documents = pd.DataFrame(
             [
                 {
                     "ticker": "TEST",
-                    "file_key": "too-recent",
-                    "period_end_date": pd.Timestamp("2025-12-31"),
-                    "call_at": pd.Timestamp("2026-02-15T20:00:00Z"),
+                    "file_key": "target-quarter-before-cutoff",
+                    "period_end_date": pd.Timestamp("2026-03-31"),
+                    "call_at": pd.Timestamp("2026-02-28T20:00:00Z"),
                 },
                 {
                     "ticker": "TEST",
-                    "file_key": "eligible",
+                    "file_key": "at-cutoff",
+                    "period_end_date": pd.Timestamp("2025-12-30"),
+                    "call_at": pd.Timestamp("2026-03-01T00:00:00Z"),
+                },
+                {
+                    "ticker": "TEST",
+                    "file_key": "recent-b",
+                    "period_end_date": pd.Timestamp("2025-12-31"),
+                    "call_at": pd.Timestamp("2026-02-25T20:00:00Z"),
+                },
+                {
+                    "ticker": "TEST",
+                    "file_key": "recent-a",
+                    "period_end_date": pd.Timestamp("2025-12-31"),
+                    "call_at": pd.Timestamp("2026-02-25T20:00:00Z"),
+                },
+                {
+                    "ticker": "TEST",
+                    "file_key": "second",
                     "period_end_date": pd.Timestamp("2025-09-30"),
                     "call_at": pd.Timestamp("2025-11-01T20:00:00Z"),
+                },
+                {
+                    "ticker": "TEST",
+                    "file_key": "third",
+                    "period_end_date": pd.Timestamp("2025-06-30"),
+                    "call_at": pd.Timestamp("2025-08-01T20:00:00Z"),
                 },
             ]
         )
         candidates = runner_script.prior_earnings_call_candidates(
-            documents, "TEST", pd.Timestamp("2026-03-01")
+            documents,
+            "TEST",
+            pd.Timestamp("2026-03-01T00:00:00Z"),
+            target_period_end=pd.Timestamp("2026-03-31"),
         )
-        self.assertEqual(candidates["file_key"].tolist(), ["eligible"])
+        periods = candidates["_call_period"].drop_duplicates().dt.date.tolist()
+        self.assertEqual(periods, [date(2025, 12, 31), date(2025, 9, 30)])
+        self.assertNotIn("at-cutoff", candidates["file_key"].tolist())
+        self.assertNotIn(
+            "target-quarter-before-cutoff", candidates["file_key"].tolist()
+        )
+        self.assertNotIn("third", candidates["file_key"].tolist())
+
+        with mock.patch.object(
+            runner_script,
+            "cache_earnings_call_text",
+            side_effect=lambda _s3, file_key: f"TEXT:{file_key}",
+        ):
+            calls, error = runner_script.load_prior_earnings_calls(
+                None, candidates, max_chars=48_000
+            )
+
+        self.assertIsNone(error)
+        self.assertEqual(
+            [call["doc"]["period_end_date"].date() for call in calls],
+            [date(2025, 9, 30), date(2025, 12, 31)],
+        )
+        self.assertEqual(len(calls), 2)
 
     def test_only_x_arms_receive_raw_ladders(self):
         ladder = json.dumps(
@@ -399,13 +478,34 @@ class BaselineAdapterTest(unittest.TestCase):
                 "row": row,
                 "history": history,
                 "ladder_history": pd.DataFrame(),
-                "earnings_call_text": "CALL_MARKER",
+                "earnings_calls": [
+                    {
+                        "doc": {
+                            "period_end_date": pd.Timestamp("2025-06-30"),
+                            "call_at": pd.Timestamp("2025-08-01T20:00:00Z"),
+                        },
+                        "text": "OLDER_CALL_MARKER",
+                    },
+                    {
+                        "doc": {
+                            "period_end_date": pd.Timestamp("2025-09-30"),
+                            "call_at": pd.Timestamp("2025-11-01T20:00:00Z"),
+                        },
+                        "text": "NEWER_CALL_MARKER",
+                    },
+                ],
             }
         )
         self.assertNotIn("KALSHI RAW", prompts["fin"])
         self.assertIn("KALSHI RAW", prompts["fin+kalshi_ladder"])
-        self.assertNotIn("CALL_MARKER", prompts["fin+kalshi_ladder"])
-        self.assertIn("CALL_MARKER", prompts["fin+earnings_call"])
+        self.assertNotIn("OLDER_CALL_MARKER", prompts["fin+kalshi_ladder"])
+        self.assertNotIn("NEWER_CALL_MARKER", prompts["fin+kalshi_ladder"])
+        self.assertIn("OLDER_CALL_MARKER", prompts["fin+earnings_call"])
+        self.assertIn("NEWER_CALL_MARKER", prompts["fin+earnings_call"])
+        self.assertLess(
+            prompts["fin+earnings_call"].index("OLDER_CALL_MARKER"),
+            prompts["fin+earnings_call"].index("NEWER_CALL_MARKER"),
+        )
         self.assertIn("KALSHI RAW", prompts["fin+kalshi_ladder+earnings_call"])
 
 

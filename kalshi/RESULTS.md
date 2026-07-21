@@ -4,18 +4,18 @@
 
 ## Conclusion
 
-The point estimates favor Kalshi, but the predefined robustness gates do not pass. Adding the raw ladder reduced RMSE by 0.134 percentage points over financial history and by 0.342 percentage points after controlling for the prior earnings call. Both company-bootstrap confidence intervals include zero, so the sample does not establish statistically robust incremental value.
+The two point estimates are mixed, and neither comparison passes the predefined robustness gates. Adding the raw ladder increased RMSE by 0.136 percentage points over financial history and reduced RMSE by 0.269 percentage points after controlling for the prior earnings calls. Both company-bootstrap confidence intervals include zero, so the sample does not establish statistically robust incremental value.
 
 ## Run record
 
 - model: `gpt-5.5-2026-04-23`
 - reasoning effort: `medium`
-- targets: 36 company-quarters across 28 tickers
-- calls: 144; successful: 144; errors: 0
-- repeats per arm and target: 1
-- estimated gateway cost: USD 10.78
+- targets: 32 company-quarters across 28 tickers
+- calls: 384; successful: 384; errors: 0
+- repeats per arm and target: 3
+- estimated gateway cost: USD 28.95
 - fiscal period range: 2025-12-31 to 2026-06-30
-- truth: mean +1.176%, sample SD 4.267%, positive rate 0.694
+- truth: mean +0.956%, sample SD 4.347%, positive rate 0.656
 - financial source: `FACTSET_LISTING.FE_V4 direct via factset_query`
 - FactSet query: 54 regional IDs, 1482 rows, 11 batches
 - early consensus: `latest CONS_END_DATE <= FE_FP_END + 7 days`
@@ -36,7 +36,7 @@ A company-quarter is one unique `ticker + FE_FP_END` target. It is not a Kalshi 
 | Post-cutoff exact candidates | 40 | 28 | 36 | report date after 2025-12-01 |
 | Pre-publication ladder coverage | 78 | 29 | 68 | market-open-to-publication candle search |
 | Post-cutoff ladder coverage | 40 | 28 | 36 | same cutoff applied after candle coverage |
-| Final paired LLM sample | 36 | 28 | 36 | four successful arms on one matched row set |
+| Final paired LLM sample | 32 | 28 | 32 | four successful arms on one matched row set |
 
 The earlier 45-day candle-age cap was not part of the Carbon Arc benchmark and is not used. Candle lookup starts at each contract's actual `open_time`; rows without a precise FactSet publication timestamp or a valid pre-publication ladder remain excluded.
 
@@ -45,7 +45,7 @@ The earlier 45-day candle-age cap was not part of the Carbon Arc benchmark and i
 | ticker | quarters | fiscal periods | prior X quarters | target events | priced rungs |
 |---|---|---|---|---|---|
 | ABNB | 1 | Q1 FY2026 (2026-03-31) | 0 | 1 | 9 |
-| BA | 2 | Q4 FY2025 (2025-12-31), Q1 FY2026 (2026-03-31) | 0, 1 | 2 | 14 |
+| BA | 1 | Q1 FY2026 (2026-03-31) | 1 | 1 | 6 |
 | CAVA | 1 | Q1 FY2026 (2026-03-31) | 0 | 1 | 11 |
 | CCL | 1 | Q2 FY2026 (2026-05-31) | 0 | 1 | 7 |
 | COIN | 1 | Q1 FY2026 (2026-03-31) | 6 | 1 | 18 |
@@ -58,16 +58,16 @@ The earlier 45-day candle-age cap was not part of the Carbon Arc benchmark and i
 | LUV | 1 | Q1 FY2026 (2026-03-31) | 0 | 2 | 15 |
 | LYFT | 1 | Q1 FY2026 (2026-03-31) | 0 | 1 | 14 |
 | MAR | 1 | Q1 FY2026 (2026-03-31) | 0 | 1 | 10 |
-| META | 2 | Q4 FY2025 (2025-12-31), Q1 FY2026 (2026-03-31) | 6, 6 | 3 | 20 |
+| META | 1 | Q1 FY2026 (2026-03-31) | 6 | 1 | 9 |
 | MTCH | 2 | Q4 FY2025 (2025-12-31), Q1 FY2026 (2026-03-31) | 0, 1 | 2 | 16 |
 | MTN | 1 | Q3 FY2026 (2026-04-30) | 0 | 1 | 12 |
 | PLNT | 1 | Q1 FY2026 (2026-03-31) | 0 | 1 | 7 |
 | RACE | 1 | Q1 FY2026 (2026-03-31) | 0 | 1 | 7 |
 | RDDT | 1 | Q1 FY2026 (2026-03-31) | 0 | 1 | 11 |
 | ROKU | 1 | Q1 FY2026 (2026-03-31) | 0 | 1 | 6 |
-| SPOT | 2 | Q4 FY2025 (2025-12-31), Q1 FY2026 (2026-03-31) | 6, 6 | 2 | 14 |
+| SPOT | 1 | Q1 FY2026 (2026-03-31) | 6 | 1 | 9 |
 | TOL | 1 | Q2 FY2026 (2026-04-30) | 0 | 1 | 7 |
-| TSLA | 2 | Q4 FY2025 (2025-12-31), Q1 FY2026 (2026-03-31) | 6, 6 | 4 | 33 |
+| TSLA | 1 | Q1 FY2026 (2026-03-31) | 6 | 2 | 19 |
 | UAL | 2 | Q1 FY2026 (2026-03-31), Q2 FY2026 (2026-06-30) | 0, 1 | 2 | 24 |
 | UBER | 2 | Q4 FY2025 (2025-12-31), Q1 FY2026 (2026-03-31) | 0, 1 | 2 | 16 |
 | URBN | 1 | Q1 FY2027 (2026-04-30) | 0 | 1 | 5 |
@@ -75,25 +75,34 @@ The earlier 45-day candle-age cap was not part of the Carbon Arc benchmark and i
 
 ## Raw-ladder diagnostics
 
-- target-quarter events: 40
-- priced rungs: 336
-- quote midpoint rungs: 303
-- last-trade fallback rungs: 24
-- previous-trade fallback rungs: 9
+- target-quarter events: 34
+- priced rungs: 298
+- quote midpoint rungs: 287
+- last-trade fallback rungs: 7
+- previous-trade fallback rungs: 4
 - maximum candle age: 1110.7 hours
-- raw monotonicity violations: 16
+- raw monotonicity violations: 13
 - settled outcomes, monotonic smoothing, interpolation, and scalar integration: none
 
 ## Arm metrics
 
 | arm | n | RMSE | MAE | corr | corr2 | OOS R2 | sign accuracy |
 |---|---|---|---|---|---|---|---|
-| fin | 36 | 3.914 | 2.408 | +0.415 | 0.173 | +0.134 | 0.639 |
-| fin+kalshi_ladder | 36 | 3.780 | 2.453 | +0.463 | 0.215 | +0.193 | 0.694 |
-| fin+earnings_call | 36 | 4.125 | 2.617 | +0.242 | 0.058 | +0.039 | 0.694 |
-| fin+kalshi_ladder+earnings_call | 36 | 3.783 | 2.426 | +0.462 | 0.213 | +0.192 | 0.667 |
+| fin | 32 | 3.962 | 2.509 | +0.410 | 0.168 | +0.142 | 0.594 |
+| fin+kalshi_ladder | 32 | 4.099 | 2.624 | +0.376 | 0.141 | +0.082 | 0.625 |
+| fin+earnings_call | 32 | 4.321 | 2.694 | +0.210 | 0.044 | -0.020 | 0.688 |
+| fin+kalshi_ladder+earnings_call | 32 | 4.053 | 2.540 | +0.358 | 0.128 | +0.103 | 0.656 |
 
 RMSE and MAE are in revenue-surprise percentage points. OOS R2 is `1 - SSE/SST` on the paired post-cutoff sample; correlation squared is the benchmark's scale-free calibration ceiling.
+
+## Analyst-consensus benchmark
+
+The early-consensus forecast implies a 0.0% revenue surprise. Following the paper's Figure 4, win rate is the share of targets where the full model is closer to realized surprise than that consensus forecast.
+
+| prediction | RMSE | win rate vs consensus |
+|---|---:|---:|
+| early consensus | 4.384 | - |
+| `fin+kalshi_ladder+earnings_call` | 4.053 | 0.594 |
 
 ## Predefined incremental comparisons
 
@@ -101,11 +110,11 @@ Delta is `RMSE(+ ladder) - RMSE(base)`; negative favors Kalshi.
 
 | comparison | n | firms | RMSE base | RMSE + ladder | delta | company-bootstrap 95% CI | sign-permutation p |
 |---|---|---|---|---|---|---|---|
-| Ladder over financial history | 36 | 28 | 3.914 | 3.780 | **-0.134** | [-0.674, +0.276] | 0.5966 |
-| Ladder after controlling for the prior earnings call | 36 | 28 | 4.125 | 3.783 | **-0.342** | [-0.994, +0.191] | 0.4001 |
+| Ladder over financial history | 32 | 28 | 3.962 | 4.099 | **+0.136** | [-0.172, +0.468] | 0.5428 |
+| Ladder after controlling for the prior earnings call | 32 | 28 | 4.321 | 4.053 | **-0.269** | [-0.654, +0.102] | 0.2541 |
 
-- **Ladder over financial history:** leave-one-company-out delta range `[-0.250, +0.046]`; most influential exclusion is `COIN` (`+0.046`).
-- **Ladder after controlling for the prior earnings call:** leave-one-company-out delta range `[-0.424, -0.087]`; most influential exclusion is `COIN` (`-0.087`).
+- **Ladder over financial history:** leave-one-company-out delta range `[-0.012, +0.210]`; most influential exclusion is `FUTU` (`-0.012`).
+- **Ladder after controlling for the prior earnings call:** leave-one-company-out delta range `[-0.346, -0.120]`; most influential exclusion is `COIN` (`-0.120`).
 
 ## Benchmark robustness metrics
 
@@ -113,25 +122,25 @@ The Carbon Arc Factor 1 report also evaluates super-additive X-by-Z synergy, a c
 
 | metric | observed | bootstrap mean | company-bootstrap 95% CI | p(<=0) |
 |---|---:|---:|---:|---:|
-| corr(fin+ladder+call) | +0.462 | +0.435 | [-0.072, +0.811] | 0.047 |
-| synergy(corr) | +0.172 | +0.152 | [-0.036, +0.413] | 0.112 |
-| skill(fin+ladder+call) [OOS R2] | +0.192 | +0.143 | [-0.399, +0.593] | 0.282 |
-| synergy(MSE-skill) | +0.094 | +0.072 | [-0.304, +0.321] | 0.261 |
+| corr(fin+ladder+call) | +0.358 | +0.339 | [-0.267, +0.803] | 0.131 |
+| synergy(corr) | +0.183 | +0.145 | [-0.018, +0.264] | 0.042 |
+| skill(fin+ladder+call) [OOS R2] | +0.103 | +0.048 | [-0.629, +0.570] | 0.409 |
+| synergy(MSE-skill) | +0.183 | +0.197 | [-0.001, +0.487] | 0.026 |
 
-Company-shuffle surrogate for `fin+kalshi_ladder+earnings_call`: p=0.026.
+Company-shuffle surrogate for `fin+kalshi_ladder+earnings_call`: p=0.079.
 
 | arm | raw OOS R2 | calibrated OOS R2 | corr2 ceiling |
 |---|---:|---:|---:|
-| fin | +0.134 | +0.012 | 0.173 |
-| fin+kalshi_ladder | +0.193 | +0.076 | 0.215 |
-| fin+earnings_call | +0.039 | -0.089 | 0.058 |
-| fin+kalshi_ladder+earnings_call | +0.192 | +0.063 | 0.213 |
+| fin | +0.142 | +0.033 | 0.168 |
+| fin+kalshi_ladder | +0.082 | -0.067 | 0.141 |
+| fin+earnings_call | -0.020 | -0.289 | 0.044 |
+| fin+kalshi_ladder+earnings_call | +0.103 | -0.224 | 0.128 |
 
 ## Decision rule and limitations
 
 A statistically robust incremental result requires a negative RMSE delta, a company-clustered 95% confidence interval fully below zero, and a company-level sign-permutation p-value below 0.05. Neither comparison passes all three gates.
 
-The evaluation has 36 observations across 28 firms; 8 firms have more than one target. Each arm was called 1 time(s) per target, so model-run variance is not estimated. The oldest retained quote is 46.3 days before publication. These constraints limit power and generalization.
+The evaluation has 32 observations across 28 firms; 4 firms have more than one target. Each arm was called 3 time(s) per target, so model-run variance is estimated from repeated calls. The oldest retained quote is 46.3 days before publication. These constraints limit power and generalization.
 
 ## Usable-ladder ticker attrition
 
@@ -140,7 +149,7 @@ The evaluation has 36 observations across 28 firms; 8 firms have more than one t
 | AAPL | 1 | 1 | 0 | 29 | 0 | 0 | 0 | no exact fiscal-period match |
 | ABNB | 1 | 2 | 2 | 22 | 1 | 1 | 1 | final sample |
 | AMZN | 1 | 1 | 0 | 29 | 0 | 0 | 0 | no exact fiscal-period match |
-| BA | 3 | 5 | 4 | 29 | 2 | 2 | 2 | final sample |
+| BA | 3 | 5 | 4 | 29 | 2 | 2 | 1 | final sample |
 | CAVA | 2 | 3 | 3 | 12 | 1 | 1 | 1 | final sample |
 | CCL | 2 | 3 | 2 | 30 | 1 | 1 | 1 | final sample |
 | CMG | 2 | 3 | 2 | 29 | 0 | 0 | 0 | no exact fiscal-period match |
@@ -166,7 +175,7 @@ The evaluation has 36 observations across 28 firms; 8 firms have more than one t
 | MAR | 1 | 2 | 2 | 29 | 1 | 1 | 1 | final sample |
 | MCD | 1 | 2 | 2 | 29 | 0 | 0 | 0 | no exact fiscal-period match |
 | MELI | 2 | 2 | 1 | 29 | 0 | 0 | 0 | no exact fiscal-period match |
-| META | 5 | 14 | 12 | 29 | 9 | 9 | 2 | final sample |
+| META | 5 | 14 | 12 | 29 | 9 | 9 | 1 | final sample |
 | MTCH | 3 | 4 | 3 | 24 | 2 | 2 | 2 | final sample |
 | MTN | 1 | 1 | 1 | 30 | 1 | 1 | 1 | final sample |
 | NCLH | 2 | 2 | 1 | 29 | 0 | 0 | 0 | no exact fiscal-period match |
@@ -179,11 +188,11 @@ The evaluation has 36 observations across 28 firms; 8 firms have more than one t
 | SBUX | 3 | 5 | 2 | 29 | 0 | 0 | 0 | no exact fiscal-period match |
 | SG | 2 | 1 | 1 | 18 | 0 | 0 | 0 | no exact fiscal-period match |
 | SHOP | 1 | 1 | 1 | 29 | 0 | 0 | 0 | no exact fiscal-period match |
-| SPOT | 5 | 14 | 11 | 29 | 9 | 9 | 2 | final sample |
+| SPOT | 5 | 14 | 11 | 29 | 9 | 9 | 1 | final sample |
 | TGT | 2 | 2 | 2 | 30 | 0 | 0 | 0 | no exact fiscal-period match |
 | TOL | 2 | 2 | 2 | 30 | 1 | 1 | 1 | final sample |
 | TOST | 2 | 2 | 1 | 18 | 0 | 0 | 0 | no exact fiscal-period match |
-| TSLA | 9 | 27 | 23 | 29 | 9 | 9 | 2 | final sample |
+| TSLA | 9 | 27 | 23 | 29 | 9 | 9 | 1 | final sample |
 | UAL | 2 | 4 | 3 | 30 | 2 | 2 | 2 | final sample |
 | UBER | 5 | 3 | 2 | 28 | 2 | 2 | 2 | final sample |
 | ULTA | 1 | 2 | 2 | 30 | 0 | 0 | 0 | no exact fiscal-period match |
@@ -194,8 +203,8 @@ The evaluation has 36 observations across 28 firms; 8 firms have more than one t
 
 ## Reproducibility artifacts
 
-- predictions: `kalshi/outputs/auto/kalshi_llm_ladder_ablation_preds.csv`
-- per-call log: `kalshi/outputs/auto/kalshi_llm_ladder_ablation_run_log.jsonl`
+- predictions: `kalshi/outputs/auto/kalshi_llm_ladder_ablation_surprise_preds.csv`
+- per-call log: `kalshi/outputs/auto/kalshi_llm_ladder_ablation_surprise_run_log.jsonl`
 - pre-publication ladders: `kalshi/outputs/auto/kalshi_prereport_ladder_panel.csv`
 - exact event mappings: `kalshi/outputs/auto/kalshi_x_revsurprise_events.csv`
 - direct FactSet target panel: `kalshi/outputs/auto/kalshi_factset_revenue_surprise_panel.csv`
