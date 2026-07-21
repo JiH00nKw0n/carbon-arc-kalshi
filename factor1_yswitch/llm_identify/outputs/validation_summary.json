@@ -1,0 +1,72 @@
+{
+  "metric_fit": [
+    {
+      "channel": "card",
+      "rank_spearman": 0.81,
+      "rank_p": 0.015,
+      "sig_accuracy": 0.875,
+      "sig_precision": 0.833,
+      "sig_recall": 1.0,
+      "n_metrics": 8,
+      "tp": 5,
+      "fp": 1,
+      "fn": 0,
+      "tn": 2
+    },
+    {
+      "channel": "foot",
+      "rank_spearman": 0.886,
+      "rank_p": 0.019,
+      "sig_accuracy": 0.5,
+      "sig_precision": 0.4,
+      "sig_recall": 1.0,
+      "n_metrics": 6,
+      "tp": 2,
+      "fp": 3,
+      "fn": 0,
+      "tn": 1
+    },
+    {
+      "channel": "click",
+      "rank_spearman": -0.2,
+      "rank_p": 0.8,
+      "sig_accuracy": 0.5,
+      "sig_precision": 0.5,
+      "sig_recall": 1.0,
+      "n_metrics": 4,
+      "tp": 2,
+      "fp": 2,
+      "fn": 0,
+      "tn": 0
+    }
+  ],
+  "company_fit": [
+    {
+      "channel": "card",
+      "rank_spearman": 0.096,
+      "rank_p": 0.455,
+      "topk": 15,
+      "topk_precision": 0.2,
+      "auc_strong": 0.616,
+      "n_companies": 63
+    },
+    {
+      "channel": "foot",
+      "rank_spearman": 0.13,
+      "rank_p": 0.347,
+      "topk": 13,
+      "topk_precision": 0.385,
+      "auc_strong": 0.562,
+      "n_companies": 54
+    },
+    {
+      "channel": "click",
+      "rank_spearman": 0.012,
+      "rank_p": 0.948,
+      "topk": 8,
+      "topk_precision": 0.25,
+      "auc_strong": 0.518,
+      "n_companies": 33
+    }
+  ]
+}

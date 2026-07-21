@@ -14,14 +14,16 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from f1_channels import cfg, active  # noqa: E402
 
-ROOT = Path("/Users/junekwon/Desktop/Projects/carbon_arc")
-OUT = ROOT / "factor1" / "outputs"
+import os as _os
+ROOT = Path(_os.getenv("F1_ROOT", "/Users/junekwon/Desktop/Projects/carbon_arc"))
+OUT = Path(_os.getenv("F1_OUT", str(ROOT / "factor1" / "outputs")))
 CUTOFF = pd.Timestamp("2025-12-01")
 HIST_ROWS = 6
 MAX_TRANSCRIPT_CHARS = 48000
-SCREEN = ROOT / "factor1" / "data" / "altdata_ticker_screen.csv"
+SCREEN = Path(_os.getenv("F1_SCREEN", str(ROOT / "factor1" / "data" / "altdata_ticker_screen.csv")))
 
-_LM = json.load(open(ROOT / "lm_sentiment.json"))
+_LM_PATH = Path(_os.getenv("F1_LM", str(ROOT / "lm_sentiment.json")))
+_LM = json.load(open(_LM_PATH))
 POS, NEG = set(_LM["positive"]), set(_LM["negative"])
 
 
