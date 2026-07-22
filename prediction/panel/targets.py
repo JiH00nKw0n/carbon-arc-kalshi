@@ -51,7 +51,7 @@ def build_targets(panel: pd.DataFrame, transcripts: Transcripts,
 def _target_for(event, group: pd.DataFrame, ticker: str, transcripts: Transcripts,
                 y_target: YTarget, run_cfg: RunCfg) -> Optional[Target]:
     """Build one target, or None if it fails a coverage filter."""
-    if pd.isna(event.x_yoy) or pd.isna(getattr(event, y_target.true_col)):
+    if not _x_present(event) or pd.isna(getattr(event, y_target.true_col)):
         return None
     history = group[group["FE_FP_END"] < event.FE_FP_END]
     if len(history) < _MIN_HISTORY:
@@ -70,7 +70,24 @@ def _target_for(event, group: pd.DataFrame, ticker: str, transcripts: Transcript
         ticker=ticker, fp=row.fp_end, report=row.report_date,
         true=y_target.label(row), x_yoy=float(event.x_yoy), strength=row.strength,
         row=row, hist=tuple(_panel_row(h) for h in history.itertuples()),
-        text=text, text2=text2, call_path=calls[0].path)
+        text=text, text2=text2, call_path=calls[0].path, x_payload=_payload(event))
+
+
+def _payload(obj) -> Optional[str]:
+    """The channel's rich X object (Kalshi ladder JSON) if present, else None (scalar channels)."""
+    value = getattr(obj, "x_payload", None)
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    text = str(value)
+    return text or None
+
+
+def _x_present(event) -> bool:
+    """X is available for a target when the scalar x_yoy is defined OR a rich ladder payload exists.
+
+    Scalar channels (card/web/foot) qualify only on a defined x_yoy; the Kalshi ladder qualifies on
+    its payload even when the implied-value YoY is undefined (sparse, per-firm-varying metric)."""
+    return (not pd.isna(event.x_yoy)) or (_payload(event) is not None)
 
 
 def _second_call(transcripts: Transcripts, ticker: str, report: date,
@@ -122,6 +139,7 @@ def _panel_row(row) -> PanelRow:
         rev_yoy=_maybe_float(row.rev_yoy),
         lag_surprise=_maybe_float(row.lag_surprise),
         strength=_maybe_str(row.strength),
+        x_payload=_payload(row),
     )
 
 
