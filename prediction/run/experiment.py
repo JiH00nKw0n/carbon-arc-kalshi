@@ -85,17 +85,18 @@ class _ChannelDescriptions:
 
 # --------------------------------------------------------------------------- panel cache
 class PanelCache:
-    """Builds each channel's panel once (fresh, with x_abs/rev_yoy) and reuses it across cells."""
+    """Builds each channel's panel once per run and reuses that fresh frame across cells."""
 
-    def __init__(self, panel_out: str):
+    def __init__(self, panel_out: str, screen_csv: str):
         self._dir = Path(panel_out)
+        self._screen_csv = screen_csv
         self._cache: dict[str, pd.DataFrame] = {}
 
     def get_or_build(self, channel: ChannelSpec) -> pd.DataFrame:
         if channel.name not in self._cache:
             self._dir.mkdir(parents=True, exist_ok=True)
             path = self._dir / f"panel_{channel.name}.csv"
-            self._cache[channel.name] = self._read(path) if path.exists() else self._build(channel, path)
+            self._cache[channel.name] = self._build(channel, path)
         return self._cache[channel.name]
 
     def _build(self, channel: ChannelSpec, path: Path) -> pd.DataFrame:
@@ -104,21 +105,13 @@ class PanelCache:
             from prediction.panel.ladder_builder import build_ladder_panel
             revenue = KalshiRevenueSource(channel).records()
             alt = KalshiLadderSource(channel).points()
-            panel = build_ladder_panel(channel, revenue, alt)
+            panel = build_ladder_panel(channel, revenue, alt, self._screen_csv)
         else:
             revenue = FactSetJsonSource(channel).records()
             alt = CarbonArcCsvSource(channel).points()
-            panel = build_panel(channel, revenue, alt)
+            panel = build_panel(channel, revenue, alt, self._screen_csv)
         panel.to_csv(path, index=False)
         return panel
-
-    @staticmethod
-    def _read(path: Path) -> pd.DataFrame:
-        panel = pd.read_csv(path)
-        panel["FE_FP_END"] = pd.to_datetime(panel["FE_FP_END"])
-        panel["REPORT_DATE"] = pd.to_datetime(panel["REPORT_DATE"])
-        return panel
-
 
 # --------------------------------------------------------------------------- composition root
 @dataclass
@@ -136,7 +129,12 @@ def build_experiment(cfg: ExperimentConfig) -> Experiment:
         LLMConfig(model=cfg.llm.model, effort=cfg.llm.effort,
                   max_retries=cfg.llm.max_retries, concurrency=cfg.run.concurrency))
     store = ResultStore(cfg.output_dir, cfg.llm.model, cfg.llm.effort, cfg.seed)
-    return Experiment(cfg=cfg, llm_client=client, store=store, panels=PanelCache(cfg.data.panel_out))
+    return Experiment(
+        cfg=cfg,
+        llm_client=client,
+        store=store,
+        panels=PanelCache(cfg.data.panel_out, cfg.data.screen_csv),
+    )
 
 
 def run(cfg: ExperimentConfig, force: bool = False) -> None:
@@ -157,13 +155,14 @@ async def _run_all(experiment: Experiment, force: bool) -> None:
 # --------------------------------------------------------------------------- per-cell flow
 async def _run_cell(experiment: Experiment, cell: Cell, seed: int, force: bool) -> None:
     cfg = experiment.cfg
-    if experiment.store.done(cell) and not force:
-        return
     context = _cell_context(experiment, cell)
     panel = _select_strong(experiment.panels.get_or_build(context.channel), cfg.run)
     targets = build_targets(panel, context.transcripts, context.y_target, cfg.run)
     if cfg.run.limit:
         targets = targets[: cfg.run.limit]
+    experiment.store.write_manifest(cell.channel, cell.y, targets, cfg.run.hist_rows)
+    if experiment.store.done(cell) and not force:
+        return
 
     if cfg.run.render_only:
         _render_cell(cell, targets, context, cfg.run, Path(cfg.output_dir) / "render")
@@ -239,7 +238,7 @@ def _evaluate_cell(cfg, cell, panel, preds, context, seed) -> EvalResult:
     features = _feature_table(panel, context.transcripts, context.y_target, context.channel.kind)
     train, test = _train_test(features, preds, cfg.run.cutoff, context.channel.kind)
     _assert_matched(test, cfg.evaluate.synergy_arms)
-    base = _baseline_predictions(train, test, cfg.grid.baselines)
+    base = _baseline_predictions(train, test, cfg.grid.baselines, context.channel.kind)
     return _build_result(cell, test, base, cfg.evaluate, seed)
 
 
@@ -247,28 +246,23 @@ def _feature_table(panel: pd.DataFrame, transcripts: _Transcripts, y_target,
                    kind: str = "scalar") -> pd.DataFrame:
     """The f1_22_eval event table, Y-parameterized: tkr/ticker, true, x_yoy, lag_y, sent, report.
 
-    A single-snapshot ladder channel has no dense scalar YoY (x_yoy is undefined for every quarter),
-    so dropping on it would empty the frame; the ladder path keeps every quarter with a label and
-    fills x_yoy with a neutral 0 (the ladder itself reaches the LLM via x_payload, not this scalar).
-    Scalar channels are unchanged — their x_yoy is dense, so the fill is a no-op after the dropna."""
-    frame = panel.copy()
-    frame["FE_FP_END"] = pd.to_datetime(frame["FE_FP_END"])
-    frame["REPORT_DATE"] = pd.to_datetime(frame["REPORT_DATE"])
+    A ladder channel has no defensible dense scalar YoY, so it keeps label-bearing rows with x_yoy
+    missing. X-dependent classical baselines are reported N/A downstream; the raw ladder reaches the
+    LLM through x_payload. Scalar channels retain the original x_yoy behavior."""
+    frame = panel.copy().astype({"FE_FP_END": "datetime64[ns]", "REPORT_DATE": "datetime64[ns]"})
     frame = frame.sort_values(["ticker", "FE_FP_END"])
-    frame["true"] = frame[y_target.true_col]
-    frame["lag_y"] = lag_y(frame, y_target.true_col)
+    frame.loc[:, "true"] = frame[y_target.true_col]
+    frame.loc[:, "lag_y"] = lag_y(frame, y_target.true_col)
     frame = frame.dropna(subset=(["true"] if kind == "ladder" else ["x_yoy", "true"])).copy()
-    # A single-snapshot ladder has no reliable dense scalar: x_yoy is undefined for most quarters and,
-    # where a pct_change exists, it can cross a unit change in the source ladders (e.g. COIN's implied
-    # value jumps $B->raw $). So zero the WHOLE column for a ladder channel, not just the NaNs — the
-    # classical x-baselines become degenerate (equivalent to their x-free forms) instead of blowing up.
-    frame["x_yoy"] = 0.0 if kind == "ladder" else frame["x_yoy"].fillna(0.0)
-    frame["sent"] = [_row_sentiment(transcripts, row.ticker, row.REPORT_DATE)
-                     for row in frame.itertuples()]
-    frame["sent"] = frame["sent"].fillna(0.0)
-    frame["tkr"] = frame["ticker"]
-    frame["report"] = frame["REPORT_DATE"]
-    return frame[["tkr", "ticker", "report", "x_yoy", "true", "lag_y", "sent"]]
+    frame.loc[:, "x_yoy"] = (float("nan") if kind == "ladder"
+                              else frame["x_yoy"].fillna(0.0))
+    frame.loc[:, "sent"] = [_row_sentiment(transcripts, row.ticker, row.REPORT_DATE)
+                            for row in frame.itertuples()]
+    frame.loc[:, "sent"] = frame["sent"].fillna(0.0)
+    frame.loc[:, "tkr"] = frame["ticker"]
+    frame.loc[:, "fp"] = frame["FE_FP_END"]
+    frame.loc[:, "report"] = frame["REPORT_DATE"]
+    return frame[["tkr", "ticker", "fp", "report", "x_yoy", "true", "lag_y", "sent"]]
 
 
 def _row_sentiment(transcripts: _Transcripts, ticker: str, report_date) -> float:
@@ -278,23 +272,23 @@ def _row_sentiment(transcripts: _Transcripts, ticker: str, report_date) -> float
 
 def _train_test(features: pd.DataFrame, preds: pd.DataFrame, cutoff,
                 kind: str = "scalar") -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Pre-cutoff training rows + the matched post-cutoff LLM rows, joined on tkr|round(true,8)."""
+    """Pre-cutoff training rows plus LLM rows joined by exact company/fiscal-quarter identity."""
     cutoff_ts = pd.Timestamp(cutoff)
-    train = features[features["report"] <= cutoff_ts].dropna(subset=["x_yoy", "true"]).copy()
+    required = ["true"] if kind == "ladder" else ["x_yoy", "true"]
+    train = features[features["report"] <= cutoff_ts].dropna(subset=required).copy()
     fill = train["true"].mean()
-    train["lag_y"] = train["lag_y"].fillna(fill)
+    train.loc[:, "lag_y"] = train["lag_y"].fillna(fill)
 
-    test = preds.copy()
-    test["k"] = test["tkr"] + "|" + test["true"].round(8).astype(str)
-    keyed = features.copy()
-    keyed["k"] = keyed["tkr"] + "|" + keyed["true"].round(8).astype(str)
-    test = test.merge(keyed[["k", "sent", "lag_y"]].drop_duplicates("k"), on="k", how="left")
-    test["lag_y"] = test["lag_y"].fillna(fill)
-    test["sent"] = test["sent"].fillna(0.0)
-    test["ticker"] = test["tkr"]
-    test["x_yoy"] = 0.0 if kind == "ladder" else test["x_yoy"].fillna(0.0)   # ladder scalar unreliable (sparse + unit-inconsistent) -> zero
-    for frame in (train, test):
-        frame["x_sent"] = frame["x_yoy"] * frame["sent"]
+    test = preds.copy().astype({"fp": "datetime64[ns]"})
+    keyed = features[["tkr", "fp", "sent", "lag_y"]].drop_duplicates(["tkr", "fp"])
+    test = test.merge(keyed, on=["tkr", "fp"], how="left", validate="one_to_one")
+    test.loc[:, "lag_y"] = test["lag_y"].fillna(fill)
+    test.loc[:, "sent"] = test["sent"].fillna(0.0)
+    test.loc[:, "ticker"] = test["tkr"]
+    test.loc[:, "x_yoy"] = (float("nan") if kind == "ladder"
+                             else test["x_yoy"].fillna(0.0))
+    train.loc[:, "x_sent"] = train["x_yoy"] * train["sent"]
+    test.loc[:, "x_sent"] = test["x_yoy"] * test["sent"]
     return train, test
 
 
@@ -304,8 +298,13 @@ def _assert_matched(test: pd.DataFrame, arms: list[str]) -> None:
             f"arm '{arm}' is missing/NaN in the matched set — arms must share rows"
 
 
-def _baseline_predictions(train, test, names: list[str]) -> dict[str, np.ndarray]:
-    return {name: _fit_predict(get_baseline(name), train, test) for name in names}
+def _baseline_predictions(train, test, names: list[str], kind: str = "scalar") -> dict:
+    predictions = {}
+    for name in names:
+        spec = get_baseline(name)
+        predictions[name] = (None if kind == "ladder" and "x_yoy" in spec.features
+                             else _fit_predict(spec, train, test))
+    return predictions
 
 
 def _fit_predict(spec, train, test) -> np.ndarray:
@@ -336,6 +335,9 @@ def _build_result(cell, test, base, eval_cfg, seed) -> EvalResult:
 
 
 def _metric_row(name: str, pred, true_pct) -> dict:
+    if pred is None:
+        return {"model": name, "available": False, "calib": None}
     m = metrics(pred, true_pct)
-    return {"model": name, "rmse": m["rmse"], "r2": m["r2"], "corr": m["corr"],
+    return {"model": name, "available": True,
+            "rmse": m["rmse"], "r2": m["r2"], "corr": m["corr"],
             "corr2": m["corr2"], "mae": m["mae"], "sign": m["sign"], "calib": None}

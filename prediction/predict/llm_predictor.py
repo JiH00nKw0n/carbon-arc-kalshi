@@ -45,15 +45,23 @@ async def _predict_target(target, prompt_builder, tools_enabled, arm_specs, y_ta
         for arm in arm_specs))
     if any(pred is None for pred in preds):
         return None
-    row = {"tkr": target.ticker, "true": target.true, "x_yoy": target.x_yoy}
+    row = {
+        "tkr": target.ticker,
+        "fp": target.fp.isoformat(),
+        "report": target.report.isoformat(),
+        "true": target.true,
+        "x_yoy": target.x_yoy,
+    }
     for arm, pred in zip(arm_specs, preds):
-        row[arm.name] = pred
+        value, tool_calls = pred
+        row[arm.name] = value
+        row[f"tool_calls__{arm.name}"] = "|".join(tool_calls)
     return row
 
 
 async def _predict_arm(target, arm, prompt_builder, tools_enabled, y_target, channel_spec,
                        transcript_store, description_provider, llm_client, run_cfg
-                       ) -> Optional[float]:
+                       ) -> Optional[tuple[float, tuple[str, ...]]]:
     """Render this arm's prompt, ask the LLM, and derive the Y's percent metric (None on failure)."""
     prompt = prompt_builder(target, transcript_store, description_provider, channel_spec,
                             y_target, arm.blocks, run_cfg.n_calls, run_cfg.hist_rows)
@@ -63,4 +71,5 @@ async def _predict_arm(target, arm, prompt_builder, tools_enabled, y_target, cha
     result = await llm_client.predict_structured(request)
     if result.parsed is None:
         return None
-    return y_target.extract(result.parsed.predicted_revenue_musd, target.row)
+    value = y_target.extract(result.parsed.predicted_revenue_musd, target.row)
+    return value, tuple(getattr(result, "tool_calls", ()))

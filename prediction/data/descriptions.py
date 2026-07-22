@@ -1,10 +1,9 @@
-"""Description provider — official FMP company profiles + Carbon Arc dataset blurbs.
+"""Description provider for the optional lookup-tool variant.
 
-Boundary wrapper over fmp_desc_{channel}.json and carbonarc_desc.json. Mirrors the
-prompt_versions FMP_DESC / CARBONARC_DESC loaders verbatim (official text, no paraphrase): the
-company map is ticker->profile; the dataset map is channel->official "block" text. Missing files
-degrade to empty maps so the TOOL variant's lookup tools return a clean "not available" string
-instead of failing when a company or dataset blurb is absent.
+Kalshi keeps its frozen, reproducible tool context under ``kalshi/data/tool_context.json``. The
+legacy scalar channels retain their original ``factor1/data/fmp_desc_{channel}.json`` and
+``carbonarc_desc.json`` lookup convention. Missing files degrade to empty maps so a lookup never
+breaks an experiment cell.
 """
 from __future__ import annotations
 
@@ -14,24 +13,33 @@ from typing import Optional
 
 from prediction.channels.specs import DATA
 
+ROOT = Path(__file__).resolve().parents[2]
+
 __all__ = ["DescriptionProvider"]
 
 
 class DescriptionProvider:
-    """Serves an FMP company profile per ticker and the official Carbon Arc dataset description."""
+    """Serve a frozen company profile and channel-methodology description."""
 
     def __init__(self, channel_name: str, data_dir: Path = DATA):
+        self._channel = channel_name
+        context = _load_json(ROOT / channel_name / "data" / "tool_context.json")
+        if context:
+            self._profiles = context.get("company_profiles", {})
+            self._dataset = context.get("dataset_description")
+            return
         base = Path(data_dir)
         self._profiles = _load_json(base / f"fmp_desc_{channel_name}.json")
         self._datasets = _load_blocks(base / "carbonarc_desc.json")
+        self._dataset = self._datasets.get(channel_name)
 
     def company_profile(self, ticker: str) -> Optional[str]:
         """Official FMP profile text for the ticker, or None when unavailable."""
         return self._profiles.get(ticker) or None
 
     def dataset_description(self, channel_name: str) -> Optional[str]:
-        """Official Carbon Arc dataset 'block' text for the channel, or None when unavailable."""
-        return self._datasets.get(channel_name)
+        """Frozen methodology text for the active alternative-data channel, when available."""
+        return self._dataset if channel_name == self._channel else None
 
 
 def _load_json(path: Path) -> dict:

@@ -17,8 +17,8 @@ python -m prediction --config prediction/configs/revenue_surprise_full.yaml
 The full experiment is defined in `configs/revenue_surprise_full.yaml`; `configs/smoke.yaml` is a
 reduced (single channel/target, 2 targets) config for a quick end-to-end check.
 
-The OpenAI API key is read from the environment (`OPENAI_API_KEY`); `load_dotenv()` picks it up from
-a `.env` at the project root.
+Authentication uses `OPENAI_API_KEY` when present. Otherwise it resolves `LLM_GATEWAY_URL` and
+`LLM_GATEWAY_API_KEY` from the process environment or sibling server `.env` files.
 
 ## Prompt variants — the tool toggle
 
@@ -32,9 +32,10 @@ config choice expressed as the `variants` grid axis:
 
 `BASE` and `TOOL` render a **byte-identical** prompt; `TOOL` only wires the tools into the LLM
 request, and the client runs a `tool_call → tool_result` loop before the structured parse. The tools
-serve the official FMP company profile and the Carbon Arc dataset description on demand, so the model
-pulls that context only when it judges it worth the tokens. (This replaces the retired `DESC` variant,
-which front-loaded the same text into every prompt.)
+serve the frozen company profile and active channel methodology on demand, so the model pulls that
+context only when it judges it worth the tokens. Scalar channels retain their legacy Carbon Arc
+descriptions; Kalshi uses `kalshi/data/tool_context.json`. This replaces the retired `DESC` variant,
+which front-loaded the same text into every prompt.
 
 To compare with vs. without tools, list both — `variants: [BASE, TOOL]` — and each gets its own report.
 

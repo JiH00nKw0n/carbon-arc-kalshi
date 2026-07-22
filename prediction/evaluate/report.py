@@ -56,10 +56,15 @@ def _results_table(rows: list[dict], calib_by_model: dict) -> str:
               "| model | RMSE | R² | calib R²(OOF) | corr |",
               "|---|---|---|---|---|"]
     body = [_results_row(row, calib_by_model) for row in rows]
-    return "\n".join(header + body)
+    note = []
+    if any(row.get("available") is False for row in rows):
+        note = ["", "N/A: this baseline requires a dense scalar X; the Kalshi X is a raw ladder distribution."]
+    return "\n".join(header + body + note)
 
 
 def _results_row(row: dict, calib_by_model: dict) -> str:
+    if row.get("available") is False:
+        return f"| {row['model']} | N/A | N/A | N/A | N/A |"
     calib = calib_by_model.get(row["model"], row.get("calib"))
     return (f"| {row['model']} | {row['rmse']:.2f} | {row['r2']:+.3f} | "
             f"{_signed(calib)} | {row['corr']:+.3f} |")

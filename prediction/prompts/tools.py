@@ -1,6 +1,6 @@
 """Lookup tools for the TOOL variant — offered to the model instead of front-loading the text.
 
-Where the retired DESC variant PREPENDED the FMP company profile and the Carbon Arc dataset blurb
+Where the retired DESC variant PREPENDED the company profile and alternative-data description
 to every prompt, the TOOL variant leaves the BASE prompt byte-identical and instead exposes the
 same two facts as on-demand function tools. The model calls them only when it judges the context
 worth the tokens, so BASE and TOOL share one prompt and differ only in whether these tools are wired
@@ -25,11 +25,11 @@ _ALT_DATA_DESCRIPTION = "get_alt_data_description"
 # llm_client; `strict` + `additionalProperties:false` keep the (no-arg) schema valid for auto-parse.
 TOOL_DEFS = [
     {"type": "function", "name": _COMPANY_PROFILE, "strict": True,
-     "description": "Look up the public FMP company-profile description for the company being "
+     "description": "Look up the frozen public company-profile description for the company being "
                     "analyzed (business model, sector, what drives its revenue).",
      "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}},
     {"type": "function", "name": _ALT_DATA_DESCRIPTION, "strict": True,
-     "description": "Look up Carbon Arc's official description of the alternative-data source "
+     "description": "Look up the frozen methodology description of the alternative-data source "
                     "used as the X input for this company (what it measures, coverage, method).",
      "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}},
 ]
@@ -45,10 +45,10 @@ def make_tool_dispatch(descriptions, ticker: str) -> Callable[[str, dict], str]:
     def dispatch(name: str, _args: dict) -> str:
         if name == _COMPANY_PROFILE:
             profile = descriptions.company_profile(ticker)
-            return profile.strip() if profile else f"No FMP company profile available for {ticker}."
+            return profile.strip() if profile else f"No company profile available for {ticker}."
         if name == _ALT_DATA_DESCRIPTION:
             dataset = descriptions.dataset_description()
-            return dataset if dataset else "No Carbon Arc dataset description available."
+            return dataset if dataset else "No alternative-data methodology description available."
         return f"Unknown tool: {name}."
 
     return dispatch

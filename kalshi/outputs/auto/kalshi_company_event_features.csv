@@ -6,12 +6,20 @@ COIN,Coinbase,KXCBVOLUME,Coinbase volume,KPIs,CBVOLUME-Q3-24,2024-10-31T14:00:04
 AAPL,Apple Inc.,KXAAPLA,Apple KPI,KPIs,KXAAPLA-28JANHEAD,2028-01-01T15:00:00+00:00,,total full-time equivalent employees,6,6,164000.0,174000.0,>,kpi_ladder
 ABNB,Airbnb Inc.,KXABNB,Airbnb KPI,KPIs,KXABNB-26APRNEB,2026-05-07T21:03:31+00:00,Q1 2026,nights & experiences booked,9,9,125000000.0,165000000.0,>,kpi_ladder
 ABNB,Airbnb Inc.,KXABNB,Airbnb KPI,KPIs,KXABNB-26AUGNEB,2026-09-04T20:00:00+00:00,Q2 2026,nights & seats booked,10,10,141000000.0,156000000.0,>,kpi_ladder
+ACDVF,Air Canada,KXAC,Air Canada KPI,Companies|KPIs,KXAC-26AUGPLF,2026-08-13T04:00:00+00:00,Q2 2026,passenger load factor,9,9,83.0,87.0,>,kpi_ladder
+ACDVF,Air Canada,KXACA,Air Canada Annual KPI,KPIs,KXACA-27FEBPLF,2027-03-03T21:00:00+00:00,2026,passenger load factor,9,9,83.0,87.0,>,kpi_ladder
+AMZN,Tesla Inc. (series: Amazon),KXAMZN,Amazon KPI,Companies|KPIs,KXAMZN-26OCTDELIV,2026-10-24T04:00:00+00:00,Q3 2026,total deliveries,15,15,340000.0,480000.0,>,kpi_ladder
+AMZN,Tesla Inc. (series: Amazon),KXAMZN,Amazon KPI,Companies|KPIs,KXAMZN-26OCTHEAD,2026-10-31T14:00:00+00:00,Q2 2026,employees (full-time and part-time; excludes contractors & temporary personnel),7,7,1555000.0,1585000.0,>,kpi_ladder
 AMZN,"Amazon.com, Inc.",KXAMZNA,Amazon KPI,KPIs,KXAMZNA-28JANHEAD,2028-01-01T15:00:00+00:00,,employees (full-time and part-time; excludes contractors & temporary personnel),5,5,1500000.0,1600000.0,>,kpi_ladder
+ATZ,Aritzia Inc.,KXATZ,Aritzia KPI,Companies|KPIs,KXATZ-26NOVCOMP,2026-11-09T05:00:00+00:00,Q2 2027,comparable sales growth,8,8,15.0,36.0,>,kpi_ladder
+ATZ,Aritzia Inc.,KXATZA,Aritzia Annual KPI,KPIs,KXATZA-27MAYCOMP,2027-05-31T20:00:00+00:00,2027,comparable sales growth,8,8,12.0,33.0,>,kpi_ladder
 BA,The Boeing Company,KXBA,Boeing KPI,Companies|KPIs,KXBA-26JULDELIV,2026-07-14T22:47:30+00:00,Q2 2026,commercial deliveries,14,14,120.0,180.0,>,kpi_ladder
 BA,The Boeing Company,KXBA,Boeing KPI,Companies|KPIs,KXBA-26OCTDELIV,2026-10-24T04:00:00+00:00,Q3 2026,commercial deliveries,13,13,168.0,192.0,>,kpi_ladder
 BA,Boeing Company (The),KXBAA,Boeing Annual KPI,KPIs,KXBAA-28JANDELIV,2028-01-31T21:00:00+00:00,,commercial airplane deliveries,8,8,560.0,700.0,>,kpi_ladder
 BA,The Boeing Company,KXBOEING,Boeing,KPIs|Companies,KXBOEING-26JUL,2026-04-14T18:05:24+00:00,Q1 2026,commercial deliveries,6,6,120.0,170.0,>,kpi_ladder
 BA,The Boeing Company,KXBOEING,Boeing,KPIs|Companies,KXBOEING-26Q4,2026-01-14T01:38:33.033971+00:00,Q4 2025,deliveries,8,8,120.0,170.0,>,kpi_ladder
+BULL,Webull CORP,KXBULL,WeBull KPI,Companies|KPIs,KXBULL-26AUGFUNDED,2026-09-26T20:00:00+00:00,Q2 2026,funded accounts,5,5,5100000.0,5300000.0,>,kpi_ladder
+BULL,Webull CORP,KXBULL,WeBull KPI,Companies|KPIs,KXBULL-26MAYFUND,2026-05-21T20:53:17+00:00,Q1 2026,funded accounts,5,5,5050000.0,5250000.0,>,kpi_ladder
 CAVA,CAVA Group Inc.,KXCAVA,CAVA KPI,Companies|KPIs,KXCAVA-26AUGCOMP,2026-09-10T20:00:00+00:00,Q2 2026,same restaurant sales growth,6,6,3.0,10.5,>,kpi_ladder
 CAVA,CAVA Group Inc.,KXCAVA,CAVA KPI,Companies|KPIs,KXCAVA-26AUGREST,2026-09-10T20:00:00+00:00,Q2 2026,cava restaurants,9,9,470.0,490.0,>,kpi_ladder
 CAVA,CAVA Group Inc.,KXCAVA,CAVA KPI,Companies|KPIs,KXCAVA-26MAYREST,2026-05-19T20:36:37+00:00,Q1 2026,cava restaurants,11,11,440.0,470.0,>,kpi_ladder
@@ -22,13 +30,15 @@ COIN,Coinbase,KXCBVOLUME,Coinbase volume,KPIs,KXCBVOLUME-Q4-24,2025-02-14T07:12:
 CCL,Carnival Corporation,KXCCL,Carnival Cruise KPI,Companies|KPIs,KXCCL-26JUNALBD,2026-06-23T14:47:39+00:00,Q2 2026,available lower berth days,9,9,23700000.0,25500000.0,>,kpi_ladder
 CCL,Carnival Corporation,KXCCL,Carnival Cruise KPI,Companies|KPIs,KXCCL-26SEPALBD,2026-09-30T04:00:00+00:00,Q3 2026,available lower berth days,7,7,24800000.0,26000000.0,>,kpi_ladder
 CCL,Carnival Corporation,KXCCLA,Carnival Cruise KPI,KPIs,KXCCLA-28JANALBD,2028-01-31T21:00:00+00:00,,available lower berth days,13,13,97000000.0,98200000.0,>,kpi_ladder
-CMG,Chipotle Mexican Grill Inc.,KXCMG,Chipotle KPI,Companies|KPIs,KXCMG-26JULCOMP,2026-08-21T20:00:00+00:00,Q2 2026,comparable restaurant sales increase,7,7,1.0,7.0,>,kpi_ladder
+CMG,Chipotle Mexican Grill Inc.,KXCMG,Chipotle KPI,Companies|KPIs,KXCMG-26JULCOMP,2026-07-24T04:00:00+00:00,Q2 2026,comparable restaurant sales increase,9,9,-1.0,7.0,>,kpi_ladder
 CMG,Chipotle Mexican Grill Inc.,KXCMG,Chipotle KPI,Companies|KPIs,KXCMG-26JULREST,2026-08-21T20:00:00+00:00,Q2 2026,total restaurant count,9,9,4100.0,4200.0,>,kpi_ladder
 CMG,Chipotle Mexican Grill Inc.,KXCMGA,Chipotle Annual KPI,KPIs,KXCMGA-28JANRESTS,2028-01-31T21:00:00+00:00,,total restaurant count,13,13,4300.0,4420.0,>,kpi_ladder
 COIN,Coinbase Global Inc.,KXCOINBASE,Coinbase KPI,Companies|KPIs,KXCOINBASE-26JULMTU,2026-08-01T04:00:00+00:00,Q2 2026,monthly transacting users,7,7,7000000.0,10000000.0,>,kpi_ladder
-COIN,Coinbase Global Inc.,KXCOINBASE,Coinbase KPI,Companies|KPIs,KXCOINBASE-26JULVOL,2026-08-01T04:00:00+00:00,Q2 2026,total trading volume,16,16,150000000000.0,290000000000.0,>,kpi_ladder
+COIN,Coinbase Global Inc.,KXCOINBASE,Coinbase KPI,Companies|KPIs,KXCOINBASE-26JULVOL,2026-08-01T04:00:00+00:00,Q2 2026,total trading volume,17,17,150000000000.0,290000000000.0,>,kpi_ladder
 COIN,Coinbase Global Inc.,KXCOINBASE,Coinbase KPI,Companies|KPIs,KXCOINBASE-26MAYVOL,2026-05-07T23:01:29+00:00,Q1 2026,total trading volume,18,18,170000000000.0,320000000000.0,>,kpi_ladder
 COST,Costco Wholesale Corporation,KXCOST,Costco KPI,Companies|KPIs,KXCOST-26MAYCARDS,2026-05-28T21:07:53+00:00,Q3 2026,total cardholders,8,8,146000000.0,152000000.0,>,kpi_ladder
+CDNTF,"Canadian Tire Corporation, Limited",KXCTCA,Canadian Tire Annual KPI,KPIs,KXCTCA-27FEBCOMP,2027-03-03T21:00:00+00:00,2026,canadian tire store comparable sales growth,6,6,-1.0,4.0,>,kpi_ladder
+CDNTF,"Canadian Tire Corporation, Limited",KXCTCQ,Canadian Tire KPI,Companies|KPIs,KXCTCQ-26AUGCOMP,2026-08-08T04:00:00+00:00,Q2 2026,canadian tire store comparable sales growth,13,13,-1.0,5.0,>,kpi_ladder
 CVNA,Carvana Co.,KXCVNA,Carvana KPI,Companies|KPIs,KXCVNA-26APRSALES,2026-04-30T03:38:04+00:00,Q1 2026,retail vehicle unit sales,7,7,155000.0,185000.0,>,kpi_ladder
 CVNA,Carvana Co.,KXCVNA,Carvana KPI,Companies|KPIs,KXCVNA-26JULSALES,2026-08-28T20:00:00+00:00,Q2 2026,retail vehicle unit sales,5,5,190000.0,210000.0,>,kpi_ladder
 CVNA,Carvana Co.,KXCVNAA,Carvana Annual KPI,KPIs,KXCVNAA-28JANUNITS,2028-01-31T21:00:00+00:00,,retail vehicle unit sales,14,14,780000.0,910000.0,>,kpi_ladder
@@ -36,8 +46,12 @@ DASH,DoorDash Inc.,KXDASH,Doordash KPI,Companies|KPIs,KXDASH-26AUGORDERS,2026-09
 DASH,"DoorDash, Inc.",KXDASHORDERS,DoorDash,KPIs|Companies,KXDASHORDERS-26JUL,2026-05-07T17:36:25.670000+00:00,Q1 2026,total orders,8,8,900000000.0,1040000000.0,>,kpi_ladder
 DASH,"DoorDash, Inc.",KXDASHORDERS,DoorDash,KPIs|Companies,KXDASHORDERS-26Q4,2026-02-26T22:11:01+00:00,Q4 2025,total orders,8,8,776000000.0,870000000.0,>,kpi_ladder
 DIS,The Walt Disney Company,KXDISNEYSUBS,Disney,KPIs|Companies,KXDISNEYSUBS-26Q1,2025-12-22T08:09:27.194000+00:00,Q1 2026,total subscribers (disney+ and hulu),6,6,190000000.0,202000000.0,>,kpi_ladder
-DPZ,Domino's Pizza Inc,KXDPZ,Dominos KPI,Companies|KPIs,KXDPZ-26JULSSSG,2026-07-22T04:00:00+00:00,Q2 2026,us stores same store sales growth,14,14,-1.5,5.0,>,kpi_ladder
-DPZ,Domino's Pizza Inc,KXDPZ,Dominos KPI,Companies|KPIs,KXDPZ-26JULSTORES,2026-07-22T04:00:00+00:00,Q2 2026,total us stores,10,10,7220.0,7265.0,>,kpi_ladder
+DLMAF,Dollarama Inc.,KXDOL,Dollarama KPI,Companies|KPIs,KXDOL-26SEPCOMP,2026-09-12T04:00:00+00:00,Q2 2027,comparable store sales growth,6,6,3.0,8.0,>,kpi_ladder
+DLMAF,Dollarama Inc.,KXDOLA,Dollarama Annual KPI,KPIs,KXDOLA-27APRCOMP,2027-05-01T20:00:00+00:00,2027,comparable store sales growth,7,7,2.0,8.0,>,kpi_ladder
+DPZ,Domino's Pizza Inc,KXDPZ,Dominos KPI,Companies|KPIs,KXDPZ-26JULSSSG,2026-07-20T13:38:28+00:00,Q2 2026,us stores same store sales growth,14,14,-1.5,5.0,>,kpi_ladder
+DPZ,Domino's Pizza Inc,KXDPZ,Dominos KPI,Companies|KPIs,KXDPZ-26JULSTORES,2026-07-20T13:40:54+00:00,Q2 2026,total us stores,10,10,7220.0,7265.0,>,kpi_ladder
+DPZ,Domino's Pizza Inc,KXDPZ,Dominos KPI,Companies|KPIs,KXDPZ-26OCTSSSG,2026-10-14T04:00:00+00:00,Q3 2026,us same store sales growth,10,10,0.5,5.0,>,kpi_ladder
+DPZ,Domino's Pizza Inc,KXDPZ,Dominos KPI,Companies|KPIs,KXDPZ-26OCTSTORES,2026-10-14T04:00:00+00:00,Q3 2026,total us stores,9,9,7240.0,7320.0,>,kpi_ladder
 DPZ,Domino's Pizza Inc,KXDPZA,Dominos Annual KPI,KPIs,KXDPZA-27FEBSSSG,2027-03-03T21:00:00+00:00,2026,us stores same store sales growth,9,9,1.0,5.0,>,kpi_ladder
 DPZ,Domino's Pizza Inc,KXDPZA,Dominos Annual KPI,KPIs,KXDPZA-27FEBSTORES,2027-03-03T21:00:00+00:00,2026,total us stores,7,7,7350.0,7500.0,>,kpi_ladder
 DPZ,Domino's Foot Traffic,KXDPZFT,Domino's Foot Traffic,KPIs,KXDPZFT-26AUG08,2026-08-08T12:29:00+00:00,,will carbon arc domino's monthly foot traffic (us) for july 2026 be ,8,8,410.0,480.0,>,kpi_ladder
@@ -47,10 +61,15 @@ F,Ford Motor Company,KXF,Ford KPI,Companies|KPIs,KXF-26JULUSSALES,2026-07-06T12:
 F,Ford Motor Company,KXF,Ford KPI,Companies|KPIs,KXF-26OCTUSSALES,2026-10-03T04:00:00+00:00,Q3 2026,total vehicles us sales volume,10,10,510000.0,600000.0,>,kpi_ladder
 F,Ford Motor Company,KXFA,Ford Annual KPI,KPIs,KXFA-28JANUSSALES,2028-01-31T21:00:00+00:00,,u.s. vehicle sales volume,11,11,1800000.0,2300000.0,>,kpi_ladder
 FDX,FedEx Corporation,KXFDX,FedEx KPI,Companies|KPIs,KXFDX-26JUNADV,2026-06-23T20:57:47+00:00,Q4 2026,avg daily package volume,11,11,16000000.0,18000000.0,>,kpi_ladder
+FIG,"Figma, Inc.",KXFIG,Figma KPI,Companies|KPIs,KXFIG-26SEPHIARR,2026-10-02T20:00:00+00:00,Q2 2026,paid customers >$100k arr,6,6,1550.0,1675.0,>,kpi_ladder
+FSLR,First Solar Inc.,KXFSLR,First Solar KPI,Companies|KPIs,KXFSLR-26JULMWSOLD,2026-08-01T04:00:00+00:00,Q2 2026,mw module volume sold,8,8,3300.0,4000.0,>,kpi_ladder
+FSLR,First Solar Inc.,KXFSLRA,First Solar Annual KPI,KPIs,KXFSLRA-27FEBGWSOLD,2027-03-03T21:00:00+00:00,2026,gw module volume sold,9,9,16.6,18.2,>,kpi_ladder
 FUTU,Futu Holdings Limited,KXFUTU,FUTU KPI,Companies|KPIs,KXFUTU-26AUGFUNDED,2026-08-21T04:00:00+00:00,Q2 2026,total funded accounts,11,11,3700000.0,4200000.0,>,kpi_ladder
 FUTU,Futu Holdings Limited,KXFUTU,FUTU KPI,Companies|KPIs,KXFUTU-26MAYFUNDED,2026-05-28T15:59:00+00:00,Q1 2026,total funded accounts,7,7,3500000.0,3750000.0,>,kpi_ladder
 GOOGL,Alphabet Inc.,KXGOOG,Google KPI,Companies|KPIs,KXGOOG-26OCTHEAD,2026-10-31T14:00:00+00:00,Q2 2026,total number of employees,10,10,194500.0,197500.0,>,kpi_ladder
 GOOGL,Alphabet Inc.,KXGOOGA,Google KPI,KPIs,KXGOOGA-28JANHEAD,2028-01-01T15:00:00+00:00,,total number of employees,6,6,188000.0,208000.0,>,kpi_ladder
+GRAB,Grab Holdings Limited,KXGRAB,Grab Holdings KPI,Companies|KPIs,KXGRAB-26JULMTU,2026-08-28T20:00:00+00:00,Q2 2026,monthly transacting users,6,6,52000000.0,54500000.0,>,kpi_ladder
+GRAB,Grab Holdings Limited,KXGRABA,Grab Annual KPI,KPIs,KXGRABA-28JANMTU,2028-01-31T21:00:00+00:00,,monthly transacting users,15,15,55000000.0,62000000.0,>,kpi_ladder
 HD,Home Depot Inc.,KXHD,Home Depot KPI,Companies|KPIs,KXHD-26AUGTXN,2026-09-17T10:00:00+00:00,Q2 2026,customer transactions,7,7,390000000.0,450000000.0,>,kpi_ladder
 HD,Home Depot Inc.,KXHD,Home Depot KPI,Companies|KPIs,KXHD-26MAYTRAN,2026-05-19T15:57:15+00:00,Q1 2026,customer transactions,6,6,388000000.0,398000000.0,>,kpi_ladder
 HIMS,Hims & Hers Health Inc.,KXHIMS,Hims KPI,Companies|KPIs,KXHIMS-26AUGSUBS,2026-09-02T20:00:00+00:00,Q2 2026,subscribers,15,15,2600000.0,3040000.0,>,kpi_ladder
@@ -62,6 +81,10 @@ HOOD,Robinhood Markets Inc.,KXHOOD,Robinhood KPI,Companies|KPIs,KXHOOD-26JULGOLD
 HOOD,Robinhood Markets Inc.,KXHOODA,Robinhood KPi,KPIs,KXHOODA-28JANFUNDED,2028-01-31T21:00:00+00:00,,funded customers,16,16,28000000.0,34000000.0,>,kpi_ladder
 INTC,Intel Corporation,KXINTC,Intel KPI,Companies|KPIs,KXINTC-26JULHEAD,2026-07-25T14:00:00+00:00,Q2 2026,total intel employees,9,9,80000.0,84000.0,>,kpi_ladder
 INTC,Intel Corporation,KXINTCA,Intel KPI,KPIs,KXINTCA-28JANHEAD,2028-01-01T15:00:00+00:00,,total intel employees,6,6,78000.0,88000.0,>,kpi_ladder
+KLAR,Klarna Group PLC,KXKLAR,Klarna KPI,Companies|KPIs,KXKLAR-26AUGCONS,2026-09-17T12:00:00+00:00,Q2 2026,active klarna consumers,6,6,120000000.0,125000000.0,>,kpi_ladder
+KLAR,Klarna Group PLC,KXKLAR,Klarna KPI,Companies|KPIs,KXKLAR-26MAYCONS,2026-05-14T18:11:54+00:00,Q1 2026,active klarna consumers,6,6,118000000.0,126000000.0,>,kpi_ladder
+L,Loblaw Companies Limited,KXLOB,Loblaws KPI,Companies|KPIs,KXLOB-26JULSSSG,2026-08-01T04:00:00+00:00,Q2 2026,food retail same-store sales growth,6,6,1.5,4.0,>,kpi_ladder
+L,Loblaw Companies Limited,KXLOBA,Loblaws Annual KPI,KPIs,KXLOBA-27FEBSSSG,2027-03-03T21:00:00+00:00,2026,food retail same-store sales growth,7,7,1.0,4.0,>,kpi_ladder
 LOW,Lowe's Companies Inc.,KXLOW,Lowes KPI,Companies|KPIs,KXLOW-26AUGTXN,2026-08-21T04:00:00+00:00,Q2 2026,customer transactions,9,9,220000000.0,236000000.0,>,kpi_ladder
 LOW,Lowe's Companies Inc.,KXLOW,Lowes KPI,Companies|KPIs,KXLOW-26MAYTRAN,2026-05-21T14:00:00+00:00,Q1 2026,customer transactions,6,6,192000000.0,207000000.0,>,kpi_ladder
 LULU,Lululemon Athletica Inc,KXLULU,Lululemon KPI,Companies|KPIs,KXLULU-26SEPAMERCOMP,2026-09-05T04:00:00+00:00,Q2 2026,americas comparable sales growth,15,15,-11.0,3.0,>,kpi_ladder
@@ -80,8 +103,8 @@ MCD,McDonald's Corporation,KXMCD,McDonald's KPI,Companies|KPIs,KXMCD-26AUGCOMP,2
 MCD,McDonald's Corporation,KXMCD,McDonald's KPI,Companies|KPIs,KXMCD-26AUGREST,2026-09-04T11:00:00+00:00,Q2 2026,total systemwide restaurants,6,6,45800.0,46300.0,>,kpi_ladder
 MELI,MercadoLibre Inc.,KXMELI,Mercado Libre KPI,Companies|KPIs,KXMELI-26AUGITEMS,2026-09-02T20:00:00+00:00,Q2 2026,items sold,6,6,740000000.0,840000000.0,>,kpi_ladder
 MELI,MercadoLibre Inc.,KXMELIA,Mercado Libre KPI,KPIs,KXMELIA-28JANITEMS,2028-01-31T21:00:00+00:00,,items sold,15,15,3000000000.0,3700000000.0,>,kpi_ladder
-META,"Meta Platforms, Inc.",KXMETA,Meta KPI,Companies|KPIs,KXMETA-26JULDAP,2026-08-28T20:00:00+00:00,Q2 2026,family daily active people,7,7,3560000000.0,3680000000.0,>,kpi_ladder
-META,"Meta Platforms, Inc.",KXMETA,Meta KPI,Companies|KPIs,KXMETA-26SEPHEAD,2026-09-30T14:00:00+00:00,Q2 2026,headcount,12,12,73000.0,78500.0,>,kpi_ladder
+META,Meta Platforms Inc.,KXMETA,Meta KPI,Companies|KPIs,KXMETA-26JULDAP,2026-07-31T04:00:00+00:00,Q2 2026,family daily active people,12,12,3560000000.0,3680000000.0,>,kpi_ladder
+META,Meta Platforms Inc.,KXMETA,Meta KPI,Companies|KPIs,KXMETA-26SEPHEAD,2026-09-30T14:00:00+00:00,Q2 2026,headcount,18,18,70000.0,78500.0,>,kpi_ladder
 META,"Meta Platforms, Inc.",KXMETAA,Meta Annual KPI,KPIs,KXMETAA-28JANDAP,2028-01-31T21:00:00+00:00,,family daily active people,8,8,3660000000.0,3800000000.0,>,kpi_ladder
 META,"Meta Platforms, Inc.",KXMETAA,Meta Annual KPI,KPIs,KXMETAA-28JANHEAD,2028-03-01T15:00:00+00:00,,headcount,5,5,65000.0,77000.0,>,kpi_ladder
 META,Meta daily active people,KXMETADAP,Meta daily active people,KPIs,KXMETADAP-24-Q4,2025-01-29T22:41:03.914159+00:00,Q4 2024,meta users,4,4,3200000000.0,3400000000.0,>,kpi_ladder
@@ -91,6 +114,9 @@ META,Meta daily active people,KXMETADAP,Meta daily active people,KPIs,KXMETADAP-
 META,Meta daily active people,KXMETADAP,Meta daily active people,KPIs,KXMETADAP-26-Q4,2026-01-30T23:39:21+00:00,Q4 2025,meta users,4,4,3.5,3.6,>,kpi_ladder
 META,"Meta Platforms, Inc.",KXMETAHEADCOUNT,META Headcount,KPIs|Companies,KXMETAHEADCOUNT-26JUL,2026-04-30T03:36:38+00:00,Q1 2026,headcount,9,9,76000.0,81000.0,>,kpi_ladder
 META,"Meta Platforms, Inc.",KXMETAHEADCOUNT,META Headcount,KPIs|Companies,KXMETAHEADCOUNT-26Q4,2026-01-29T00:46:22.344424+00:00,Q4 2025,headcount,7,7,76000.0,81000.0,>,kpi_ladder
+MO,Altria Group Inc.,KXMO,Altria Group KPI,Companies|KPIs,KXMO-26APRCIGSHIP,2026-04-30T20:59:39+00:00,Q1 2026,cigarette shipments,7,7,12600000000.0,14400000000.0,>,kpi_ladder
+MO,Altria Group Inc.,KXMO,Altria Group KPI,Companies|KPIs,KXMO-26JULCIGSHIP,2026-07-31T04:00:00+00:00,Q2 2026,cigarette shipments,7,7,13500000000.0,16500000000.0,>,kpi_ladder
+MO,Altria Group Inc.,KXMOA,Altria Group Annual KPI,KPIs,KXMOA-28JANCIGS,2028-01-31T21:00:00+00:00,,domestic cigarette shipments,14,14,54500000000.0,61000000000.0,>,kpi_ladder
 MTCH,Match Group Inc.,KXMTCH,Match KPI,Companies|KPIs,KXMTCH-26AUGPAYERS,2026-09-03T20:00:00+00:00,Q2 2026,total payers,7,7,13150000.0,13450000.0,>,kpi_ladder
 MTCH,Match Group Inc.,KXMTCH,Match KPI,Companies|KPIs,KXMTCH-26MAYPAYERS,2026-05-05T20:53:58.705000+00:00,Q1 2026,total payers,10,10,13200000.0,15900000.0,>,kpi_ladder
 MTCH,Match Group Inc.,KXMTCHA,Match KPI,KPIs,KXMTCHA-28JANPAYERS,2028-01-31T21:00:00+00:00,,total payers,8,8,12400000.0,13800000.0,>,kpi_ladder
@@ -98,17 +124,40 @@ MTN,Vail Resorts Inc.,KXMTN,Vail Resorts KPI,Companies|KPIs,KXMTN-26JUNSKIER,202
 NCLH,Norwegian Cruise Line Holdings Ltd.,KXNCLH,Norwegian Cruise Line KPI,Companies|KPIs,KXNCLH-26JULPAX,2026-08-29T10:00:00+00:00,Q2 2026,passengers carried,8,8,820000.0,915000.0,>,kpi_ladder
 NCLH,Norwegian Cruise Line Holdings Ltd.,KXNCLHA,Norwegian Cruise Line KPI,KPIs,KXNCLHA-28JANPAX,2028-01-31T21:00:00+00:00,,passengers carried,7,7,3100000.0,3400000.0,>,kpi_ladder
 NFLX,"Netflix, Inc.",KXNFLXA,Netflix KPI,KPIs,KXNFLXA-28JANHEAD,2028-01-01T15:00:00+00:00,,total full-time employees,8,8,16500.0,20000.0,>,kpi_ladder
+NU,Nu Holdings Ltd.,KXNU,Nu Holdings KPI,Companies|KPIs,KXNU-26AUGCUST,2026-08-15T14:00:00+00:00,Q2 2026,number of customers,9,9,137000000.0,141000000.0,>,kpi_ladder
+NU,Nu Holdings Ltd.,KXNUA,Nu Holdings KPI,KPIs,KXNUA-28JANCUST,2028-01-01T15:00:00+00:00,,number of customers,12,12,143000000.0,154000000.0,>,kpi_ladder
+NVDA,NVIDIA Corporation,KXNVDAA,Nvidia KPI,KPIs,KXNVDAA-28JANHEAD,2028-01-01T15:00:00+00:00,,total employees,6,6,46000.0,56000.0,>,kpi_ladder
+NYT,NYT subscribers,KXNYTSUBS,NYT subscribers,KPIs,KXNYTSUBS-24-Q4,2025-02-05T15:06:35.817778+00:00,Q4 2024,nyt new subscribers,3,3,300000.0,500000.0,>,kpi_ladder
+NYT,NYT subscribers,KXNYTSUBS,NYT subscribers,KPIs,KXNYTSUBS-25-Q1,2025-05-07T19:13:55.529881+00:00,Q1 2025,nyt new subscribers,5,5,275000.0,375000.0,>,kpi_ladder
+NYT,NYT subscribers,KXNYTSUBS,NYT subscribers,KPIs,KXNYTSUBS-25-Q2,2025-07-31T14:00:00+00:00,Q2 2025,nyt new subscribers,6,6,200000.0,325000.0,>,kpi_ladder
+NYT,NYT subscribers,KXNYTSUBS,NYT subscribers,KPIs,KXNYTSUBS-25-Q3,2025-10-31T14:00:00+00:00,Q3 2025,nyt new subscribers,3,3,275000.0,325000.0,>,kpi_ladder
+ORCL,Oracle Corporation,KXORCLA,Oracle KPI,KPIs,KXORCLA-28JANHEAD,2028-01-01T15:00:00+00:00,,total full-time employees,8,8,125000.0,160000.0,>,kpi_ladder
+PLTR,Palantir Technologies Inc.,KXPALANTIR,Palantir,KPIs|Companies,KXPALANTIR-26Q4,2026-02-09T15:00:00+00:00,Q4 2025,customers,6,6,900.0,1000.0,>,kpi_ladder
+PETR4,Petróleo Brasileiro S.A. - Petrobras,KXPBR,Petróleo Brasileiro S.A. KPI,Companies|KPIs,KXPBR-26AUGPROD,2026-08-08T14:00:00+00:00,Q2 2026,total production (mboed),12,12,2900.0,3600.0,>,kpi_ladder
 PLNT,Planet Fitness Inc.,KXPLNT,Planet Fitness KPI,Companies|KPIs,KXPLNT-26MAYMEM,2026-05-07T15:13:17+00:00,Q1 2026,total membership,7,7,20800000.0,22000000.0,>,kpi_ladder
+PLTR,Palantir Technologies Inc.,KXPLTR,Palantir KPI,Companies|KPIs,KXPLTR-26AUGCUST,2026-09-02T20:00:00+00:00,Q2 2026,total customers,9,9,1040.0,1100.0,>,kpi_ladder
+PLTR,Palantir Technologies Inc.,KXPLTR,Palantir KPI,Companies|KPIs,KXPLTR-26MAYCUST,2026-05-04T23:01:15+00:00,Q1 2026,total customers,9,9,960.0,1120.0,>,kpi_ladder
+PLTR,Palantir Technologies Inc.,KXPLTRA,Palantir KPI,KPIs,KXPLTRA-28JANCUST,2028-01-31T21:00:00+00:00,,total customer count,11,11,1100.0,1300.0,>,kpi_ladder
+PM,Philip Morris International Inc,KXPM,Philip Morris KPI,Companies|KPIs,KXPM-26APRZYNSHIP,2026-04-22T13:55:06+00:00,Q1 2026,zyn us shipment volume,13,13,180000000.0,235000000.0,>,kpi_ladder
+PM,Philip Morris International Inc,KXPM,Philip Morris KPI,Companies|KPIs,KXPM-26JULZYNSHIP,2026-07-23T04:00:00+00:00,Q2 2026,zyn us shipment volume,11,11,160000000.0,210000000.0,>,kpi_ladder
+PM,Philip Morris International Inc,KXPMA,Phillip Morris KPI,KPIs,KXPMA-28JANZYN,2028-01-31T21:00:00+00:00,,zyn u.s. shipment volume,8,8,680000000.0,820000000.0,>,kpi_ladder
+PSKY,Paramount Skydance CORP,KXPSKY,Paramount Skydance KPI,Companies|KPIs,KXPSKY-26JULPARSUBS,2026-05-04T22:52:25+00:00,Q1 2026,paramount+ global subscribers,7,7,70000000.0,82000000.0,>,kpi_ladder
 RACE,Ferrari N.V.,KXRACE,Ferrari KPI,Companies|KPIs,KXRACE-26JULSHIP,2026-08-29T11:00:00+00:00,Q2 2026,total number of car shipments,6,6,3300.0,3550.0,>,kpi_ladder
 RACE,Ferrari N.V.,KXRACE,Ferrari KPI,Companies|KPIs,KXRACE-26MAYSHIP,2026-05-05T16:01:44+00:00,Q1 2026,total shipments,7,7,3200.0,3800.0,>,kpi_ladder
 RACE,Ferrari N.V.,KXRACEA,Ferrari KPI,KPIs,KXRACEA-28JANSHIP,2028-01-31T21:00:00+00:00,,total car shipments,13,13,13000.0,14200.0,>,kpi_ladder
+RBLX,Roblox Corporation,KXRBLX,Roblox KPI,Companies|KPIs,KXRBLX-26APRHOURS,2026-05-01T02:00:59+00:00,Q1 2026,hours engaged,7,7,30000000000.0,42000000000.0,>,kpi_ladder
+RBLX,Roblox Corporation,KXRBLX,Roblox KPI,Companies|KPIs,KXRBLX-26JULHOURS,2026-08-01T04:00:00+00:00,Q2 2026,hours engaged,9,9,30000000000.0,38000000000.0,>,kpi_ladder
 RDDT,Reddit Inc.,KXRDDT,Reddit KPI,Companies|KPIs,KXRDDT-26APRDAU,2026-05-01T00:19:10+00:00,Q1 2026,daily active uniques,11,11,120000000.0,136000000.0,>,kpi_ladder
 RDDT,Reddit Inc.,KXRDDT,Reddit KPI,Companies|KPIs,KXRDDT-26JULDAU,2026-08-29T20:00:00+00:00,Q2 2026,daily active uniques,10,10,128000000.0,136000000.0,>,kpi_ladder
 RDDT,Reddit Inc.,KXRDDTA,Reddit KPI,KPIs,KXRDDTA-28JANDAU,2028-01-31T21:00:00+00:00,,daily active uniques,10,10,136000000.0,154000000.0,>,kpi_ladder
+HOOD,RH gold,KXRHGOLD,RH gold,KPIs,KXRHGOLD-Q1-25,2025-04-30T23:04:41.356167+00:00,Q1 2025,robinhood gold subscribers,9,9,2.4,3.4,>,kpi_ladder
+HOOD,RH gold,KXRHGOLD,RH gold,KPIs,KXRHGOLD-Q2-25,2025-07-31T20:00:00+00:00,Q2 2025,robinhood gold subscribers,3,3,3.75,4.25,>,kpi_ladder
+HOOD,RH gold,KXRHGOLD,RH gold,KPIs,KXRHGOLD-Q3-25,2025-10-31T20:00:00+00:00,Q3 2025,robinhood gold subscribers,7,7,2.4,3.0,>,kpi_ladder
+HOOD,RH gold,KXRHGOLD,RH gold,KPIs,KXRHGOLD-Q4-24,2025-02-13T17:45:43.482162+00:00,Q4 2024,robinhood gold subscribers,5,5,1.45,2.4,>,kpi_ladder
 RIVN,Rivian Automotive Inc.,KXRIVN,Rivian KPI,Companies|KPIs,KXRIVN-26AUGDELIV,2026-07-02T13:00:00+00:00,Q2 2026,total vehicles delivered,18,18,9000.0,17500.0,>,kpi_ladder
 RIVN,Rivian Automotive Inc.,KXRIVN,Rivian KPI,Companies|KPIs,KXRIVN-26JULDELIV,2026-08-01T04:00:00+00:00,Q2 2026,total vehicles delivered,14,14,11500.0,18000.0,>,kpi_ladder
 RIVN,Rivian Automotive Inc.,KXRIVN,Rivian KPI,Companies|KPIs,KXRIVN-26OCTDELIV,2026-10-03T04:00:00+00:00,Q3 2026,total vehicles delivered,14,14,11500.0,18000.0,>,kpi_ladder
-RIVN,Rivian Automotive Inc.,KXRIVNA,Rivian KPI,KPIs,KXRIVNA-28JANDELIV,2028-01-31T21:00:00+00:00,,total vehicles delivered,8,8,38000.0,52000.0,>,kpi_ladder
+RIVN,Rivian Automotive Inc.,KXRIVNA,Rivian KPI,KPIs,KXRIVNA-28JANDELIV,2028-01-31T21:00:00+00:00,,total vehicles delivered,9,9,38000.0,54000.0,>,kpi_ladder
 ROKU,Roku Inc.,KXROKU,Roku KPI,Companies|KPIs,KXROKU-26APRHOURS,2026-05-01T00:35:29+00:00,Q1 2026,hours streamed,6,6,38000000000.0,40500000000.0,>,kpi_ladder
 ROKU,Roku Inc.,KXROKU,Roku KPI,Companies|KPIs,KXROKU-26JULHOURS,2026-08-29T20:00:00+00:00,Q2 2026,hours streamed,8,8,37000000000.0,40500000000.0,>,kpi_ladder
 SBUX,Starbucks Corporation,KXSBUX,Starbucks KPI,Companies|KPIs,KXSBUX-26JULSTORES,2026-08-27T20:00:00+00:00,Q3 2026,total global stores,4,4,41200.0,41500.0,>,kpi_ladder
@@ -116,19 +165,32 @@ SBUX,Starbucks Corporation,KXSBUX,Starbucks KPI,Companies|KPIs,KXSBUX-26JULTXGRW
 SBUX,Starbucks Corporation,KXSBUXA,Starbucks Annual KPI,KPIs,KXSBUXA-28JANCOMPTXN,2028-01-31T21:00:00+00:00,,comparable transactions growth,6,6,2.0,7.0,>,kpi_ladder
 SBUX,Starbucks Corporation,KXSBUXA,Starbucks Annual KPI,KPIs,KXSBUXA-28JANSTORES,2028-01-31T21:00:00+00:00,,total global stores,8,8,41300.0,42000.0,>,kpi_ladder
 SBUX,Starbucks Foot Traffic,KXSBUXFT,Starbucks Foot Traffic,KPIs,KXSBUXFT-26AUG08,2026-08-08T12:29:00+00:00,,will carbon arc starbucks monthly foot traffic (us) for july 2026 be ,9,9,520.0,600.0,>,kpi_ladder
+SCHW,Charles Schwab Corporation (The),KXSCHW,Charles Schwab KPI,Companies|KPIs,KXSCHW-26JULBROK,2026-07-21T15:20:48+00:00,Q2 2026,active brokerage accounts,8,8,39200000.0,40200000.0,>,kpi_ladder
+SCHW,Charles Schwab Corporation (The),KXSCHW,Charles Schwab KPI,Companies|KPIs,KXSCHW-26OCTACCTS,2026-10-17T04:00:00+00:00,Q3 2026,active brokerage accounts,9,9,40500000.0,41300000.0,>,kpi_ladder
+SCHW,The Charles Schwab Corporation,KXSCHWA,Charles Schwab KPI,KPIs,KXSCHWA-28JANBROK,2028-01-01T15:00:00+00:00,,active brokerage accounts,9,9,40200000.0,41800000.0,>,kpi_ladder
+SE,Sea Ltd,KXSE,Sea Limited KPI,Companies|KPIs,KXSE-26AUGQPU,2026-09-10T10:00:00+00:00,Q2 2026,garena quarterly paying users,10,10,6000000.0,74000000.0,>,kpi_ladder
 SG,Sweetgreen Inc.,KXSG,Sweetgreen KPI,Companies|KPIs,KXSG-26AUGMARGIN,2026-09-05T20:00:00+00:00,Q2 2026,restaurant-level profit margin,8,8,8.0,20.0,>,kpi_ladder
 SHOP,Shopify Inc.,KXSHOP,Shopify KPI,Companies|KPIs,KXSHOP-26AUGGMV,2026-09-04T11:00:00+00:00,Q2 2026,gross merchandise volume,5,5,108000000000.0,124000000000.0,>,kpi_ladder
+SNAP,Snap Inc.,KXSNAP,Snapchat KPI,Companies|KPIs,KXSNAP-26AUGDAU,2026-09-03T20:00:00+00:00,Q2 2026,global daily active users,6,6,480000000.0,500000000.0,>,kpi_ladder
+SNOW,Snowflake Inc.,KXSNOWFLAKE,Snowflake KPI,Companies|KPIs,KXSNOWFLAKE-26AUGCUST1M,2026-08-28T04:00:00+00:00,Q2 2027,customers with trailing 12-month revenue >$1m,16,16,805.0,880.0,>,kpi_ladder
+SNOW,Snowflake Inc.,KXSNOWFLAKE,Snowflake KPI,Companies|KPIs,KXSNOWFLAKE-26MAYCUST,2026-05-27T21:15:58+00:00,Q1 2027,customers with trailing 12-month product revenue greater than $1 million,7,7,755.0,785.0,>,kpi_ladder
+SOFI,SoFi new members,KXSOFIMEMBERS,SoFi new members,KPIs,KXSOFIMEMBERS-24-Q4,2025-01-29T22:38:10.160022+00:00,Q4 2024,sofi new members,3,3,400000.0,600000.0,>,kpi_ladder
+SOFI,SoFi new members,KXSOFIMEMBERS,SoFi new members,KPIs,KXSOFIMEMBERS-25-Q1,2025-04-29T14:17:13.806837+00:00,Q1 2025,sofi new members,3,3,675000.0,725000.0,>,kpi_ladder
+SOFI,SoFi new members,KXSOFIMEMBERS,SoFi new members,KPIs,KXSOFIMEMBERS-25-Q2,2025-07-31T20:00:00+00:00,Q2 2025,sofi new members,6,6,700000.0,825000.0,>,kpi_ladder
 SPOT,Spotify Technology S.A.,KXSPOT,Spotify KPI,Companies|KPIs,KXSPOT-26JULHEAD,2026-07-30T14:00:00+00:00,Q2 2026,full-time employees globally,11,11,7150.0,7400.0,>,kpi_ladder
 SPOT,Spotify Technology S.A.,KXSPOT,Spotify KPI,Companies|KPIs,KXSPOT-26JULMAU,2026-08-27T10:00:00+00:00,Q2 2026,monthly active users,12,12,765000000.0,790000000.0,>,kpi_ladder
 SPOT,Spotify Technology S.A.,KXSPOTA,Spotify Annual KPI,KPIs,KXSPOTA-28JANHEAD,2028-01-01T15:00:00+00:00,,full-time employees globally,8,8,7100.0,7450.0,>,kpi_ladder
 SPOT,Spotify Technology S.A.,KXSPOTA,Spotify Annual KPI,KPIs,KXSPOTA-28JANMAU,2028-01-31T21:00:00+00:00,,total monthly active users,7,7,790000000.0,850000000.0,>,kpi_ladder
-SPOT,Spotify Technology S.A.,KXSPOTA,Spotify Annual KPI,KPIs,KXSPOTA-28JANPREMSUBS,2028-01-31T21:00:00+00:00,,premium subscribers,8,8,316000000.0,330000000.0,>,kpi_ladder
+SPOT,Spotify Technology S.A.,KXSPOTA,Spotify Annual KPI,KPIs,KXSPOTA-28JANPREMSUBS,2028-01-31T21:00:00+00:00,2026,premium subscribers,10,10,314000000.0,330000000.0,>,kpi_ladder
 SPOT,Spotify Technology S.A.,KXSPOTIFYMAU,Spotify,KPIs|Companies,KXSPOTIFYMAU-26JUL,2026-04-28T15:09:08.877000+00:00,Q1 2026,monthly active users,9,9,740000000.0,810000000.0,>,kpi_ladder
 SPOT,Spotify Technology S.A.,KXSPOTIFYMAU,Spotify,KPIs|Companies,KXSPOTIFYMAU-26Q4,2026-02-10T18:12:35+00:00,Q4 2025,monthly active users,5,5,700000000.0,735000000.0,>,kpi_ladder
 SPOT,Spotify subscribers,KXSPOTIFYSUBS,Spotify subscribers,KPIs,KXSPOTIFYSUBS-24-Q4,2025-01-31T21:00:00+00:00,Q4 2024,spotify subscribers,3,3,245000000.0,255000000.0,>,kpi_ladder
 SPOT,Spotify subscribers,KXSPOTIFYSUBS,Spotify subscribers,KPIs,KXSPOTIFYSUBS-25-Q1,2025-04-29T13:50:09.900804+00:00,Q1 2025,spotify subscribers,6,6,265.0,350.0,>,kpi_ladder
 SPOT,Spotify subscribers,KXSPOTIFYSUBS,Spotify subscribers,KPIs,KXSPOTIFYSUBS-25-Q2,2025-07-31T20:00:00+00:00,Q2 2025,spotify subscribers,5,5,225.0,325.0,>,kpi_ladder
 SPOT,Spotify subscribers,KXSPOTIFYSUBS,Spotify subscribers,KPIs,KXSPOTIFYSUBS-25-Q3,2025-10-31T20:00:00+00:00,Q3 2025,spotify subscribers,3,3,300.0,350.0,>,kpi_ladder
+STZ,Constellation Brands Inc,KXSTZ,Constellation Brands KPI,Companies|KPIs,KXSTZ-26JUNBEER,2026-06-30T20:30:00+00:00,Q1 2027,"total beer shipments (24-pack, 12-oz case equivalents)",9,9,106000000.0,118000000.0,>,kpi_ladder
+STZ,Constellation Brands Inc,KXSTZ,Constellation Brands KPI,Companies|KPIs,KXSTZ-26OCTBEER,2026-10-07T04:00:00+00:00,Q2 2027,total beer shipments,8,8,114000000.0,128000000.0,>,kpi_ladder
+STZ,"Constellation Brands, Inc.",KXSTZA,Constellation Brands KPI,KPIs,KXSTZA-28JULBEER,2028-07-31T14:00:00+00:00,,"total beer shipments (24-pack, 12-oz case equivalents)",8,8,405000000.0,440000000.0,>,kpi_ladder
 TSLA,Tesla deliveries,KXTESLA,Tesla deliveries,KPIs,KXTESLA-25-Q1,2025-04-02T14:01:26.578032+00:00,Q1 2025,how many tesla deliveries will there be this quarter,13,13,270000.0,510000.0,>=,kpi_ladder
 TSLA,Tesla deliveries,KXTESLA,Tesla deliveries,KPIs,KXTESLA-25-Q2,2025-07-02T16:48:47.237687+00:00,Q2 2025,how many tesla deliveries will there be this quarter,7,7,300000.0,500000.0,>=,kpi_ladder
 TSLA,Tesla deliveries,KXTESLA,Tesla deliveries,KPIs,KXTESLA-25-Q3,2025-10-02T13:43:30.469810+00:00,Q3 2025,how many tesla deliveries will there be this quarter,9,9,300000.0,520000.0,>=,kpi_ladder
@@ -144,6 +206,8 @@ TSLA,Tesla production,KXTESLAPROD,Tesla production,KPIs,KXTESLAPROD-26-Q1,2026-0
 TSLA,Tesla Inc,KXTESLASEMI,How many Tesla semi trucks produced,KPIs|Companies,KXTESLASEMI-27JAN,2027-01-01T15:00:00+00:00,,semi trucks produced before jan 2027,7,7,0.0,25000.0,>,kpi_ladder
 TGT,Target Corporation,KXTGT,Target KPI,Companies|KPIs,KXTGT-26AUGTXCHG,2026-09-18T10:00:00+00:00,Q2 2026,transactions change,7,7,2.0,5.0,>,kpi_ladder
 TGT,Target Corporation,KXTGT,Target KPI,Companies|KPIs,KXTGT-26MAYTRAN,2026-05-20T14:10:34+00:00,Q1 2026,number of transaction change,7,7,-3.5,2.5,>,kpi_ladder
+TLN,Talen Energy Corporation,KXTLN,Talen Energy KPI,Companies|KPIs,KXTLN-26AUGGEN,2026-08-09T04:00:00+00:00,Q2 2026,twh total generation (twh),9,9,8.5,12.5,>,kpi_ladder
+TLN,Talen Energy Corporation,KXTLNA,Talen Energy Annual KPI,KPIs,KXTLNA-27FEBGEN,2027-03-03T21:00:00+00:00,2026,twh total generation (twh),8,8,46.0,53.0,>,kpi_ladder
 TOL,Toll Brothers Inc.,KXTOL,Toll Brothers,Companies|KPIs,KXTOL-26AUGDELIV,2026-09-17T20:00:00+00:00,Q3 2026,deliveries,6,6,2600.0,3100.0,>,kpi_ladder
 TOL,Toll Brothers Inc.,KXTOL,Toll Brothers,Companies|KPIs,KXTOL-26MAYDELI,2026-05-19T21:29:53+00:00,Q2 2026,delivered homes,7,7,2350.0,2600.0,>,kpi_ladder
 TOST,Toast Inc.,KXTOST,Toast KPI,Companies|KPIs,KXTOST-26AUGLOC,2026-09-03T20:00:00+00:00,Q2 2026,total locations,6,6,176000.0,186000.0,>,kpi_ladder
@@ -169,8 +233,16 @@ URBN,Urban Outfitters Inc.,KXURBN,Urban Outfitters KPI,Companies|KPIs,KXURBN-26M
 WEN,Wendy's Company (The),KXWEN,Wendy's KPI,Companies|KPIs,KXWEN-26AUGUSCOMP,2026-09-06T11:00:00+00:00,Q2 2026,u.s. same-restaurant sales growth,6,6,-10.0,2.5,>,kpi_ladder
 WH,Wyndham Hotels & Resorts Inc.,KXWH,Wyndham Hotels KPI,Companies|KPIs,KXWH-26APRROOMS,2026-04-30T03:40:26+00:00,Q1 2026,total rooms,8,8,860000.0,920000.0,>,kpi_ladder
 WH,Wyndham Hotels & Resorts Inc.,KXWH,Wyndham Hotels KPI,Companies|KPIs,KXWH-26JULROOMS,2026-08-21T20:00:00+00:00,Q2 2026,total rooms,6,6,870000.0,885000.0,>,kpi_ladder
+WING,Wingstop Inc.,KXWING,Wingstop KPI,Companies|KPIs,KXWING-26JULDOMCOMP,2026-07-31T04:00:00+00:00,Q2 2026,domestic same store sales growth,9,9,-12.0,4.0,>,kpi_ladder
+WING,Wingstop Inc.,KXWING,Wingstop KPI,Companies|KPIs,KXWING-26JULREST,2026-07-31T04:00:00+00:00,Q2 2026,total system-wide restaurants,7,7,3180.0,3300.0,>,kpi_ladder
+WING,Wingstop Inc.,KXWINGA,Wingstop Annual KPI,KPIs,KXWINGA-27FEBDOMCOMP,2027-03-03T21:00:00+00:00,2026,domestic same store sales growth,7,7,-6.0,0.0,>,kpi_ladder
+WING,Wingstop Inc.,KXWINGA,Wingstop Annual KPI,KPIs,KXWINGA-27FEBREST,2027-03-03T21:00:00+00:00,2026,total system-wide restaurants,9,9,3400.0,3600.0,>,kpi_ladder
 WMT,Walmart Inc.,KXWMT,Walmart KPI,Companies|KPIs,KXWMT-26AUGUSCOMP,2026-09-19T11:00:00+00:00,Q2 2027,walmart us comparable sales growth (ex-fuel),6,6,3.0,5.5,>,kpi_ladder
 WMT,Walmart Foot Traffic,KXWMTFT,Walmart Foot Traffic,KPIs,KXWMTFT-26AUG08,2026-08-08T12:29:00+00:00,,will carbon arc walmart monthly foot traffic (us) for july 2026 be ,9,9,1120.0,1280.0,>,kpi_ladder
+YOU,Clear Secure Inc.,KXYOU,Clear KPI,Companies|KPIs,KXYOU-26AUGMEM,2026-09-03T10:00:00+00:00,Q2 2026,active clear plus members,6,6,8200000.0,8800000.0,>,kpi_ladder
+YOU,Clear Secure Inc.,KXYOUA,Clear KPI,KPIs,KXYOUA-28JANMEM,2028-01-31T21:00:00+00:00,,active clear+ members,8,8,8400000.0,9100000.0,>,kpi_ladder
+ZETA,Zeta Global Holdings Corp.,KXZETA,Zeta KPI,Companies|KPIs,KXZETA-26AUGSSC,2026-08-06T04:00:00+00:00,Q2 2026,super-scaled customers (>$1m),8,8,190.0,204.0,>,kpi_ladder
+ZETA,Zeta Global Holdings Corp.,KXZETAA,Zeta Annual KPI,KPIs,KXZETAA-27FEBSSC,2027-03-03T21:00:00+00:00,2026,super-scaled customers (>$1m),8,8,204.0,232.0,>,kpi_ladder
 META,Meta daily active people,KXMETADAP,Meta daily active people,KPIs,METADAP-24-Q1,2024-04-24T20:00:00+00:00,Q1 2024,meta users,3,3,3.19,3.3,>,kpi_ladder
 META,Meta daily active people,KXMETADAP,Meta daily active people,KPIs,METADAP-24-Q2,2024-07-31T20:00:00+00:00,Q2 2024,meta users,3,3,3.21,3.27,>,kpi_ladder
 META,Meta daily active people,KXMETADAP,Meta daily active people,KPIs,METADAP-24-Q3,2024-10-31T01:19:42.392454+00:00,Q3 2024,meta users,2,2,3.3,3.4,>,kpi_ladder
@@ -178,6 +250,16 @@ NFLX,Netflix subscribers this quarter,KXNETFLIXSUBS,Netflix subscribers this qua
 NFLX,Netflix subscribers this quarter,KXNETFLIXSUBS,Netflix subscribers this quarter,KPIs,NETFLIXSUBS-24-Q2,2024-07-19T14:03:14.047302+00:00,Q2 2024,netflix subscribers gain,3,3,2.0,9.33,>,kpi_ladder
 NFLX,Netflix subscribers this quarter,KXNETFLIXSUBS,Netflix subscribers this quarter,KPIs,NETFLIXSUBS-24-Q3,2024-10-18T14:04:50.601587+00:00,Q3 2024,netflix subscribers gain,3,3,6.0,8.0,>,kpi_ladder
 NFLX,Netflix subscribers this quarter,KXNETFLIXSUBS,Netflix subscribers this quarter,KPIs,NETFLIXSUBS-24-Q4,2025-01-25T05:36:06.063872+00:00,Q4 2024,netflix subscribers gain,3,3,6000000.0,8000000.0,>,kpi_ladder
+NYT,NYT subscribers,KXNYTSUBS,NYT subscribers,KPIs,NYTSUBS-24-Q1,2024-05-08T14:45:47.777704+00:00,Q1 2024,nyt new subscribers,3,3,250000.0,350000.0,>,kpi_ladder
+NYT,NYT subscribers,KXNYTSUBS,NYT subscribers,KPIs,NYTSUBS-24-Q2,2024-08-07T15:43:33.809624+00:00,Q2 2024,nyt new subscribers,5,5,150000.0,400000.0,>,kpi_ladder
+NYT,NYT subscribers,KXNYTSUBS,NYT subscribers,KPIs,NYTSUBS-24-Q3,2024-11-06T20:04:20.837138+00:00,Q3 2024,nyt new subscribers,5,5,100000.0,300000.0,>,kpi_ladder
+HOOD,RH gold,KXRHGOLD,RH gold,KPIs,RHGOLD-24-Q1,2024-05-31T20:00:00+00:00,Q1 2024,robinhood gold subscribers,5,5,1.42,1.6,>,kpi_ladder
+HOOD,RH gold,KXRHGOLD,RH gold,KPIs,RHGOLD-Q1-24,2024-05-09T14:58:20.832371+00:00,Q1 2024,robinhood gold subscribers,5,5,1.42,1.6,>,kpi_ladder
+HOOD,RH gold,KXRHGOLD,RH gold,KPIs,RHGOLD-Q2-24,2024-08-08T14:00:01.396853+00:00,Q2 2024,robinhood gold subscribers,8,8,1.6,2.2,>,kpi_ladder
+HOOD,RH gold,KXRHGOLD,RH gold,KPIs,RHGOLD-Q3-24,2024-10-31T15:30:59.883677+00:00,Q3 2024,robinhood gold subscribers,5,5,1.8,2.2,>,kpi_ladder
+SOFI,SoFi new members,KXSOFIMEMBERS,SoFi new members,KPIs,SOFIMEMBERS-24-Q1,2024-05-01T12:56:24.781885+00:00,Q1 2024,sofi new members,5,5,400000.0,800000.0,>,kpi_ladder
+SOFI,SoFi new members,KXSOFIMEMBERS,SoFi new members,KPIs,SOFIMEMBERS-24-Q2,2024-08-01T21:45:42.190816+00:00,Q2 2024,sofi new members,5,5,400000.0,800000.0,>,kpi_ladder
+SOFI,SoFi new members,KXSOFIMEMBERS,SoFi new members,KPIs,SOFIMEMBERS-24-Q3,2024-10-30T16:39:02.400046+00:00,Q3 2024,sofi new members,3,3,500000.0,700000.0,>,kpi_ladder
 SPOT,Spotify subscribers,KXSPOTIFYSUBS,Spotify subscribers,KPIs,SPOTIFYSUBS-24-Q1,2024-04-23T15:34:34.445314+00:00,Q1 2024,spotify subscribers,3,3,236.0,241.0,>,kpi_ladder
 SPOT,Spotify subscribers,KXSPOTIFYSUBS,Spotify subscribers,KPIs,SPOTIFYSUBS-24-Q2,2024-07-24T16:56:41.417658+00:00,Q2 2024,spotify subscribers,3,3,236.0,245.0,>,kpi_ladder
 SPOT,Spotify subscribers,KXSPOTIFYSUBS,Spotify subscribers,KPIs,SPOTIFYSUBS-24-Q3,2024-10-31T20:00:00+00:00,Q3 2024,spotify subscribers,2,2,245.0,251.0,>,kpi_ladder

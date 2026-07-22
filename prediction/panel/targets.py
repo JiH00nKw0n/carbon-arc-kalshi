@@ -86,7 +86,7 @@ def _x_present(event) -> bool:
     """X is available for a target when the scalar x_yoy is defined OR a rich ladder payload exists.
 
     Scalar channels (card/web/foot) qualify only on a defined x_yoy; the Kalshi ladder qualifies on
-    its payload even when the implied-value YoY is undefined (sparse, per-firm-varying metric)."""
+    its payload while scalar X fields deliberately remain undefined."""
     return (not pd.isna(event.x_yoy)) or (_payload(event) is not None)
 
 
@@ -115,9 +115,7 @@ def _guard_leakage(report: date, calls: list[CallRef], cutoff: date) -> None:
 
 def _prepared(panel: pd.DataFrame) -> pd.DataFrame:
     """Datetime-normalized, ticker/quarter-sorted copy of the panel."""
-    frame = panel.copy()
-    frame["FE_FP_END"] = pd.to_datetime(frame["FE_FP_END"])
-    frame["REPORT_DATE"] = pd.to_datetime(frame["REPORT_DATE"])
+    frame = panel.copy().astype({"FE_FP_END": "datetime64[ns]", "REPORT_DATE": "datetime64[ns]"})
     return frame.sort_values(["ticker", "FE_FP_END"])
 
 

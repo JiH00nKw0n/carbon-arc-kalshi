@@ -27,7 +27,8 @@ from prediction.registry import register_llm
 
 __all__ = [
     "LLMConfig", "LLMRequest", "LLMResult", "LLMClient",
-    "OpenAIStructuredClient", "SYS", "PRICING", "LONG_CTX_THRESHOLD", "gpt5_cost",
+    "OpenAIStructuredClient", "make_openai_client", "SYS", "PRICING", "LONG_CTX_THRESHOLD",
+    "gpt5_cost", "gpt5_cost_responses",
 ]
 
 # gpt-5.5 pricing $/1M (OpenAI): SHORT (<=272K input tok) vs LONG (>272K). Verbatim from f1_llm.py.
@@ -105,9 +106,10 @@ class LLMRequest:
 
 @dataclass(frozen=True)
 class LLMResult:
-    """The parsed structured output (None if every attempt failed) plus the call's dollar cost."""
+    """Parsed output, cost, and names of lookup tools actually used by the model."""
     parsed: Optional[BaseModel]
     cost_usd: float
+    tool_calls: tuple[str, ...] = ()
 
 
 class LLMClient(Protocol):
@@ -129,7 +131,7 @@ def _read_env_file(path) -> dict:
     return values
 
 
-def _make_client() -> AsyncOpenAI:
+def make_openai_client() -> AsyncOpenAI:
     """OpenAI-direct when OPENAI_API_KEY is set; otherwise the Linq LLM gateway.
 
     The gateway base_url/key resolve from the environment or the sibling mcp-server/.env, so the
@@ -137,7 +139,8 @@ def _make_client() -> AsyncOpenAI:
     back to a keyless AsyncOpenAI so the openai SDK raises its own clear auth error if neither exists.
     """
     if os.getenv("OPENAI_API_KEY"):
-        return AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), http_client=_http_client())
+        return AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), http_client=_http_client(),
+                           max_retries=0)
     root = Path(__file__).resolve().parents[2]
     env: dict = {}
     for p in (root / ".env", root.parent / "mcp-server" / ".env", root.parent / "agent-server" / ".env"):
@@ -146,8 +149,9 @@ def _make_client() -> AsyncOpenAI:
     key = os.getenv("LLM_GATEWAY_API_KEY") or env.get("LLM_GATEWAY_API_KEY")
     if url and key:
         return AsyncOpenAI(api_key=key, base_url=f"{url}/v1", http_client=_http_client(),
+                           max_retries=0,
                            default_headers={"x-gw-server": "carbon-arc-kalshi", "x-gw-feature": "prediction"})
-    return AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=_REQUEST_TIMEOUT)
+    return AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=_REQUEST_TIMEOUT, max_retries=0)
 
 
 @register_llm("openai")
@@ -157,7 +161,7 @@ class OpenAIStructuredClient:
     def __init__(self, config: LLMConfig):
         self._config = config
         load_dotenv()                                     # load .env from the project root if present
-        self._client = _make_client()
+        self._client = make_openai_client()
         self._semaphore: Optional[asyncio.Semaphore] = None
 
     async def predict_structured(self, request: LLMRequest) -> LLMResult:
@@ -189,29 +193,29 @@ class OpenAIStructuredClient:
     async def _parse_once_responses(self, request: LLMRequest) -> LLMResult:
         """TOOL variant on /v1/responses: loop function_call -> function_call_output before the parse.
 
-        The org runs Zero-Data-Retention, so ``previous_response_id`` is unavailable — the conversation
-        is carried statelessly by growing ``input`` with each round's function calls and their outputs
-        (reasoning items are not resent). A round with a parsed schema object ends the loop; up to
-        ``max_tool_rounds`` rounds. The prompt is byte-identical to BASE — only the tools differ."""
-        input_items: list = [{"role": "user", "content": request.user}]
+        The org runs Zero-Data-Retention, so ``previous_response_id`` is unavailable. Each response's
+        output items, including encrypted reasoning state and function calls, are therefore carried
+        forward explicitly with the function outputs. The prompt remains byte-identical to BASE."""
+        input_items: list[Any] = [{"role": "user", "content": request.user}]
         cost = 0.0
+        called: list[str] = []
         for _ in range(self._config.max_tool_rounds):
             resp = await self._client.responses.parse(
                 model=self._config.model, instructions=request.system, input=input_items,
                 text_format=request.schema, reasoning={"effort": self._config.effort},
-                tools=request.tools)
+                tools=request.tools, store=False, include=["reasoning.encrypted_content"])
             cost += gpt5_cost_responses(resp.usage)
             if resp.output_parsed is not None:
-                return LLMResult(parsed=resp.output_parsed, cost_usd=cost)
+                return LLMResult(parsed=resp.output_parsed, cost_usd=cost, tool_calls=tuple(called))
             calls = [it for it in resp.output if getattr(it, "type", None) == "function_call"]
             if not calls or request.dispatch is None:
                 break
-            for c in calls:                                   # echo the call, then feed its result back
-                input_items.append({"type": "function_call", "call_id": c.call_id,
-                                    "name": c.name, "arguments": c.arguments})
+            input_items.extend(resp.output)
+            for c in calls:
+                called.append(c.name)
                 input_items.append({"type": "function_call_output", "call_id": c.call_id,
                                     "output": str(request.dispatch(c.name, json.loads(c.arguments or "{}")))})
-        return LLMResult(parsed=None, cost_usd=cost)
+        return LLMResult(parsed=None, cost_usd=cost, tool_calls=tuple(called))
 
     async def _parse_call(self, request: LLMRequest, messages: list[dict]):
         params: dict[str, Any] = dict(

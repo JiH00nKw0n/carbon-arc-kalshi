@@ -6,25 +6,23 @@ ladder already frozen at a leak-safe pre-publication candle. So this source read
 already-leak-safe artifacts rather than a summed CSV:
 
   revenue  kalshi_factset_revenue_surprise_panel.csv  full FactSet quarterly history (Y)
-  ladder   kalshi_prereport_ladder_panel_screened.csv  one pre-report ladder bundle per firm-quarter
+  ladder   kalshi_prereport_ladder_panel_firmscreened.csv  one pre-report ladder bundle per firm-quarter
 
-The X carries BOTH a scalar (`value` = the primary ladder's integrated implied value, so x_yoy and
-the classical baselines still work) AND the full ladder JSON (`x_payload`, rendered in the LLM prompt).
-This mirrors how Z rides as a sentiment scalar for baselines but full text for the LLM.
+The X carries only the full ladder JSON (`x_payload`, rendered in the LLM prompt). Scalar X fields
+remain missing because KPI units and ladder histories are not comparable across firm-quarters.
 """
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from prediction.channels.specs import ChannelSpec
 from prediction.domain.records import AltPoint, RevenueRecord
 from prediction.errors import DataUnavailableError
 
-__all__ = ["KalshiRevenueSource", "KalshiLadderSource", "implied_value"]
+__all__ = ["KalshiRevenueSource", "KalshiLadderSource"]
 
 
 def _present(value) -> float | None:
@@ -42,8 +40,10 @@ class KalshiRevenueSource:
             frame = pd.read_csv(self._path)
         except (OSError, ValueError) as exc:
             raise DataUnavailableError(f"cannot read Kalshi revenue panel: {self._path}") from exc
-        frame["FE_FP_END"] = pd.to_datetime(frame["FE_FP_END"])
-        frame["REPORT_DATE"] = pd.to_datetime(frame["REPORT_DATE"])
+        frame = frame.assign(
+            FE_FP_END=pd.to_datetime(frame["FE_FP_END"]),
+            REPORT_DATE=pd.to_datetime(frame["REPORT_DATE"]),
+        )
         frame = frame.dropna(subset=["ticker", "ACTUAL", "CONS_EARLY"])
         return [
             RevenueRecord(
@@ -55,7 +55,7 @@ class KalshiRevenueSource:
 
 
 class KalshiLadderSource:
-    """Reads the pre-report ladder panel into AltPoints: scalar implied value + the ladder JSON payload."""
+    """Read each pre-report raw ladder JSON payload into an exact-quarter AltPoint."""
 
     def __init__(self, channel: ChannelSpec):
         self._path = channel.ladder_panel
@@ -65,7 +65,7 @@ class KalshiLadderSource:
             frame = pd.read_csv(self._path)
         except (OSError, ValueError) as exc:
             raise DataUnavailableError(f"cannot read Kalshi ladder panel: {self._path}") from exc
-        frame["FE_FP_END"] = pd.to_datetime(frame["FE_FP_END"])
+        frame = frame.assign(FE_FP_END=pd.to_datetime(frame["FE_FP_END"]))
         points: list[AltPoint] = []
         for r in frame.itertuples():
             ladders = _parse(getattr(r, "kalshi_ladders_json", ""))
@@ -73,7 +73,7 @@ class KalshiLadderSource:
                 continue
             points.append(AltPoint(
                 ticker=r.ticker, date=r.FE_FP_END.date(),
-                value=implied_value(ladders), x_payload=json.dumps(ladders),
+                value=float("nan"), x_payload=json.dumps(ladders),
             ))
         return points
 
@@ -86,27 +86,3 @@ def _parse(raw) -> list:
     except json.JSONDecodeError:
         return []
     return value if isinstance(value, list) else []
-
-
-def implied_value(ladders: list) -> float:
-    """Integrate the primary (most-priced) ladder's survival curve into E[metric].
-
-    E[X] = strike_0 + sum_i P(>strike_i)*(strike_{i+1}-strike_i) + P(>strike_last)*step. The scalar
-    a baseline/x_yoy consumes; the full ladder still goes to the LLM via x_payload.
-    """
-    primary = max(ladders, key=lambda l: l.get("n_priced_rungs", 0), default=None)
-    rungs = primary.get("rungs") if isinstance(primary, dict) else None
-    if not rungs or len(rungs) < 2:
-        return float("nan")
-    pairs = sorted(
-        ((float(r["strike"]), float(np.clip(r["probability"], 0, 1))) for r in rungs
-         if r.get("strike") is not None and r.get("probability") is not None),
-        key=lambda t: t[0],
-    )
-    if len(pairs) < 2:
-        return float("nan")
-    strikes = np.array([s for s, _ in pairs])
-    probs = np.array([p for _, p in pairs])
-    gaps = np.diff(strikes)
-    step = float(np.nanmedian(gaps[gaps > 0])) if np.any(gaps > 0) else 0.0
-    return float(strikes[0] + np.sum(probs[:-1] * gaps) + probs[-1] * step)

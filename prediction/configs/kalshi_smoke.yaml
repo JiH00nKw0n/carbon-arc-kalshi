@@ -1,12 +1,12 @@
-name: kalshi_smoke
+name: kalshi_tool_smoke
 seed: 2026
-output_dir: prediction/outputs/kalshi
+output_dir: prediction/outputs/kalshi_smoke
 
 run:
-  concurrency: 8
+  concurrency: 4
   reps: 1
-  limit: 0
-  strong_only: false        # kalshi_kpi rows not yet in the screen CSV; keep all targets for now
+  limit: 1
+  strong_only: true
   drop_outlier_pct: 0
   render_only: false
   cutoff: 2025-12-01
@@ -17,13 +17,13 @@ run:
 llm: {model: gpt-5.5-2026-04-23, effort: medium, max_retries: 6}
 
 data:
-  panel_out: prediction/outputs/kalshi/panels
-  screen_csv: factor1/data/altdata_ticker_screen.csv
+  panel_out: prediction/outputs/kalshi_smoke/panels
+  screen_csv: kalshi/data/ticker_screen.csv
   sentiment_json: lm_sentiment.json
 
 grid:
   channels: [kalshi]
-  targets:  [surprise_early, rev_yoy]
+  targets:  [surprise_early]
   variants: [BASE, TOOL]
   arms:
     - {name: fin,        blocks: [fin]}

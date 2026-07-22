@@ -18,7 +18,6 @@ ROOT = Path(__file__).resolve().parents[3]
 KALSHI_ROOT = ROOT / "kalshi"
 BASE = "https://external-api.kalshi.com/trade-api/v2"
 H = {"accept": "application/json", "user-agent": "kalshi-kpi-inventory/2.0"}
-SCREEN = ROOT / "factor1" / "data" / "altdata_ticker_screen.csv"
 OUT_AUTO = KALSHI_ROOT / "outputs" / "auto"
 OUT_SERIES = OUT_AUTO / "kalshi_company_series.csv"
 OUT_MARKETS = OUT_AUTO / "kalshi_company_markets.csv"
@@ -42,51 +41,134 @@ MARKET_COLS = [
 ]
 
 MANUAL_ALIASES = {
+    "air canada": "ACDVF",
     "airbnb": "ABNB",
     "alphabet": "GOOGL",
+    "altria": "MO",
+    "altria group": "MO",
     "amazon": "AMZN",
     "apple": "AAPL",
+    "aritzia": "ATZ",
     "boeing": "BA",
+    "canadian tire": "CDNTF",
+    "canadian tire corporation": "CDNTF",
     "carnival": "CCL",
     "carvana": "CVNA",
     "cava": "CAVA",
+    "charles schwab": "SCHW",
     "chipotle": "CMG",
+    "clear": "YOU",
+    "clear secure": "YOU",
     "coinbase": "COIN",
     "coinbase global": "COIN",
+    "constellation brands": "STZ",
+    "costco": "COST",
+    "costco wholesale": "COST",
+    "costco wholesale corporation": "COST",
+    "disney": "DIS",
+    "domino's": "DPZ",
+    "domino's pizza": "DPZ",
+    "draftkings": "DKNG",
     "doordash": "DASH",
+    "dollarama": "DLMAF",
     "ebay": "EBAY",
     "ferrari": "RACE",
     "fedex": "FDX",
     "fedex corporation": "FDX",
+    "figma": "FIG",
+    "first solar": "FSLR",
     "ford": "F",
     "ford motor": "F",
     "ford motor company": "F",
+    "grab": "GRAB",
+    "grab holdings": "GRAB",
     "futu": "FUTU",
     "futu holdings": "FUTU",
     "google": "GOOGL",
     "home depot": "HD",
+    "hilton": "HLT",
+    "hims and hers": "HIMS",
+    "hims and hers health": "HIMS",
     "intel": "INTC",
     "jpmorgan": "JPM",
     "jpmorgan chase": "JPM",
+    "klarna": "KLAR",
+    "loblaw": "L",
+    "loblaw companies": "L",
+    "lowe's": "LOW",
+    "lululemon": "LULU",
+    "marriott": "MAR",
+    "marriott international": "MAR",
+    "match group": "MTCH",
+    "mercadolibre": "MELI",
     "lyft": "LYFT",
     "mcdonalds": "MCD",
     "meta": "META",
+    "new york times": "NYT",
     "netflix": "NFLX",
+    "norwegian cruise line": "NCLH",
+    "norwegian cruise line holdings": "NCLH",
+    "nu holdings": "NU",
+    "nvidia": "NVDA",
+    "oracle": "ORCL",
+    "palantir": "PLTR",
+    "palantir technologies": "PLTR",
+    "paramount skydance": "PSKY",
+    "petroleo brasileiro": "PETR4",
+    "petrobras": "PETR4",
+    "philip morris": "PM",
+    "philip morris international": "PM",
     "planet fitness": "PLNT",
     "rivian": "RIVN",
     "robinhood": "HOOD",
+    "reddit": "RDDT",
     "robinhood markets": "HOOD",
+    "roblox": "RBLX",
     "roku": "ROKU",
     "rocket lab": "RKLB",
+    "sea": "SE",
+    "sea garena": "SE",
+    "sea limited": "SE",
+    "snap": "SNAP",
+    "snapchat": "SNAP",
+    "snowflake": "SNOW",
+    "shopify": "SHOP",
+    "spotify": "SPOT",
+    "spotify technology": "SPOT",
+    "sofi": "SOFI",
     "southwest": "LUV",
     "southwest airlines": "LUV",
     "starbucks": "SBUX",
     "sweetgreen": "SG",
+    "talen energy": "TLN",
+    "taiwan semiconductor": "2330",
+    "taiwan semiconductor manufacturing": "2330",
+    "tsmc": "2330",
     "tesla": "TSLA",
+    "target": "TGT",
     "toll brothers": "TOL",
     "toast": "TOST",
     "uber": "UBER",
+    "ulta beauty": "ULTA",
+    "united airlines": "UAL",
+    "united airlines holdings": "UAL",
+    "urban outfitters": "URBN",
+    "vail resorts": "MTN",
+    "visa": "V",
+    "walt disney": "DIS",
+    "the walt disney company": "DIS",
+    "wendy's": "WEN",
+    "wingstop": "WING",
+    "wyndham hotels and resorts": "WH",
     "walmart": "WMT",
+    "webull": "BULL",
+    "zeta": "ZETA",
+    "zeta global": "ZETA",
+    # Legacy/special-purpose series titles whose issuer is still explicit.
+    "fb daily active users": "META",
+    "nyt subscribers": "NYT",
+    "rh gold": "HOOD",
+    "sofi new members": "SOFI",
 }
 
 SUFFIX_RE = re.compile(
@@ -108,20 +190,10 @@ def norm_name(v):
     return re.sub(r"\s+", " ", s).strip()
 
 
-def load_ticker_map(path):
+def load_ticker_map():
     aliases = {}
     for name, ticker in MANUAL_ALIASES.items():
         aliases[norm_name(name)] = (ticker, "manual_alias", name)
-    if not path.exists():
-        return aliases
-    with open(path, newline="") as f:
-        for row in csv.DictReader(f):
-            company = row.get("company", "")
-            ticker = row.get("ticker", "")
-            if not company or not ticker:
-                continue
-            key = norm_name(company)
-            aliases.setdefault(key, (ticker, "altdata_screen", company))
     return aliases
 
 
@@ -271,7 +343,7 @@ def series_row(series, markets, aliases):
         if market_company:
             break
     series_company = infer_company_from_series(series)
-    series_ticker, _, series_match_company = match_ticker(
+    series_ticker, series_method, series_match_company = match_ticker(
         series_company, series.get("title", ""), series.get("ticker", ""), aliases
     )
     market_ticker, market_method, market_match_company = match_ticker(
@@ -282,7 +354,10 @@ def series_row(series, markets, aliases):
     if market_ticker and series_ticker and market_ticker != series_ticker:
         basis.append("quality:series_market_company_conflict")
         company = f"{market_company} (series: {series_company})"
-        ticker, method, match_company = "", "conflict_series_market", f"{market_match_company}|{series_match_company}"
+        # The series-level issuer is explicit and stable; a stray historical contract can contain
+        # a conflicting company phrase. Preserve the explicit series mapping and retain the flag.
+        ticker, method = series_ticker, f"{series_method}_market_conflict"
+        match_company = f"{series_match_company}|market:{market_match_company}"
     elif market_ticker:
         ticker, method, match_company = market_ticker, market_method, market_match_company
     else:
@@ -359,7 +434,6 @@ def main():
         help="optional comma-separated category restriction; blank means every category",
     )
     ap.add_argument("--tags", default="KPIs", help="official /series tag filter")
-    ap.add_argument("--screen", type=Path, default=SCREEN)
     ap.add_argument("--out-series", type=Path, default=OUT_SERIES)
     ap.add_argument("--out-markets", type=Path, default=OUT_MARKETS)
     ap.add_argument(
@@ -371,7 +445,7 @@ def main():
     ap.add_argument("--sleep", type=float, default=0.03)
     args = ap.parse_args()
 
-    aliases = load_ticker_map(args.screen)
+    aliases = load_ticker_map()
     sess = requests.Session()
     sess.headers.update(H)
 

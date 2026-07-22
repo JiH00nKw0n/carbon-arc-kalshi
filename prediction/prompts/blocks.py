@@ -121,11 +121,11 @@ def _row(p: dict, show_x: bool) -> str:
 
 # ---------- ladder channel (Kalshi): fin timeline + a distribution block, not scalar x columns ----------
 def _ladder_body(target, transcript_store, arm_blocks, n_calls: int, hist_rows: int) -> str:
-    """Fin timeline (all history, no x columns) + the raw pre-publication ladder when "x" is on.
+    """Chronological financial timeline with each quarter's raw ladder beside that quarter.
 
     The scalar path couples the history to a non-null x_yoy; a ladder channel's x_yoy is usually
-    undefined, so history here is every recent quarter, and X is rendered as the full market
-    distribution (a block) rather than a (level, YoY) pair.
+    undefined, so history here is every recent quarter. X is a full market distribution rather than
+    a (level, YoY) pair and is rendered only for quarters that actually carry a frozen payload.
     """
     ps = _ladder_periods(target, hist_rows)
     calls = transcript_store.prior_calls(target.ticker, target.report, n_calls) \
@@ -138,10 +138,9 @@ def _ladder_body(target, transcript_store, arm_blocks, n_calls: int, hist_rows: 
         if i in guided:
             lines.append("\n" + _call_block(guided[i], transcript_store))
         lines.append(_ladder_fin_row(p))
-    body = _HEADER.format(tkr=target.ticker, q=target.fp) + "\n".join(lines)
-    if "x" in arm_blocks:
-        body += "\n\n" + _ladder_block(target)
-    return body
+        if "x" in arm_blocks and p["x_payload"]:
+            lines.append(_ladder_block(p["x_payload"], f"quarter {p['q']}"))
+    return _HEADER.format(tkr=target.ticker, q=target.fp) + "\n".join(lines)
 
 
 def _ladder_periods(target, hist_rows: int) -> list[dict]:
@@ -150,10 +149,12 @@ def _ladder_periods(target, hist_rows: int) -> list[dict]:
         "q": r.fp_end, "report": r.report_date, "rev_m": r.actual,
         "rev_yoy": r.rev_yoy * 100 if _is_number(r.rev_yoy) else None,
         "cons_m": r.cons_early, "surprise": r.surprise_early * 100, "target": False,
+        "x_payload": getattr(r, "x_payload", None),
     } for r in list(target.hist)[-hist_rows:]]
     r = target.row
     rows.append({"q": r.fp_end, "report": r.report_date, "rev_m": None, "rev_yoy": None,
-                 "cons_m": r.cons_early, "surprise": None, "target": True})
+                 "cons_m": r.cons_early, "surprise": None, "target": True,
+                 "x_payload": target.x_payload})
     return rows
 
 
@@ -166,34 +167,36 @@ def _ladder_fin_row(p: dict) -> str:
     return "| " + " | ".join(cells) + " |"
 
 
-def _ladder_block(target) -> str:
-    """Render the raw pre-publication KPI market ladder(s) for the target quarter (and prior quarters
-    that also have a ladder). Each rung is a separate binary market whose price IS the market-implied
-    probability that the KPI finishes above that strike — the full distribution, uncalibrated."""
+def _ladder_block(payload: str, when: str) -> str:
+    """Render every retained raw field for one quarter's pre-publication KPI ladder."""
     import json
 
-    def rungs_table(ladders, when: str) -> list[str]:
-        out = []
-        for lad in ladders:
-            rungs = lad.get("rungs") or []
-            if len(rungs) < 2:
-                continue
-            out.append(f"event: {lad.get('event_ticker')}  KPI: {lad.get('metric_label') or 'unknown'}  ({when})")
-            out.append("  strike | P(KPI > strike)")
-            for r in sorted(rungs, key=lambda z: z.get("strike", 0)):
-                out.append(f"  {r['strike']:>12,.6g} | {float(r['probability']):.2f}")
-        return out
-
     lines = [
-        "KALSHI PRE-PUBLICATION KPI MARKET LADDER (raw, uncalibrated; each row is a separate binary",
-        "market whose price is the market-implied probability that the KPI finishes ABOVE that strike;",
-        "together the rungs are the market's implied distribution over the KPI, frozen before the report):",
+        "KALSHI PRE-PUBLICATION KPI MARKET LADDER "
+        "(raw, uncalibrated; frozen before the report):",
     ]
-    lines += rungs_table(json.loads(target.x_payload), "upcoming")
-    for h in reversed(list(target.hist)):
-        payload = getattr(h, "x_payload", None)
-        if payload:
-            lines += rungs_table(json.loads(payload), f"prior, {h.fp_end}")
+    for ladder in json.loads(payload):
+        rungs = ladder.get("rungs") or []
+        if len(rungs) < 2:
+            continue
+        lines += [
+            f"event: {ladder.get('event_ticker')}  KPI: {ladder.get('metric_label') or 'unknown'}  ({when})",
+            f"coverage: {ladder.get('n_priced_rungs', len(rungs))}/"
+            f"{ladder.get('n_ladder_markets', len(rungs))} rungs; raw monotonicity violations: "
+            f"{ladder.get('monotonicity_violations', 'n/a')}",
+            "market | YES condition | probability | source | bid | ask | last | previous | spread | "
+            "candle_utc | daily_volume | open_interest",
+        ]
+        for rung in sorted(rungs, key=lambda item: item.get("strike", 0)):
+            lines.append(
+                f"{rung.get('market_ticker', 'unknown')} | KPI "
+                f"{rung.get('threshold_operator', '>')} {_number(rung.get('strike'))} | "
+                f"{_number(rung.get('probability'), 3)} | {rung.get('price_source', 'unknown')} | "
+                f"{_number(rung.get('yes_bid'), 3)} | {_number(rung.get('yes_ask'), 3)} | "
+                f"{_number(rung.get('last'), 3)} | {_number(rung.get('previous'), 3)} | "
+                f"{_number(rung.get('spread'), 3)} | {rung.get('candle_at') or 'n/a'} | "
+                f"{_number(rung.get('daily_volume'))} | {_number(rung.get('open_interest'))}"
+            )
     return "\n".join(lines)
 
 
@@ -225,3 +228,12 @@ def _pct(v) -> str:
 
 def _is_number(v) -> bool:
     return v is not None and v == v  # rejects None and NaN
+
+
+def _number(value, decimals: int = 2) -> str:
+    if not _is_number(value):
+        return "n/a"
+    number = float(value)
+    if abs(number) >= 1_000:
+        return f"{number:,.6g}"
+    return f"{number:.{decimals}f}"

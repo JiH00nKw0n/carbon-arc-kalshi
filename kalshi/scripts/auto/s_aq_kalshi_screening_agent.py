@@ -25,16 +25,17 @@ Two agents mirror EXPERIMENT_SPEC section 2.1:
 
 Output: kalshi_kpi_firm_screen.csv with {ticker, metric_label, impact O/X, strength,
 est_share, reason}. --apply-panel writes a ladder panel keeping only O (ticker, metric) pairs;
---append-screen appends ticker-level kalshi_kpi rows to altdata_ticker_screen.csv so the
-pipeline's _attach_strength gives Kalshi its strength tiers (enabling strong_only).
+--write-ticker-screen writes the Kalshi-owned ticker-level screen used by the prediction pipeline
+to apply its strength tiers (enabling strong_only) without modifying Carbon Arc data.
 
-Reuses the LLM-gateway client and env resolution from s_al so the model and auth are
-identical to the ablation run.
+Uses the shared prediction LLM-gateway client so model authentication is identical to the
+benchmark run.
 """
 import argparse
 import asyncio
-import importlib.util
 import json
+import sys
+import unicodedata
 from pathlib import Path
 from typing import List
 
@@ -42,21 +43,18 @@ import pandas as pd
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT))
+
+from prediction.data.llm_client import make_openai_client
+
 KALSHI_ROOT = ROOT / "kalshi"
 SCREEN_IN = KALSHI_ROOT / "outputs" / "auto" / "kalshi_kpi_revenue_screen.csv"
 EVENTS = KALSHI_ROOT / "outputs" / "auto" / "kalshi_x_revsurprise_events.csv"
 LADDER_PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_prereport_ladder_panel_screened.csv"
 OUT_SCREEN = KALSHI_ROOT / "outputs" / "auto" / "kalshi_kpi_firm_screen.csv"
 OUT_PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_prereport_ladder_panel_firmscreened.csv"
-
-
-def _load_s_al():
-    spec = importlib.util.spec_from_file_location(
-        "s_al", Path(__file__).with_name("s_al_kalshi_llm_ablation.py")
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+TICKER_SCREEN = KALSHI_ROOT / "data" / "ticker_screen.csv"
+MODEL = "gpt-5.5-2026-04-23"
 
 
 SCREENER_SYS = (
@@ -115,46 +113,70 @@ def candidates():
     return o[["ticker", "stock_name", "metric_label"]].to_dict("records")
 
 
-async def run_agent(client, model, system, user, effort):
-    completion = await client.beta.chat.completions.parse(
-        model=model,
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-        response_format=Screen,
-        reasoning_effort=effort,
+async def run_agent(client, model, system, user, effort, expected):
+    for attempt in range(6):
+        try:
+            completion = await client.beta.chat.completions.parse(
+                model=model,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                response_format=Screen,
+                reasoning_effort=effort,
+            )
+            parsed = completion.choices[0].message.parsed
+            actual = {(row.ticker, row.metric_label) for row in parsed.verdicts}
+            if actual != expected:
+                raise RuntimeError(
+                    f"screen row mismatch: missing={sorted(expected - actual)} "
+                    f"extra={sorted(actual - expected)}"
+                )
+            return parsed
+        except Exception as exc:
+            if attempt == 5:
+                raise
+            delay = 2 ** attempt
+            print(f"[retry] effort={effort} attempt={attempt + 1}/6: {exc}; sleep={delay}s", flush=True)
+            await asyncio.sleep(delay)
+
+
+async def screen_batch(client, model, batch, number, no_audit):
+    expected = {(row["ticker"], row["metric_label"]) for row in batch}
+    listing = "\n".join(
+        f"{row['ticker']} | {row['stock_name']} | KPI metric: {row['metric_label']}" for row in batch
     )
-    return completion.choices[0].message.parsed
+    user = (
+        f"Screen these {len(batch)} candidate (company, Kalshi KPI metric) pairs. For EACH pair "
+        f"return exactly one verdict row and preserve ticker and metric_label verbatim.\n\n{listing}"
+    )
+    print(f"[screener {number}] {len(batch)} pairs -> effort=medium", flush=True)
+    draft = await run_agent(client, model, SCREENER_SYS, user, "medium", expected)
+    if no_audit:
+        return draft.verdicts
+    audit_user = (
+        "Draft verdicts to audit. Return exactly one corrected row per pair and preserve ticker and "
+        "metric_label verbatim:\n\n"
+        + json.dumps([row.model_dump() for row in draft.verdicts], indent=1)
+    )
+    print(f"[auditor {number}] {len(batch)} pairs -> effort=high", flush=True)
+    return (await run_agent(client, model, AUDITOR_SYS, audit_user, "high", expected)).verdicts
 
 
 async def main_async(args):
-    s_al = _load_s_al()
-    client = s_al.make_openai_client()
-    model = s_al.GPT_MODEL
+    client = make_openai_client()
+    model = MODEL
 
     cand = candidates()
-    listing = "\n".join(
-        f"{c['ticker']} | {c['stock_name']} | KPI metric: {c['metric_label']}" for c in cand
-    )
-    user = (
-        f"Screen these {len(cand)} candidate (company, Kalshi KPI metric) pairs. For EACH pair return a "
-        f"verdict row.\n\n{listing}"
-    )
+    print(f"[screen] {len(cand)} candidate pairs -> model={model} batch={args.batch_size}", flush=True)
+    verdicts = []
+    for offset in range(0, len(cand), args.batch_size):
+        verdicts.extend(await screen_batch(
+            client, model, cand[offset:offset + args.batch_size],
+            offset // args.batch_size + 1, args.no_audit,
+        ))
 
-    print(f"[screener] {len(cand)} candidate pairs -> model={model} effort=medium", flush=True)
-    draft = await run_agent(client, model, SCREENER_SYS, user, "medium")
-
-    final = draft
-    if not args.no_audit:
-        print("[auditor] adversarial pass -> effort=high", flush=True)
-        audit_user = (
-            "Draft verdicts to audit (return the corrected final list, one row per pair):\n\n"
-            + json.dumps([v.model_dump() for v in draft.verdicts], indent=1)
-        )
-        final = await run_agent(client, model, AUDITOR_SYS, audit_user, "high")
-
-    rows = [v.model_dump() for v in final.verdicts]
+    rows = [verdict.model_dump() for verdict in verdicts]
     df = pd.DataFrame(rows)
-    df["impact"] = (df["impact"].str.upper().str.strip()
-                    .replace({"INCLUDE": "O", "EXCLUDE": "X"}))
+    df = df.assign(impact=(df["impact"].str.upper().str.strip()
+                           .replace({"INCLUDE": "O", "EXCLUDE": "X"})))
     df = df.sort_values(["impact", "ticker"])
     args.out_screen.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(args.out_screen, index=False)
@@ -167,8 +189,8 @@ async def main_async(args):
         print(f"   X {r.ticker:<6} {r.metric_label[:38]:<40} {r.est_share:<9} {r.reason}")
     print(f"[written] {args.out_screen}")
 
-    if args.append_screen:
-        append_to_master_screen(df, args.master_screen)
+    if args.write_ticker_screen:
+        write_ticker_screen(df, args.ticker_screen)
     if args.apply_panel:
         keep = {(r.ticker, r.metric_label) for r in keep_df.itertuples()}
         apply_to_panel(args.ladder_panel, args.out_panel, keep)
@@ -205,45 +227,47 @@ def apply_to_panel(panel_path, out_path, keep_pairs):
 _STRENGTH_RANK = {"strong": 3, "moderate": 2, "weak": 1}
 
 
-def append_to_master_screen(screen_df, master_path):
-    """Append ticker-level kalshi_kpi rows to the shared altdata_ticker_screen.csv.
-
-    The pipeline's `_attach_strength` reads that file, filters (data_type==kalshi_kpi, impact==O),
-    and left-joins `strength` by ticker -- so this is what gives the Kalshi channel its strength
-    tiers and makes `strong_only` work. Each firm collapses to one row: impact O when any of its
-    metrics is O (strength = its highest-confidence O metric), else X. Idempotent: existing
-    kalshi_kpi rows are dropped before the append, so re-running never duplicates."""
+def write_ticker_screen(screen_df, path):
+    """Write one Kalshi-owned strength row per ticker for the prediction pipeline."""
     rows = []
     for ticker, g in screen_df.groupby("ticker"):
         o = g[g["impact"] == "O"]
         pick = (o.loc[o["strength"].map(_STRENGTH_RANK).fillna(0).idxmax()] if len(o)
                 else g.iloc[0])
-        rows.append({"data_type": "kalshi_kpi", "ticker": ticker, "company": "",
+        rows.append({"data_type": "kalshi_kpi", "ticker": ticker,
                      "impact": "O" if len(o) else "X", "strength": pick["strength"],
-                     "est_share": pick["est_share"], "available_company_level": "",
-                     "carbonarc_dataset": "kalshi_kpi", "reason": pick["reason"]})
-    add = pd.DataFrame(rows)
-    master = pd.read_csv(master_path)
-    master = master[master["data_type"] != "kalshi_kpi"]      # idempotent re-run
-    add = add.reindex(columns=master.columns)                 # align to the master schema
-    pd.concat([master, add], ignore_index=True).to_csv(master_path, index=False)
+                     "est_share": pick["est_share"], "reason": pick["reason"]})
+    add = pd.DataFrame(rows).map(_ascii_cell)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    add.to_csv(path, index=False)
     n_o = (add["impact"] == "O").sum()
-    print(f"[master-screen] +{len(add)} kalshi_kpi rows ({n_o} O / {len(add) - n_o} X) -> {master_path}")
+    print(f"[ticker-screen] {len(add)} rows ({n_o} O / {len(add) - n_o} X) -> {path}")
+
+
+def _ascii_cell(value):
+    if pd.isna(value):
+        return ""
+    text = str(value).replace("\u2018", "'").replace("\u2019", "'")
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-screen", type=Path, default=OUT_SCREEN)
     ap.add_argument("--no-audit", action="store_true", help="Skip the adversarial auditor pass.")
+    ap.add_argument("--batch-size", type=int, default=8,
+                    help="Candidate pairs per structured LLM call (default: 8).")
     ap.add_argument("--apply-panel", action="store_true",
                     help="Write a ladder panel keeping only O (ticker, metric) pairs.")
-    ap.add_argument("--append-screen", action="store_true",
-                    help="Append ticker-level kalshi_kpi rows to altdata_ticker_screen.csv.")
-    ap.add_argument("--master-screen", type=Path,
-                    default=ROOT / "factor1" / "data" / "altdata_ticker_screen.csv")
+    ap.add_argument("--write-ticker-screen", action="store_true",
+                    help="Write the Kalshi-owned ticker-level strength screen.")
+    ap.add_argument("--ticker-screen", type=Path, default=TICKER_SCREEN)
     ap.add_argument("--ladder-panel", type=Path, default=LADDER_PANEL)
     ap.add_argument("--out-panel", type=Path, default=OUT_PANEL)
-    asyncio.run(main_async(ap.parse_args()))
+    args = ap.parse_args()
+    if args.batch_size < 1:
+        raise SystemExit("--batch-size must be at least 1")
+    asyncio.run(main_async(args))
 
 
 if __name__ == "__main__":

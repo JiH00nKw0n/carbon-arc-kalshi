@@ -20,7 +20,7 @@ from prediction.run.grid import Cell
 
 __all__ = ["ResultStore"]
 
-_META_COLS = ("tkr", "true", "x_yoy", "k")
+_META_COLS = ("tkr", "fp", "report", "true", "x_yoy", "k")
 
 
 class ResultStore:
@@ -49,9 +49,38 @@ class ResultStore:
         """Render the cell's evaluation to Markdown (overwrites; byte-stable on rerun)."""
         write_markdown(result, self.report_path(cell))
 
+    def write_manifest(self, channel: str, y: str, targets, hist_rows: int) -> None:
+        """Upsert the exact evaluation rows for one channel/Y into the run-level manifest."""
+        path = self._root / "evaluation_manifest.csv"
+        columns = [
+            "channel", "y", "ticker", "FE_FP_END", "REPORT_DATE", "true", "strength",
+            "financial_history_available", "financial_history_shown",
+            "ladder_history_available", "ladder_history_shown", "earnings_call_count",
+            "target_ladder_events", "target_ladder_rungs",
+        ]
+        rows = [_manifest_row(channel, y, target, hist_rows) for target in targets]
+        current = pd.read_csv(path) if path.exists() else None
+        if current is not None and len(current):
+            current = current[~((current["channel"] == channel) & (current["y"] == y))]
+        incoming = pd.DataFrame(rows, columns=columns)
+        frame = (pd.concat([current, incoming], ignore_index=True)
+                 if current is not None and len(current) else incoming)
+        frame = frame.reindex(columns=columns)
+        count_columns = [
+            "financial_history_available", "financial_history_shown",
+            "ladder_history_available", "ladder_history_shown", "earnings_call_count",
+            "target_ladder_events", "target_ladder_rungs",
+        ]
+        frame = frame.astype({column: "Int64" for column in count_columns})
+        frame = frame.sort_values(["channel", "y", "ticker", "FE_FP_END"])
+        self._root.mkdir(parents=True, exist_ok=True)
+        frame.to_csv(path, index=False)
+
     def _write_resume_log(self, cell: Cell, preds: pd.DataFrame) -> None:
-        arm_cols = [c for c in preds.columns if c not in _META_COLS]
-        lines = [json.dumps({"tkr": row["tkr"], "arm": arm})
+        arm_cols = [c for c in preds.columns
+                    if c not in _META_COLS and not c.startswith("tool_calls__")]
+        lines = [json.dumps({"tkr": row["tkr"], "arm": arm,
+                             "tool_calls": _tool_calls(row.get(f"tool_calls__{arm}", ""))})
                  for _, row in preds.iterrows() for arm in arm_cols]
         (self._cell_dir(cell) / "resume.jsonl").write_text("\n".join(lines) + ("\n" if lines else ""))
 
@@ -65,3 +94,41 @@ class ResultStore:
 
     def _slug(self, cell: Cell) -> str:
         return f"{cell.channel}.{cell.y}.{cell.variant}.{self._model}.{self._effort}.seed{self._seed}"
+
+
+def _tool_calls(value) -> list[str]:
+    if not isinstance(value, str) or not value:
+        return []
+    return value.split("|")
+
+
+def _manifest_row(channel: str, y: str, target, hist_rows: int) -> dict:
+    ladders = _ladders(target.x_payload)
+    history = list(target.hist)
+    shown = history[-hist_rows:]
+    return {
+        "channel": channel,
+        "y": y,
+        "ticker": target.ticker,
+        "FE_FP_END": target.fp.isoformat(),
+        "REPORT_DATE": target.report.isoformat(),
+        "true": target.true,
+        "strength": target.strength,
+        "financial_history_available": len(history),
+        "financial_history_shown": len(shown),
+        "ladder_history_available": sum(bool(row.x_payload) for row in history),
+        "ladder_history_shown": sum(bool(row.x_payload) for row in shown),
+        "earnings_call_count": 1 + int(bool(target.text2)),
+        "target_ladder_events": len(ladders),
+        "target_ladder_rungs": sum(len(ladder.get("rungs") or []) for ladder in ladders),
+    }
+
+
+def _ladders(payload) -> list[dict]:
+    if not payload:
+        return []
+    try:
+        value = json.loads(payload)
+    except (TypeError, json.JSONDecodeError):
+        return []
+    return value if isinstance(value, list) else []

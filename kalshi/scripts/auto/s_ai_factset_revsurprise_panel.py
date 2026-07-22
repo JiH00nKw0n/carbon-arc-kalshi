@@ -321,31 +321,42 @@ async def fetch_stock_metadata(args, tickers, env):
                    fsym_regional_id
             FROM stocks
             WHERE ticker = ANY($1::text[])
-              AND is_primary IS TRUE
-            ORDER BY ticker, market_cap DESC NULLS LAST, id
+            ORDER BY ticker,
+                     CASE WHEN is_primary IS TRUE THEN 0
+                          WHEN is_primary IS NULL THEN 1 ELSE 2 END,
+                     market_cap DESC NULLS LAST,
+                     id
             """,
             tickers,
         )
         stocks = pd.DataFrame([dict(row) for row in stock_rows])
         if stocks.empty:
             return stocks, pd.DataFrame()
-        document_rows = await conn.fetch(
-            """
-            SELECT sd.stock_id,
-                   sd.calendar_date AS "FE_FP_END",
-                   sd.name
-            FROM stock_documents sd
-            WHERE sd.stock_id = ANY($1::text[])
-              AND sd.doc_type = 'earnings_call'
-              AND sd.calendar_date >= $2::date
-              AND sd.name IS NOT NULL
-            """,
-            stocks["stock_id"].tolist(),
-            args.start_date,
-            timeout=args.query_timeout_seconds,
-        )
+        document_rows = []
+        stock_ids = stocks["stock_id"].tolist()
+        for offset in range(0, len(stock_ids), 10):
+            batch = stock_ids[offset:offset + 10]
+            rows = await conn.fetch(
+                """
+                SELECT sd.stock_id,
+                       COALESCE(sd.calendar_date, sd.fiscal_date) AS "FE_FP_END",
+                       sd.name
+                FROM stock_documents sd
+                WHERE sd.stock_id = ANY($1::text[])
+                  AND sd.doc_type = 'earnings_call'
+                  AND COALESCE(sd.calendar_date, sd.fiscal_date) >= $2::date
+                  AND sd.name IS NOT NULL
+                  AND sd.name ~* 'Q[1-4][ ,/-]*20[0-9]{2}'
+                """,
+                batch,
+                args.start_date,
+                timeout=args.query_timeout_seconds,
+            )
+            document_rows.extend(rows)
+            print(f"[stock-db] documents batch={offset // 10 + 1} "
+                  f"stocks={len(batch)} rows={len(rows)}", flush=True)
     finally:
-        await conn.close()
+        conn.terminate()
     return stocks, pd.DataFrame([dict(row) for row in document_rows])
 
 

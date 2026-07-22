@@ -1,12 +1,12 @@
-name: kalshi_full
+name: kalshi_revenue_surprise_v1
 seed: 2026
-output_dir: prediction/outputs/kalshi_full
+output_dir: prediction/outputs/kalshi_benchmark
 
 run:
-  concurrency: 8
-  reps: 3                    # paper's synergy protocol: 3 repeats (single-run is a false negative)
-  limit: 0                   # all firm-screened targets
-  strong_only: false         # main result uses every O firm; strong_only is a separate robustness run
+  concurrency: 192
+  reps: 1                    # exact Jihoon main benchmark protocol
+  limit: 0
+  strong_only: true          # primary benchmark universe; all-O is robustness only
   drop_outlier_pct: 0
   render_only: false
   cutoff: 2025-12-01
@@ -17,15 +17,14 @@ run:
 llm: {model: gpt-5.5-2026-04-23, effort: medium, max_retries: 6}
 
 data:
-  panel_out: prediction/outputs/kalshi_full/panels
-  screen_csv: factor1/data/altdata_ticker_screen.csv
+  panel_out: prediction/outputs/kalshi_benchmark/panels
+  screen_csv: kalshi/data/ticker_screen.csv
   sentiment_json: lm_sentiment.json
 
 grid:
   channels: [kalshi]
-  targets:  [surprise_early]  # rev_yoy dropped: only n=1 target qualifies (needs prior-year actual) → unusable
-  variants: [BASE]           # TOOL blocked: gpt-5.5 rejects function tools + reasoning_effort on
-                             # /v1/chat/completions (needs /v1/responses migration — pipeline-wide, all channels)
+  targets:  [surprise_early, surprise_print, rev_yoy]
+  variants: [BASE, TOOL]
   arms:
     - {name: fin,        blocks: [fin]}
     - {name: fin+x,      blocks: [fin, x]}

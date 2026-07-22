@@ -55,5 +55,5 @@ class TranscriptStore:
             index = pd.read_csv(path)
         except (OSError, ValueError) as exc:
             raise DataUnavailableError(f"cannot read transcript index: {path}") from exc
-        index["call_date"] = pd.to_datetime(index["call_date"])
+        index = index.assign(call_date=pd.to_datetime(index["call_date"]))
         return index.sort_values(["ticker", "call_date"])

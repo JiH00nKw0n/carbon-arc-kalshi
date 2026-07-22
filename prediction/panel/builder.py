@@ -29,13 +29,13 @@ _COLUMNS = [
 
 
 def build_panel(spec: ChannelSpec, revenue_records: list[RevenueRecord],
-                alt_points: list[AltPoint]) -> pd.DataFrame:
+                alt_points: list[AltPoint], screen_csv: str | Path = SCREEN) -> pd.DataFrame:
     """Assemble one channel's panel: revenue events joined to their nearest alt-data YoY."""
     revenue = _revenue_frame(revenue_records)
     alt = _alt_frame(alt_points, spec.yoy_lag)
     panel = _join_nearest(revenue, alt, spec.yoy_lag)
     panel = _add_history_columns(panel)
-    panel = _attach_strength(panel, spec)
+    panel = _attach_strength(panel, spec, screen_csv)
     return panel[_COLUMNS]
 
 
@@ -46,11 +46,9 @@ def _revenue_frame(records: list[RevenueRecord]) -> pd.DataFrame:
     frame = pd.DataFrame([{
         "ticker": r.ticker, "FE_FP_END": r.fp_end, "REPORT_DATE": r.report_date,
         "ACTUAL": r.actual, "CONS_EARLY": r.cons_early, "CONS_PRINT": r.cons_print,
-    } for r in records])
-    frame["FE_FP_END"] = pd.to_datetime(frame["FE_FP_END"])
-    frame["REPORT_DATE"] = pd.to_datetime(frame["REPORT_DATE"])
-    frame["surprise_early"] = (frame.ACTUAL - frame.CONS_EARLY) / frame.CONS_EARLY
-    frame["surprise_print"] = (frame.ACTUAL - frame.CONS_PRINT) / frame.CONS_PRINT
+    } for r in records]).astype({"FE_FP_END": "datetime64[ns]", "REPORT_DATE": "datetime64[ns]"})
+    frame.loc[:, "surprise_early"] = (frame.ACTUAL - frame.CONS_EARLY) / frame.CONS_EARLY
+    frame.loc[:, "surprise_print"] = (frame.ACTUAL - frame.CONS_PRINT) / frame.CONS_PRINT
     return frame.sort_values(["ticker", "FE_FP_END"])
 
 
@@ -58,13 +56,14 @@ def _alt_frame(points: list[AltPoint], yoy_lag: int) -> pd.DataFrame:
     """Alt-data points -> per-ticker level, YoY over the channel lag, and 3-period mean YoY."""
     if not points:
         raise DataUnavailableError("no alt-data points to build a panel from")
-    frame = pd.DataFrame([{"ticker": p.ticker, "date": p.date, "value": p.value} for p in points])
-    frame["date"] = pd.to_datetime(frame["date"])
+    frame = pd.DataFrame(
+        [{"ticker": p.ticker, "date": p.date, "value": p.value} for p in points]
+    ).astype({"date": "datetime64[ns]"})
     frame = frame.groupby(["ticker", "date"], as_index=False)["value"].sum()
     frame = frame.sort_values(["ticker", "date"])
-    frame["x_abs"] = frame["value"]
-    frame["x_yoy"] = frame.groupby("ticker")["value"].pct_change(yoy_lag)
-    frame["x_yoy_3m"] = frame.groupby("ticker")["x_yoy"].transform(
+    frame.loc[:, "x_abs"] = frame["value"]
+    frame.loc[:, "x_yoy"] = frame.groupby("ticker")["value"].pct_change(yoy_lag)
+    frame.loc[:, "x_yoy_3m"] = frame.groupby("ticker")["x_yoy"].transform(
         lambda s: s.rolling(3, min_periods=1).mean())
     return frame[["ticker", "date", "x_abs", "x_yoy", "x_yoy_3m"]]
 
@@ -88,17 +87,21 @@ def _join_nearest(revenue: pd.DataFrame, alt: pd.DataFrame, yoy_lag: int) -> pd.
 
 def _add_history_columns(panel: pd.DataFrame) -> pd.DataFrame:
     """Add the autoregressive/prior-year columns computed within each ticker."""
-    panel["lag_surprise"] = panel.groupby("ticker")["surprise_early"].shift(1)
-    panel["rev_yoy"] = panel.groupby("ticker")["ACTUAL"].pct_change(4)
-    panel["prior_year_actual"] = panel.groupby("ticker")["ACTUAL"].shift(4)
-    return panel
+    return panel.assign(
+        lag_surprise=panel.groupby("ticker")["surprise_early"].shift(1),
+        rev_yoy=panel.groupby("ticker")["ACTUAL"].pct_change(4),
+        prior_year_actual=panel.groupby("ticker")["ACTUAL"].shift(4),
+    )
 
 
-def _attach_strength(panel: pd.DataFrame, spec: ChannelSpec) -> pd.DataFrame:
+def _attach_strength(panel: pd.DataFrame, spec: ChannelSpec,
+                     screen_csv: str | Path = SCREEN) -> pd.DataFrame:
     """Left-join the O-screen strength tier for this channel's data type (NaN when absent)."""
-    if not SCREEN.exists():
-        panel["strength"] = np.nan
+    path = Path(screen_csv)
+    if not path.exists():
+        panel = panel.copy()
+        panel.loc[:, "strength"] = np.nan
         return panel
-    screen = pd.read_csv(SCREEN)
+    screen = pd.read_csv(path)
     tier = screen[(screen.data_type == spec.screen_dt) & (screen.impact == "O")]
     return panel.merge(tier[["ticker", "strength"]], on="ticker", how="left")

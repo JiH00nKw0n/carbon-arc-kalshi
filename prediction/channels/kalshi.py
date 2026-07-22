@@ -29,7 +29,7 @@ register_channel(ChannelSpec(
     tx_index=str(OUT / "transcript_index_kalshi.csv"),
     screen_dt="kalshi_kpi",
     x_table_label="KALSHI PRE-PUBLICATION KPI MARKET LADDER",
-    x_unit="kalshi_implied_value",
+    x_unit="raw_kalshi_ladder",
     kind="ladder",
     ladder_panel=str(OUT / "kalshi_prereport_ladder_panel_firmscreened.csv"),
     revenue_panel=str(OUT / "kalshi_factset_revenue_surprise_panel.csv"),

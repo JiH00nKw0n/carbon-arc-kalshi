@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 Step 1 of making the Kalshi channel paper-compliant: the revenue-related KPI filter
-decided in the 2026-07-20 meeting ("Filtering 단계에서 Revenue와 강하게 관련된 KPI
-market만 고르는 형태로 Filtering하기").
+decided in the 2026-07-20 meeting (retain only KPI markets strongly related to revenue).
 
 A Kalshi KPI market is already a metric analysts watch, so most are revenue-relevant.
 This screen classifies each distinct KPI metric by HOW it maps to revenue and drops the
