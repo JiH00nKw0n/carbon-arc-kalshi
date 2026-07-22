@@ -237,7 +237,7 @@ def _render_cell(cell: Cell, targets, context: _CellContext, run_cfg, render_dir
 # --------------------------------------------------------------------------- evaluation frame
 def _evaluate_cell(cfg, cell, panel, preds, context, seed) -> EvalResult:
     features = _feature_table(panel, context.transcripts, context.y_target, context.channel.kind)
-    train, test = _train_test(features, preds, cfg.run.cutoff)
+    train, test = _train_test(features, preds, cfg.run.cutoff, context.channel.kind)
     _assert_matched(test, cfg.evaluate.synergy_arms)
     base = _baseline_predictions(train, test, cfg.grid.baselines)
     return _build_result(cell, test, base, cfg.evaluate, seed)
@@ -258,7 +258,11 @@ def _feature_table(panel: pd.DataFrame, transcripts: _Transcripts, y_target,
     frame["true"] = frame[y_target.true_col]
     frame["lag_y"] = lag_y(frame, y_target.true_col)
     frame = frame.dropna(subset=(["true"] if kind == "ladder" else ["x_yoy", "true"])).copy()
-    frame["x_yoy"] = frame["x_yoy"].fillna(0.0)
+    # A single-snapshot ladder has no reliable dense scalar: x_yoy is undefined for most quarters and,
+    # where a pct_change exists, it can cross a unit change in the source ladders (e.g. COIN's implied
+    # value jumps $B->raw $). So zero the WHOLE column for a ladder channel, not just the NaNs — the
+    # classical x-baselines become degenerate (equivalent to their x-free forms) instead of blowing up.
+    frame["x_yoy"] = 0.0 if kind == "ladder" else frame["x_yoy"].fillna(0.0)
     frame["sent"] = [_row_sentiment(transcripts, row.ticker, row.REPORT_DATE)
                      for row in frame.itertuples()]
     frame["sent"] = frame["sent"].fillna(0.0)
@@ -272,7 +276,8 @@ def _row_sentiment(transcripts: _Transcripts, ticker: str, report_date) -> float
     return sentiment(calls[0].path) if calls else float("nan")
 
 
-def _train_test(features: pd.DataFrame, preds: pd.DataFrame, cutoff) -> tuple[pd.DataFrame, pd.DataFrame]:
+def _train_test(features: pd.DataFrame, preds: pd.DataFrame, cutoff,
+                kind: str = "scalar") -> tuple[pd.DataFrame, pd.DataFrame]:
     """Pre-cutoff training rows + the matched post-cutoff LLM rows, joined on tkr|round(true,8)."""
     cutoff_ts = pd.Timestamp(cutoff)
     train = features[features["report"] <= cutoff_ts].dropna(subset=["x_yoy", "true"]).copy()
@@ -287,7 +292,7 @@ def _train_test(features: pd.DataFrame, preds: pd.DataFrame, cutoff) -> tuple[pd
     test["lag_y"] = test["lag_y"].fillna(fill)
     test["sent"] = test["sent"].fillna(0.0)
     test["ticker"] = test["tkr"]
-    test["x_yoy"] = test["x_yoy"].fillna(0.0)   # ladder targets carry no scalar YoY; 0 is neutral, no-op for scalars
+    test["x_yoy"] = 0.0 if kind == "ladder" else test["x_yoy"].fillna(0.0)   # ladder scalar unreliable (sparse + unit-inconsistent) -> zero
     for frame in (train, test):
         frame["x_sent"] = frame["x_yoy"] * frame["sent"]
     return train, test

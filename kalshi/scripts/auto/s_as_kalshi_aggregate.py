@@ -102,6 +102,17 @@ def main():
            " synergy = M(fin+x+text) − [M(fin+x)+M(fin+text)−M(fin)]."]
     evaluate(agg, "FULL-O universe", out)
     evaluate(strong, "STRONG-only universe", out)
+    out.append(
+        "\n### Caveats (post code-review)\n"
+        "- The surrogate p-value tests the COMBINED fin+x+text prediction against firm-specific Y; it does NOT isolate\n"
+        "  a firm-specific Kalshi-X signal (H and Z are already firm-specific). A ladder-shuffle / X-increment test is TODO.\n"
+        "- X and Z are weak alone: fin+x beats fin only marginally (R2 +0.004), fin+text alone WORSENS it. Only the\n"
+        "  combination helps -- a weak super-additive direction, not significant at n=22.\n"
+        "- rev_yoy is NOT n=1 (it has 22 valid targets -- the paper's Table-1 target); it was dropped on a stale read\n"
+        "  and needs a re-run.\n"
+        "- Classical x-baselines are degenerate for the ladder (no reliable dense scalar; COIN's implied value is even\n"
+        "  unit-inconsistent) -- x_yoy is zeroed so they run but equal their x-free forms.\n"
+        "- TOOL variant is blocked pipeline-wide (gpt-5.5 rejects tools+reasoning on chat-completions); BASE only.")
     text = "\n".join(out) + "\n"
     print(text)
     if args.write:
