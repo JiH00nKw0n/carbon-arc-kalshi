@@ -50,9 +50,20 @@ def load_reps(y="surprise_early") -> list:
 
 
 def average_reps(frames) -> pd.DataFrame:
-    """Average each arm across reps per (tkr, true) target; keep targets present in >=1 rep."""
+    """Average each arm across reps per target.
+
+    The target key is (tkr, rounded true). preds.csv carries no fiscal period, so this relies on a
+    firm's quarters having distinct surprise values (true) — safe here (no collisions), but a real
+    fiscal-quarter key would be sturdier. Guards: warn if any key is not present in exactly one row
+    per rep (a missing rep OR a true-value collision), so a silent partial average can't slip through."""
+    n = len(frames)
     allrows = pd.concat(frames, ignore_index=True)
     allrows["key"] = allrows["tkr"] + "|" + allrows["true"].round(8).astype(str)
+    counts = allrows.groupby("key").size()
+    off = counts[counts != n]
+    if len(off):
+        print(f"[warn] {len(off)} target key(s) not present exactly once per rep "
+              f"(missing rep or true-value collision): {off.to_dict()}")
     return allrows.groupby("key").agg(
         tkr=("tkr", "first"), true=("true", "first"), n_reps=("seed", "nunique"),
         **{a: (a, "mean") for a in ARMS}).reset_index(drop=True)
@@ -104,10 +115,13 @@ def main():
     evaluate(strong, "STRONG-only universe", out)
     out.append(
         "\n### Caveats (post code-review)\n"
-        "- The surrogate p-value tests the COMBINED fin+x+text prediction against firm-specific Y; it does NOT isolate\n"
-        "  a firm-specific Kalshi-X signal (H and Z are already firm-specific). A ladder-shuffle / X-increment test is TODO.\n"
+        "- The surrogate (shuffle-company-Y) is the paper's OWN firm-specificity test (verbatim from f1_22_eval), applied\n"
+        "  to card/foot/web too: p=0.019 means the fin+x+text prediction is firm-specific / not a size-scale artifact.\n"
+        "  It does NOT isolate Kalshi X (H and Z are already firm-specific); an X-shuffle would be above-paper.\n"
         "- X and Z are weak alone: fin+x beats fin only marginally (R2 +0.004), fin+text alone WORSENS it. Only the\n"
-        "  combination helps -- a weak super-additive direction, not significant at n=22.\n"
+        "  combination helps. The super-additive point estimate is positive on the full sample but FRAGILE: 2 targets\n"
+        "  (BA, TSLA) use 1 prior call not 2 (paper wants 2); under strict 2-call the MSE-skill synergy is -0.011 vs\n"
+        "  +0.061 -- either way not significant at n=22.\n"
         "- rev_yoy is NOT n=1 (it has 22 valid targets -- the paper's Table-1 target); it was dropped on a stale read\n"
         "  and needs a re-run.\n"
         "- Classical x-baselines are degenerate for the ladder (no reliable dense scalar; COIN's implied value is even\n"
