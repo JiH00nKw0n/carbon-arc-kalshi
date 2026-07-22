@@ -4,25 +4,29 @@ Step 2 of making the Kalshi channel paper-compliant: the firm-level screening ag
 (the paper's contribution #1, Figure 2 stage 1, EXPERIMENT_SPEC section 2.1).
 
 Step 1 (s_ap) already dropped metrics that are not a revenue base at all (headcount).
-This step goes further, exactly as the carbon-arc Screener does: for each candidate firm
-it judges whether that firm's Kalshi KPI is a DOMINANT driver of its TOTAL revenue, and
-excludes firms where the KPI captures only a minority segment.
+This step applies the SAME rubric as the carbon-arc alt-data screen (altdata_ticker_screen.csv):
 
-    include   the KPI mechanically drives the majority of TOTAL revenue (volume x price)
-    exclude   the KPI is a minority segment, a capacity metric that is not sold volume,
-              or otherwise <~40% of total revenue
+    O   the KPI is the firm's dominant, CLEAN revenue driver (a sold-volume / monetized
+        money-metric that maps to $ via volume x price) -- kept even at 20-45% share when it
+        is the largest clean driver, exactly as carbon-arc keeps export-of-record volumes
+        at ~20-30% as O.
+    X   the KPI is a minority segment dwarfed by other revenue (DIS Disney+ when Parks +
+        Studios dominate), OR a WRONG measure (capacity vs sold volume, production vs
+        deliveries, engagement/MAU vs monetized, headcount, or a metric made redundant by a
+        cleaner money-metric on the same firm).
 
-The classic catch this makes that step 1 cannot: DIS "Disney+/Hulu subscribers" is a real
-subscriber metric (step 1 keeps it) but DTC streaming is a minority of Disney's TOTAL
-revenue, which is dominated by Parks and Studios -> EXCLUDE.
+strength is CONFIDENCE in the O/X verdict (strong/moderate/weak), NOT the revenue share --
+this mirrors carbon-arc, where ~100%-of-rev firms can still be X-strong (app/subscription led,
+so the channel cannot measure them) and 25-30%-of-rev exporters are O-moderate.
 
 Two agents mirror EXPERIMENT_SPEC section 2.1:
   Screener (effort=medium)  first-pass verdicts over all candidate (ticker, metric) pairs
-  Auditor  (effort=high)    adversarial pass: flip mis-calls, catch segment/capacity traps
+  Auditor  (effort=high)    adversarial pass: restore under-50% dominant drivers, flip traps
 
-Output: kalshi_kpi_firm_screen.csv with {ticker, metric_label, impact INCLUDE/EXCLUDE,
-strength, est_share, reason}. The experiment then keeps INCLUDE pairs; --apply-panel writes
-a screened ladder panel just like s_ap does.
+Output: kalshi_kpi_firm_screen.csv with {ticker, metric_label, impact O/X, strength,
+est_share, reason}. --apply-panel writes a ladder panel keeping only O (ticker, metric) pairs;
+--append-screen appends ticker-level kalshi_kpi rows to altdata_ticker_screen.csv so the
+pipeline's _attach_strength gives Kalshi its strength tiers (enabling strong_only).
 
 Reuses the LLM-gateway client and env resolution from s_al so the model and auth are
 identical to the ablation run.
@@ -57,39 +61,46 @@ def _load_s_al():
 
 SCREENER_SYS = (
     "You are an equity analyst screening US-listed companies for whether a specific Kalshi KPI "
-    "prediction-market metric is a DOMINANT driver of the company's TOTAL revenue. The downstream "
-    "prediction target is the firm's TOTAL revenue (surprise versus analyst consensus), so a KPI is "
-    "useful only if it mechanically drives the MAJORITY of total revenue through a clear volume x price "
-    "relationship.\n"
-    "INCLUDE if the metric captures the majority (>~50%) of total revenue via a volume x price mechanism "
-    "(e.g. vehicle deliveries for an automaker, transaction volume for an exchange, paid subscribers for a "
-    "pure-play subscription business).\n"
-    "EXCLUDE if the metric is a minority segment of total revenue (e.g. a streaming subscriber count for a "
-    "company whose revenue is mostly parks or hardware), a capacity metric that is not the same as sold "
-    "volume, an engagement/vanity metric that is not directly monetized, or otherwise <~40% of total revenue.\n"
-    "Judge against TOTAL company revenue, not the segment the KPI belongs to. Give a specific one-line reason "
-    "grounded in the company's revenue mix, and est_share = your rough estimate of the share of TOTAL revenue "
-    "the metric drives. Return ONLY the structured object."
+    "prediction-market metric is a DOMINANT, CLEAN driver of the company's TOTAL revenue, using the SAME "
+    "rubric as the carbon-arc alt-data screen. The downstream prediction target is the firm's TOTAL revenue "
+    "surprise versus analyst consensus.\n"
+    "Mark impact 'O' if the KPI is the company's single largest CLEAN revenue driver -- a sold-volume (or the "
+    "monetized money-metric) that maps to dollars via volume x price. Keep 'O' EVEN WHEN the share is well "
+    "under half (e.g. ~20-45%) as long as it is the dominant single clean driver (mirroring carbon-arc, which "
+    "keeps commodity export-of-record volumes at ~20-30% of revenue as O). Examples of O: vehicle deliveries "
+    "for an automaker, trading volume for an exchange (Coinbase), commercial-jet deliveries for Boeing, paid "
+    "subscribers for a subscription-led business.\n"
+    "Mark impact 'X' ONLY when the KPI is not such a driver: (a) a minority segment dwarfed by other revenue "
+    "(Disney+ subscribers when Parks + Studios dominate); or (b) a WRONG measure -- capacity rather than sold "
+    "volume (available seats/rooms/berths), production rather than deliveries, an engagement/vanity metric "
+    "(MAU, hours) not directly monetized, headcount, or a metric made redundant by a cleaner money-metric on "
+    "the same firm (MAU when paid subscribers are also available).\n"
+    "strength is your CONFIDENCE in the O/X verdict, NOT the revenue share: 'strong' = unambiguous, "
+    "'moderate' = reasonably clear, 'weak' = borderline. Set est_share = rough share of TOTAL revenue the "
+    "metric drives (free text like '~35-45%'). Give a one-line reason grounded in the revenue mix. Return "
+    "ONLY the structured object."
 )
 
 AUDITOR_SYS = (
-    "You are a senior analyst auditing a first-pass screen of Kalshi KPI metrics for whether each is a "
-    "DOMINANT driver of the company's TOTAL revenue. You receive the draft verdicts as JSON. Return the FINAL "
-    "corrected list: (1) flip mis-calls where a metric was marked INCLUDE but is actually a minority of TOTAL "
-    "revenue (segment traps such as Disney+ subscribers for Disney, or a single sub-brand); (2) catch capacity "
-    "vs sold-volume traps (available seats/rooms/berths vs actually sold), production vs deliveries, and "
-    "engagement metrics that are not directly monetized; (3) keep clear majority-revenue drivers as INCLUDE; "
-    "(4) tighten est_share and reason. Judge against TOTAL revenue. Return ONLY the structured object with one "
-    "row per input (ticker, metric_label)."
+    "You are a senior analyst auditing a first-pass screen of Kalshi KPI metrics under the carbon-arc rubric: "
+    "impact 'O' if the KPI is the firm's dominant, CLEAN revenue driver (kept even at ~20-45% share when it is "
+    "the largest clean driver); impact 'X' only if it is a minority dwarfed by other revenue OR a wrong/"
+    "redundant measure. You receive the draft verdicts as JSON. Return the FINAL corrected list: (1) RESTORE "
+    "to 'O' dominant clean drivers wrongly excluded merely for being under 50% (e.g. Boeing commercial "
+    "deliveries, Coinbase trading volume); (2) flip to 'X' segment traps (a sub-scale segment dwarfed by other "
+    "revenue) and measurement traps (capacity vs sold volume, production vs deliveries, engagement/MAU vs "
+    "monetized, redundant-vs-cleaner-metric); (3) make strength reflect CONFIDENCE in the verdict, not the "
+    "share; (4) tighten est_share and reason. Judge against TOTAL revenue. Return ONLY the structured object "
+    "with one row per input (ticker, metric_label)."
 )
 
 
 class Verdict(BaseModel):
     ticker: str
     metric_label: str
-    impact: str = Field(description='"INCLUDE" or "EXCLUDE"')
-    strength: str = Field(description='"strong", "moderate", or "weak"')
-    est_share: str = Field(description="rough share of TOTAL revenue the metric drives, e.g. '~85%'")
+    impact: str = Field(description='"O" (dominant clean revenue driver) or "X" (minority/wrong measure)')
+    strength: str = Field(description='"strong"/"moderate"/"weak" -- CONFIDENCE in the O/X verdict, not the share')
+    est_share: str = Field(description="rough share of TOTAL revenue the metric drives, e.g. '~35-45%'")
     reason: str
 
 
@@ -142,21 +153,24 @@ async def main_async(args):
 
     rows = [v.model_dump() for v in final.verdicts]
     df = pd.DataFrame(rows)
-    df["impact"] = df["impact"].str.upper().str.strip()
+    df["impact"] = (df["impact"].str.upper().str.strip()
+                    .replace({"INCLUDE": "O", "EXCLUDE": "X"}))
     df = df.sort_values(["impact", "ticker"])
     args.out_screen.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(args.out_screen, index=False)
 
-    inc = df[df["impact"] == "INCLUDE"]
-    exc = df[df["impact"] == "EXCLUDE"]
-    print(f"[result] INCLUDE {len(inc)} pairs ({inc['ticker'].nunique()} firms) · "
-          f"EXCLUDE {len(exc)} pairs ({exc['ticker'].nunique()} firms)")
-    for r in exc.itertuples():
-        print(f"   EXCLUDE {r.ticker:<6} {r.metric_label[:38]:<40} {r.est_share:<7} {r.reason}")
+    keep_df = df[df["impact"] == "O"]
+    drop_df = df[df["impact"] == "X"]
+    print(f"[result] O {len(keep_df)} pairs ({keep_df['ticker'].nunique()} firms) · "
+          f"X {len(drop_df)} pairs ({drop_df['ticker'].nunique()} firms)")
+    for r in drop_df.itertuples():
+        print(f"   X {r.ticker:<6} {r.metric_label[:38]:<40} {r.est_share:<9} {r.reason}")
     print(f"[written] {args.out_screen}")
 
+    if args.append_screen:
+        append_to_master_screen(df, args.master_screen)
     if args.apply_panel:
-        keep = {(r.ticker, r.metric_label) for r in inc.itertuples()}
+        keep = {(r.ticker, r.metric_label) for r in keep_df.itertuples()}
         apply_to_panel(args.ladder_panel, args.out_panel, keep)
 
 
@@ -188,12 +202,45 @@ def apply_to_panel(panel_path, out_path, keep_pairs):
     print(f"[written] {out_path}")
 
 
+_STRENGTH_RANK = {"strong": 3, "moderate": 2, "weak": 1}
+
+
+def append_to_master_screen(screen_df, master_path):
+    """Append ticker-level kalshi_kpi rows to the shared altdata_ticker_screen.csv.
+
+    The pipeline's `_attach_strength` reads that file, filters (data_type==kalshi_kpi, impact==O),
+    and left-joins `strength` by ticker -- so this is what gives the Kalshi channel its strength
+    tiers and makes `strong_only` work. Each firm collapses to one row: impact O when any of its
+    metrics is O (strength = its highest-confidence O metric), else X. Idempotent: existing
+    kalshi_kpi rows are dropped before the append, so re-running never duplicates."""
+    rows = []
+    for ticker, g in screen_df.groupby("ticker"):
+        o = g[g["impact"] == "O"]
+        pick = (o.loc[o["strength"].map(_STRENGTH_RANK).fillna(0).idxmax()] if len(o)
+                else g.iloc[0])
+        rows.append({"data_type": "kalshi_kpi", "ticker": ticker, "company": "",
+                     "impact": "O" if len(o) else "X", "strength": pick["strength"],
+                     "est_share": pick["est_share"], "available_company_level": "",
+                     "carbonarc_dataset": "kalshi_kpi", "reason": pick["reason"]})
+    add = pd.DataFrame(rows)
+    master = pd.read_csv(master_path)
+    master = master[master["data_type"] != "kalshi_kpi"]      # idempotent re-run
+    add = add.reindex(columns=master.columns)                 # align to the master schema
+    pd.concat([master, add], ignore_index=True).to_csv(master_path, index=False)
+    n_o = (add["impact"] == "O").sum()
+    print(f"[master-screen] +{len(add)} kalshi_kpi rows ({n_o} O / {len(add) - n_o} X) -> {master_path}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-screen", type=Path, default=OUT_SCREEN)
     ap.add_argument("--no-audit", action="store_true", help="Skip the adversarial auditor pass.")
     ap.add_argument("--apply-panel", action="store_true",
-                    help="Write a ladder panel keeping only INCLUDE (ticker, metric) pairs.")
+                    help="Write a ladder panel keeping only O (ticker, metric) pairs.")
+    ap.add_argument("--append-screen", action="store_true",
+                    help="Append ticker-level kalshi_kpi rows to altdata_ticker_screen.csv.")
+    ap.add_argument("--master-screen", type=Path,
+                    default=ROOT / "factor1" / "data" / "altdata_ticker_screen.csv")
     ap.add_argument("--ladder-panel", type=Path, default=LADDER_PANEL)
     ap.add_argument("--out-panel", type=Path, default=OUT_PANEL)
     asyncio.run(main_async(ap.parse_args()))

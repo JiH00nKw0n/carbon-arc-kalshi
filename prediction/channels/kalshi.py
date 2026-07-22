@@ -31,6 +31,6 @@ register_channel(ChannelSpec(
     x_table_label="KALSHI PRE-PUBLICATION KPI MARKET LADDER",
     x_unit="kalshi_implied_value",
     kind="ladder",
-    ladder_panel=str(OUT / "kalshi_prereport_ladder_panel_screened.csv"),
+    ladder_panel=str(OUT / "kalshi_prereport_ladder_panel_firmscreened.csv"),
     revenue_panel=str(OUT / "kalshi_factset_revenue_surprise_panel.csv"),
 ))

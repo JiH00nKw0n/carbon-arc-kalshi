@@ -20,17 +20,21 @@ __all__ = ["TOOL_DEFS", "make_tool_dispatch"]
 _COMPANY_PROFILE = "get_company_profile"
 _ALT_DATA_DESCRIPTION = "get_alt_data_description"
 
+# `strict: true` + `additionalProperties: false` are required for tools used alongside the
+# structured-output `.parse()` helper (the SDK's _validate_input_tools rejects non-strict tools).
 TOOL_DEFS = [
     {"type": "function", "function": {
         "name": _COMPANY_PROFILE,
         "description": "Look up the public FMP company-profile description for the company being "
                        "analyzed (business model, sector, what drives its revenue).",
-        "parameters": {"type": "object", "properties": {}, "required": []}}},
+        "strict": True,
+        "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}}},
     {"type": "function", "function": {
         "name": _ALT_DATA_DESCRIPTION,
         "description": "Look up Carbon Arc's official description of the alternative-data source "
                        "used as the X input for this company (what it measures, coverage, method).",
-        "parameters": {"type": "object", "properties": {}, "required": []}}},
+        "strict": True,
+        "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}}},
 ]
 
 

@@ -14,9 +14,11 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, Protocol
 
+import httpx
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from pydantic import BaseModel
@@ -32,6 +34,21 @@ __all__ = [
 PRICING = {"short": {"in": 5.0, "cached": 0.5, "out": 30.0},
            "long":  {"in": 10.0, "cached": 1.0, "out": 45.0}}
 LONG_CTX_THRESHOLD = 272_000
+
+# Per-request timeout (s). Real calls finish in 4-40s even under concurrency; without a timeout a
+# single hung gateway connection blocks the whole asyncio.gather forever (a stalled cell). On timeout
+# the retry loop re-issues the call, so a rare hang costs one retry instead of the entire run.
+_REQUEST_TIMEOUT = 120.0
+
+
+def _http_client() -> httpx.AsyncClient:
+    """Fresh-connection HTTP client (keep-alive disabled). A laptop sleep silently kills the pooled
+    TCP/TLS connections; with keep-alive on, httpx re-hands those dead sockets to every retry and the
+    run hangs forever after resume. max_keepalive_connections=0 dials a fresh connection per request,
+    so the run self-recovers from sleep — at the cost of one handshake per call."""
+    return httpx.AsyncClient(
+        timeout=httpx.Timeout(_REQUEST_TIMEOUT, connect=15.0),
+        limits=httpx.Limits(max_keepalive_connections=0, max_connections=64))
 
 SYS = (
     "You are an equity revenue-surprise nowcaster. You only see information available BEFORE the "
@@ -89,6 +106,40 @@ class LLMClient(Protocol):
     async def predict_structured(self, request: LLMRequest) -> LLMResult: ...
 
 
+def _read_env_file(path) -> dict:
+    values: dict = {}
+    try:
+        for raw in Path(path).read_text().splitlines():
+            s = raw.strip()
+            if s and not s.startswith("#") and "=" in s:
+                k, v = s.split("=", 1)
+                values[k.replace("export ", "").strip()] = v.strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return values
+
+
+def _make_client() -> AsyncOpenAI:
+    """OpenAI-direct when OPENAI_API_KEY is set; otherwise the Linq LLM gateway.
+
+    The gateway base_url/key resolve from the environment or the sibling mcp-server/.env, so the
+    pipeline runs on machines where only the gateway (not a raw OpenAI key) is provisioned. Falls
+    back to a keyless AsyncOpenAI so the openai SDK raises its own clear auth error if neither exists.
+    """
+    if os.getenv("OPENAI_API_KEY"):
+        return AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), http_client=_http_client())
+    root = Path(__file__).resolve().parents[2]
+    env: dict = {}
+    for p in (root / ".env", root.parent / "mcp-server" / ".env", root.parent / "agent-server" / ".env"):
+        env.update(_read_env_file(p))
+    url = (os.getenv("LLM_GATEWAY_URL") or env.get("LLM_GATEWAY_URL") or "").rstrip("/")
+    key = os.getenv("LLM_GATEWAY_API_KEY") or env.get("LLM_GATEWAY_API_KEY")
+    if url and key:
+        return AsyncOpenAI(api_key=key, base_url=f"{url}/v1", http_client=_http_client(),
+                           default_headers={"x-gw-server": "carbon-arc-kalshi", "x-gw-feature": "prediction"})
+    return AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=_REQUEST_TIMEOUT)
+
+
 @register_llm("openai")
 class OpenAIStructuredClient:
     """AsyncOpenAI structured-parse client: shared semaphore + backoff retry, cost per call."""
@@ -96,7 +147,7 @@ class OpenAIStructuredClient:
     def __init__(self, config: LLMConfig):
         self._config = config
         load_dotenv()                                     # load .env from the project root if present
-        self._client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self._client = _make_client()
         self._semaphore: Optional[asyncio.Semaphore] = None
 
     async def predict_structured(self, request: LLMRequest) -> LLMResult:

@@ -149,6 +149,7 @@ async def _run_all(experiment: Experiment, force: bool) -> None:
     for rep in range(experiment.cfg.run.reps):
         seed = experiment.cfg.seed + rep
         set_seeds(seed)
+        experiment.store._seed = seed          # persist each rep in its own seed dir (reps must not overwrite)
         for cell in expand(experiment.cfg):
             await _run_cell(experiment, cell, seed, force)
 
@@ -235,22 +236,29 @@ def _render_cell(cell: Cell, targets, context: _CellContext, run_cfg, render_dir
 
 # --------------------------------------------------------------------------- evaluation frame
 def _evaluate_cell(cfg, cell, panel, preds, context, seed) -> EvalResult:
-    features = _feature_table(panel, context.transcripts, context.y_target)
+    features = _feature_table(panel, context.transcripts, context.y_target, context.channel.kind)
     train, test = _train_test(features, preds, cfg.run.cutoff)
     _assert_matched(test, cfg.evaluate.synergy_arms)
     base = _baseline_predictions(train, test, cfg.grid.baselines)
     return _build_result(cell, test, base, cfg.evaluate, seed)
 
 
-def _feature_table(panel: pd.DataFrame, transcripts: _Transcripts, y_target) -> pd.DataFrame:
-    """The f1_22_eval event table, Y-parameterized: tkr/ticker, true, x_yoy, lag_y, sent, report."""
+def _feature_table(panel: pd.DataFrame, transcripts: _Transcripts, y_target,
+                   kind: str = "scalar") -> pd.DataFrame:
+    """The f1_22_eval event table, Y-parameterized: tkr/ticker, true, x_yoy, lag_y, sent, report.
+
+    A single-snapshot ladder channel has no dense scalar YoY (x_yoy is undefined for every quarter),
+    so dropping on it would empty the frame; the ladder path keeps every quarter with a label and
+    fills x_yoy with a neutral 0 (the ladder itself reaches the LLM via x_payload, not this scalar).
+    Scalar channels are unchanged — their x_yoy is dense, so the fill is a no-op after the dropna."""
     frame = panel.copy()
     frame["FE_FP_END"] = pd.to_datetime(frame["FE_FP_END"])
     frame["REPORT_DATE"] = pd.to_datetime(frame["REPORT_DATE"])
     frame = frame.sort_values(["ticker", "FE_FP_END"])
     frame["true"] = frame[y_target.true_col]
     frame["lag_y"] = lag_y(frame, y_target.true_col)
-    frame = frame.dropna(subset=["x_yoy", "true"]).copy()
+    frame = frame.dropna(subset=(["true"] if kind == "ladder" else ["x_yoy", "true"])).copy()
+    frame["x_yoy"] = frame["x_yoy"].fillna(0.0)
     frame["sent"] = [_row_sentiment(transcripts, row.ticker, row.REPORT_DATE)
                      for row in frame.itertuples()]
     frame["sent"] = frame["sent"].fillna(0.0)
@@ -279,6 +287,7 @@ def _train_test(features: pd.DataFrame, preds: pd.DataFrame, cutoff) -> tuple[pd
     test["lag_y"] = test["lag_y"].fillna(fill)
     test["sent"] = test["sent"].fillna(0.0)
     test["ticker"] = test["tkr"]
+    test["x_yoy"] = test["x_yoy"].fillna(0.0)   # ladder targets carry no scalar YoY; 0 is neutral, no-op for scalars
     for frame in (train, test):
         frame["x_sent"] = frame["x_yoy"] * frame["sent"]
     return train, test
