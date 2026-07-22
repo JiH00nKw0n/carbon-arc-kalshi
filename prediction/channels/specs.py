@@ -12,7 +12,7 @@ from typing import Optional
 
 from prediction.registry import Registry, register_channel
 
-ROOT = Path("/Users/junekwon/Desktop/Projects/carbon_arc")
+ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "factor1" / "data"
 
 # --- web: FactSet regional-id -> ticker (38), resolved via stock_server_query 2026-06-27 ---
@@ -99,6 +99,10 @@ class ChannelSpec:
     screen_dt: str
     x_table_label: str
     x_unit: str
+    # --- extension hooks (default = the scalar carbon-arc channel; Kalshi overrides) ---
+    kind: str = "scalar"          # "scalar" (card/web/foot) | "ladder" (kalshi)
+    ladder_panel: str = ""        # ladder-channel X source: pre-publication leak-safe ladder panel CSV
+    revenue_panel: str = ""       # ladder-channel Y source: full FactSet revenue-history CSV
 
 
 register_channel(ChannelSpec(

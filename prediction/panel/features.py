@@ -17,7 +17,7 @@ from prediction.errors import DataUnavailableError
 
 __all__ = ["sentiment", "lag_y", "x_sent"]
 
-ROOT = Path("/Users/junekwon/Desktop/Projects/carbon_arc")
+ROOT = Path(__file__).resolve().parents[2]
 LEXICON = ROOT / "lm_sentiment.json"
 _STRIP = ".,;:!?()'\""
 

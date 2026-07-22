@@ -22,10 +22,17 @@ class RevenueRecord:
 
 @dataclass(frozen=True)
 class AltPoint:
-    """One alt-data observation (card spend / web users / foot visits) for a ticker."""
+    """One alt-data observation for a ticker.
+
+    `value` is the scalar the panel/baselines consume (x_abs -> x_yoy). `x_payload` optionally
+    carries a richer object serialized as a string — for the Kalshi channel it is the raw
+    pre-publication market ladder (a distribution), which the LLM prompt renders in full while
+    the scalar still feeds x_yoy. None for the scalar channels (card/web/foot).
+    """
     ticker: str
     date: date
     value: float
+    x_payload: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -54,6 +61,7 @@ class PanelRow:
     rev_yoy: Optional[float]
     lag_surprise: Optional[float]
     strength: Optional[str]
+    x_payload: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -70,6 +78,7 @@ class Target:
     text: Optional[str]
     text2: Optional[str]
     call_path: str
+    x_payload: Optional[str] = None
 
 
 @dataclass(frozen=True)

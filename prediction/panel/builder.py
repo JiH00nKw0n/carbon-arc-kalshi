@@ -18,7 +18,7 @@ from prediction.errors import DataUnavailableError
 
 __all__ = ["build_panel"]
 
-ROOT = Path("/Users/junekwon/Desktop/Projects/carbon_arc")
+ROOT = Path(__file__).resolve().parents[2]
 SCREEN = ROOT / "factor1" / "data" / "altdata_ticker_screen.csv"
 
 _COLUMNS = [

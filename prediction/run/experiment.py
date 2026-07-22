@@ -99,9 +99,16 @@ class PanelCache:
         return self._cache[channel.name]
 
     def _build(self, channel: ChannelSpec, path: Path) -> pd.DataFrame:
-        revenue = FactSetJsonSource(channel).records()
-        alt = CarbonArcCsvSource(channel).points()
-        panel = build_panel(channel, revenue, alt)
+        if channel.kind == "ladder":
+            from prediction.data.kalshi_source import KalshiRevenueSource, KalshiLadderSource
+            from prediction.panel.ladder_builder import build_ladder_panel
+            revenue = KalshiRevenueSource(channel).records()
+            alt = KalshiLadderSource(channel).points()
+            panel = build_ladder_panel(channel, revenue, alt)
+        else:
+            revenue = FactSetJsonSource(channel).records()
+            alt = CarbonArcCsvSource(channel).points()
+            panel = build_panel(channel, revenue, alt)
         panel.to_csv(path, index=False)
         return panel
 
