@@ -20,21 +20,18 @@ __all__ = ["TOOL_DEFS", "make_tool_dispatch"]
 _COMPANY_PROFILE = "get_company_profile"
 _ALT_DATA_DESCRIPTION = "get_alt_data_description"
 
-# `strict: true` + `additionalProperties: false` are required for tools used alongside the
-# structured-output `.parse()` helper (the SDK's _validate_input_tools rejects non-strict tools).
+# Responses-API tool schema (flat: no nested "function" wrapper). gpt-5.5 only accepts function tools
+# alongside reasoning on /v1/responses, so the TOOL variant runs through the Responses path in
+# llm_client; `strict` + `additionalProperties:false` keep the (no-arg) schema valid for auto-parse.
 TOOL_DEFS = [
-    {"type": "function", "function": {
-        "name": _COMPANY_PROFILE,
-        "description": "Look up the public FMP company-profile description for the company being "
-                       "analyzed (business model, sector, what drives its revenue).",
-        "strict": True,
-        "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}}},
-    {"type": "function", "function": {
-        "name": _ALT_DATA_DESCRIPTION,
-        "description": "Look up Carbon Arc's official description of the alternative-data source "
-                       "used as the X input for this company (what it measures, coverage, method).",
-        "strict": True,
-        "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}}},
+    {"type": "function", "name": _COMPANY_PROFILE, "strict": True,
+     "description": "Look up the public FMP company-profile description for the company being "
+                    "analyzed (business model, sector, what drives its revenue).",
+     "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}},
+    {"type": "function", "name": _ALT_DATA_DESCRIPTION, "strict": True,
+     "description": "Look up Carbon Arc's official description of the alternative-data source "
+                    "used as the X input for this company (what it measures, coverage, method).",
+     "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False}},
 ]
 
 

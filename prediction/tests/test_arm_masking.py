@@ -71,7 +71,7 @@ def test_tool_dispatch_serves_profile_and_dataset(card_channel, descriptions):
 
     provider = _ChannelBoundDescriptions(descriptions, card_channel.name)
     dispatch = make_tool_dispatch(provider, "AAA")
-    names = {t["function"]["name"] for t in TOOL_DEFS}
+    names = {t["name"] for t in TOOL_DEFS}   # Responses-API flat tool schema (no nested "function")
     assert names == {"get_company_profile", "get_alt_data_description"}
     assert PROFILE_MARKER in dispatch("get_company_profile", {})
     assert DATASET_MARKER in dispatch("get_alt_data_description", {})

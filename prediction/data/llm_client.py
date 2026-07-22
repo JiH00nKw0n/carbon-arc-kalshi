@@ -69,6 +69,16 @@ def gpt5_cost(usage) -> float:
     return (max(pin - cached, 0) * tier["in"] + cached * tier["cached"] + pout * tier["out"]) / 1e6
 
 
+def gpt5_cost_responses(usage) -> float:
+    """gpt5_cost for a Responses-API usage object (input_tokens / output_tokens / cached_tokens)."""
+    pin = getattr(usage, "input_tokens", 0) or 0
+    pout = getattr(usage, "output_tokens", 0) or 0
+    details = getattr(usage, "input_tokens_details", None)
+    cached = (getattr(details, "cached_tokens", 0) or 0) if details is not None else 0
+    tier = PRICING["long" if pin > LONG_CTX_THRESHOLD else "short"]
+    return (max(pin - cached, 0) * tier["in"] + cached * tier["cached"] + pout * tier["out"]) / 1e6
+
+
 @dataclass(frozen=True)
 class LLMConfig:
     """Everything the client needs: model, reasoning effort, retry budget, concurrency gate size."""
@@ -165,26 +175,42 @@ class OpenAIStructuredClient:
         return LLMResult(parsed=None, cost_usd=0.0)
 
     async def _parse_once(self, request: LLMRequest) -> LLMResult:
-        """One structured parse; when the request carries tools, loop tool_call -> tool_result first.
-
-        The transcript accumulates across rounds so the model sees each tool result. A round that
-        returns a parsed schema object ends the loop; a round that only calls tools feeds their
-        results back and continues, up to ``max_tool_rounds``.
-        """
+        """One structured parse. BASE (no tools) uses chat.completions; the TOOL variant routes to the
+        Responses API, because gpt-5.5 rejects function tools + reasoning_effort on chat.completions."""
+        if request.tools:
+            return await self._parse_once_responses(request)
         messages = [{"role": "system", "content": request.system},
                     {"role": "user", "content": request.user}]
-        rounds = self._config.max_tool_rounds if request.tools else 1
+        completion = await self._parse_call(request, messages)
+        cost = gpt5_cost(completion.usage)
+        parsed = completion.choices[0].message.parsed
+        return LLMResult(parsed=parsed, cost_usd=cost)
+
+    async def _parse_once_responses(self, request: LLMRequest) -> LLMResult:
+        """TOOL variant on /v1/responses: loop function_call -> function_call_output before the parse.
+
+        The org runs Zero-Data-Retention, so ``previous_response_id`` is unavailable — the conversation
+        is carried statelessly by growing ``input`` with each round's function calls and their outputs
+        (reasoning items are not resent). A round with a parsed schema object ends the loop; up to
+        ``max_tool_rounds`` rounds. The prompt is byte-identical to BASE — only the tools differ."""
+        input_items: list = [{"role": "user", "content": request.user}]
         cost = 0.0
-        for _ in range(rounds):
-            completion = await self._parse_call(request, messages)
-            cost += gpt5_cost(completion.usage)
-            message = completion.choices[0].message
-            if message.parsed is not None:
-                return LLMResult(parsed=message.parsed, cost_usd=cost)
-            if message.tool_calls and request.dispatch is not None:
-                _append_tool_exchange(messages, message, request.dispatch)
-                continue
-            break
+        for _ in range(self._config.max_tool_rounds):
+            resp = await self._client.responses.parse(
+                model=self._config.model, instructions=request.system, input=input_items,
+                text_format=request.schema, reasoning={"effort": self._config.effort},
+                tools=request.tools)
+            cost += gpt5_cost_responses(resp.usage)
+            if resp.output_parsed is not None:
+                return LLMResult(parsed=resp.output_parsed, cost_usd=cost)
+            calls = [it for it in resp.output if getattr(it, "type", None) == "function_call"]
+            if not calls or request.dispatch is None:
+                break
+            for c in calls:                                   # echo the call, then feed its result back
+                input_items.append({"type": "function_call", "call_id": c.call_id,
+                                    "name": c.name, "arguments": c.arguments})
+                input_items.append({"type": "function_call_output", "call_id": c.call_id,
+                                    "output": str(request.dispatch(c.name, json.loads(c.arguments or "{}")))})
         return LLMResult(parsed=None, cost_usd=cost)
 
     async def _parse_call(self, request: LLMRequest, messages: list[dict]):
