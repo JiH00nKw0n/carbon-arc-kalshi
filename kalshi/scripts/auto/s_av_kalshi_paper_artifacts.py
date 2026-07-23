@@ -277,6 +277,8 @@ def accuracy(records: list[dict]) -> tuple[pd.DataFrame, pd.DataFrame]:
             "n": len(preds),
             "analyst_rmse": float(np.sqrt(np.mean(truth ** 2))),
             "method_rmse": float(np.sqrt(np.mean((model - truth) ** 2))),
+            "analyst_mae": float(np.mean(np.abs(truth))),
+            "method_mae": float(np.mean(np.abs(model - truth))),
             "method_wins": int((np.abs(model - truth) < np.abs(truth)).sum()),
             "win_rate_pct": float(np.mean(np.abs(model - truth) < np.abs(truth)) * 100.0),
         })
@@ -287,6 +289,8 @@ def accuracy(records: list[dict]) -> tuple[pd.DataFrame, pd.DataFrame]:
             n=("n", "first"),
             analyst_rmse=("analyst_rmse", "mean"),
             method_rmse=("method_rmse", "mean"),
+            analyst_mae=("analyst_mae", "mean"),
+            method_mae=("method_mae", "mean"),
             win_rate_pct=("win_rate_pct", "mean"),
         )
     )
@@ -843,7 +847,7 @@ def render_tables(mean_metrics: pd.DataFrame, synergy_by_cell: dict, screen: pd.
         row = metric_lookup(mean_metrics, "rev_yoy", "TOOL", model)
         synergy_rows.append(
             f"{label} & {row['r2']:.3f} & {row['calib_r2']:.3f} & "
-            f"{row['corr']:.3f} \\\\"
+            f"{row['corr']:.3f} & {row['mae']:.3f} \\\\"
         )
     corr = synergy["syn_corr"]
     skill = synergy["syn_skill"]
@@ -859,14 +863,14 @@ def render_tables(mean_metrics: pd.DataFrame, synergy_by_cell: dict, screen: pd.
 Point estimates average three independent runs. Confidence intervals pool the
 company-clustered bootstrap draws from all three runs.}
 \label{tab:kalshi_synergy}
-\begin{tabular}{lccc}
+\begin{tabular}{lcccc}
 \toprule
-Sources & $R^2$ & $R^2$ (Calib.) & $\rho$ \\
+Sources & $R^2$ & $R^2$ (Calib.) & $\rho$ & MAE \\
 \midrule
 """ + "\n".join(synergy_rows) + r"""
 \midrule
-Corr. synergy & \multicolumn{3}{c}{""" + corr_text + r"""} \\
-MSE-skill synergy & \multicolumn{3}{c}{""" + skill_text + r"""} \\
+Corr. synergy & \multicolumn{4}{c}{""" + corr_text + r"""} \\
+MSE-skill synergy & \multicolumn{4}{c}{""" + skill_text + r"""} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -889,19 +893,19 @@ MSE-skill synergy & \multicolumn{3}{c}{""" + skill_text + r"""} \\
         if len(available):
             row = available.iloc[0]
             baseline_rows.append(
-                f"{label} & {row['r2']:.3f} & {row['corr']:.3f} \\\\"
+                f"{label} & {row['r2']:.3f} & {row['corr']:.3f} & {row['mae']:.3f} \\\\"
             )
         else:
-            baseline_rows.append(f"{label} & N/A & N/A \\\\")
+            baseline_rows.append(f"{label} & N/A & N/A & N/A \\\\")
     baselines_tex = r"""\begin{table}[t]
 \centering
 \caption{\textbf{Kalshi revenue-YoY baselines.}
 N/A denotes a baseline that requires a dense scalar $X$; Kalshi is supplied as a raw
 variable-length probability ladder and is not scalarized. Point estimates average three runs.}
 \label{tab:kalshi_baselines}
-\begin{tabular}{lcc}
+\begin{tabular}{lccc}
 \toprule
-Method & $R^2$ & $\rho$ \\
+Method & $R^2$ & $\rho$ & MAE \\
 \midrule
 """ + "\n".join(baseline_rows) + r"""
 \bottomrule
@@ -914,18 +918,18 @@ Method & $R^2$ & $\rho$ \\
     tool = metric_lookup(mean_metrics, "rev_yoy", "TOOL", HEADLINE)
     tool_rows = (
         f"Without tool use & {base['r2']:.3f} & {base['calib_r2']:.3f} & "
-        f"{base['corr']:.3f} \\\\\n"
+        f"{base['corr']:.3f} & {base['mae']:.3f} \\\\\n"
         f"With tool use & {tool['r2']:.3f} & {tool['calib_r2']:.3f} & "
-        f"{tool['corr']:.3f} \\\\"
+        f"{tool['corr']:.3f} & {tool['mae']:.3f} \\\\"
     )
     tool_tex = r"""\begin{table}[t]
 \centering
 \caption{\textbf{Effect of tool use for the Kalshi channel on revenue-YoY prediction.}
 Point estimates average three independent runs.}
 \label{tab:kalshi_tool_use}
-\begin{tabular}{lccc}
+\begin{tabular}{lcccc}
 \toprule
-Setting & $R^2$ & $R^2$ (Calib.) & $\rho$ \\
+Setting & $R^2$ & $R^2$ (Calib.) & $\rho$ & MAE \\
 \midrule
 """ + tool_rows + r"""
 \bottomrule
@@ -1031,7 +1035,7 @@ def render_report(cfg, seeds, manifest, calls, accuracy_mean, synergy_by_cell, c
     metric_lines = [
         f"| {arm_labels[arm]} | {rev_tool.loc[arm, 'rmse']:.3f} | "
         f"{rev_tool.loc[arm, 'r2']:.3f} | {rev_tool.loc[arm, 'calib_r2']:.3f} | "
-        f"{rev_tool.loc[arm, 'corr']:.3f} |"
+        f"{rev_tool.loc[arm, 'corr']:.3f} | {rev_tool.loc[arm, 'mae']:.3f} |"
         for arm in ARMS
     ]
     metric_table = "\n".join(metric_lines)
@@ -1101,7 +1105,7 @@ screening funnel, not a replacement result for the paper's scalar-X correlation 
 | Y: latest surprise | `(actual revenue - latest pre-report consensus) / latest consensus` |
 | Y: revenue YoY | `(actual revenue - prior-year revenue) / prior-year revenue` |
 | Row matching | Every H/H+X/H+Z/H+X+Z arm and BASE/TOOL variant uses the same target rows |
-| Primary metrics | RMSE in percentage points, OOS R-squared, calibrated OOS R-squared and Pearson correlation |
+| Primary metrics | RMSE and MAE in percentage points, OOS R-squared, calibrated OOS R-squared and Pearson correlation |
 
 `H quarters shown` counts prior financial rows rendered in the prompt. `Prior X ladder quarters
 shown` counts historical Kalshi ladders rendered before the target-quarter ladder. `Prior calls`
@@ -1146,18 +1150,19 @@ remain available because they do not require scalarizing X.
 
 ## Analyst Accuracy
 
-| Consensus snapshot | Analyst RMSE | Kalshi method RMSE | Win rate |
-|---|---:|---:|---:|
-| Early | {early.analyst_rmse:.3f} | {early.method_rmse:.3f} | {early.win_rate_pct:.1f}% |
-| Latest pre-report | {latest.analyst_rmse:.3f} | {latest.method_rmse:.3f} | {latest.win_rate_pct:.1f}% |
+| Consensus snapshot | Analyst RMSE | Method RMSE | Analyst MAE | Method MAE | Win rate |
+|---|---:|---:|---:|---:|---:|
+| Early | {early.analyst_rmse:.3f} | {early.method_rmse:.3f} | {early.analyst_mae:.3f} | {early.method_mae:.3f} | {early.win_rate_pct:.1f}% |
+| Latest pre-report | {latest.analyst_rmse:.3f} | {latest.method_rmse:.3f} | {latest.analyst_mae:.3f} | {latest.method_mae:.3f} | {latest.win_rate_pct:.1f}% |
 
-Values are arithmetic means of the three per-repetition metrics. The Kalshi method is the
-paper-consistent `TOOL / H+X+Z` arm; analyst consensus predicts zero surprise.
+Values are arithmetic means of the three per-repetition metrics. RMSE and MAE are in revenue-target
+percentage points and lower is better. The Kalshi method is the paper-consistent `TOOL / H+X+Z`
+arm; analyst consensus predicts zero surprise.
 
 ## Revenue-YoY Results
 
-| Sources | RMSE | OOS R-squared | Calibrated R-squared | Correlation |
-|---|---:|---:|---:|---:|
+| Sources | RMSE | OOS R-squared | Calibrated R-squared | Correlation | MAE |
+|---|---:|---:|---:|---:|---:|
 {metric_table}
 
 The best point-estimate RMSE is H+X, not the full H+X+Z arm. The full arm remains the predefined

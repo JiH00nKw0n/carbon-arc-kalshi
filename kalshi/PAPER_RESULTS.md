@@ -59,7 +59,7 @@ screening funnel, not a replacement result for the paper's scalar-X correlation 
 | Y: latest surprise | `(actual revenue - latest pre-report consensus) / latest consensus` |
 | Y: revenue YoY | `(actual revenue - prior-year revenue) / prior-year revenue` |
 | Row matching | Every H/H+X/H+Z/H+X+Z arm and BASE/TOOL variant uses the same target rows |
-| Primary metrics | RMSE in percentage points, OOS R-squared, calibrated OOS R-squared and Pearson correlation |
+| Primary metrics | RMSE and MAE in percentage points, OOS R-squared, calibrated OOS R-squared and Pearson correlation |
 
 `H quarters shown` counts prior financial rows rendered in the prompt. `Prior X ladder quarters
 shown` counts historical Kalshi ladders rendered before the target-quarter ladder. `Prior calls`
@@ -119,22 +119,23 @@ remain available because they do not require scalarizing X.
 
 ## Analyst Accuracy
 
-| Consensus snapshot | Analyst RMSE | Kalshi method RMSE | Win rate |
-|---|---:|---:|---:|
-| Early | 4.644 | 3.517 | 55.6% |
-| Latest pre-report | 3.911 | 3.585 | 54.0% |
+| Consensus snapshot | Analyst RMSE | Method RMSE | Analyst MAE | Method MAE | Win rate |
+|---|---:|---:|---:|---:|---:|
+| Early | 4.644 | 3.517 | 3.060 | 2.422 | 55.6% |
+| Latest pre-report | 3.911 | 3.585 | 2.692 | 2.452 | 54.0% |
 
-Values are arithmetic means of the three per-repetition metrics. The Kalshi method is the
-paper-consistent `TOOL / H+X+Z` arm; analyst consensus predicts zero surprise.
+Values are arithmetic means of the three per-repetition metrics. RMSE and MAE are in revenue-target
+percentage points and lower is better. The Kalshi method is the paper-consistent `TOOL / H+X+Z`
+arm; analyst consensus predicts zero surprise.
 
 ## Revenue-YoY Results
 
-| Sources | RMSE | OOS R-squared | Calibrated R-squared | Correlation |
-|---|---:|---:|---:|---:|
-| H | 8.923 | 0.791 | 0.760 | 0.893 |
-| H+X | 5.165 | 0.930 | 0.923 | 0.970 |
-| H+Z | 6.056 | 0.904 | 0.890 | 0.959 |
-| H+X+Z | 5.744 | 0.913 | 0.912 | 0.967 |
+| Sources | RMSE | OOS R-squared | Calibrated R-squared | Correlation | MAE |
+|---|---:|---:|---:|---:|---:|
+| H | 8.923 | 0.791 | 0.760 | 0.893 | 6.738 |
+| H+X | 5.165 | 0.930 | 0.923 | 0.970 | 3.927 |
+| H+Z | 6.056 | 0.904 | 0.890 | 0.959 | 4.184 |
+| H+X+Z | 5.744 | 0.913 | 0.912 | 0.967 | 3.910 |
 
 The best point-estimate RMSE is H+X, not the full H+X+Z arm. The full arm remains the predefined
 headline method so that reporting stays symmetric with the paper design.

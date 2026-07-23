@@ -120,6 +120,25 @@ def test_repair_reconstructs_one_matched_target_row():
     ) == pytest.approx(10.0)
 
 
+def test_accuracy_reports_analyst_and_method_mae():
+    records = [{
+        "seed": 2026,
+        "y": "surprise_early",
+        "variant": "TOOL",
+        "preds": pd.DataFrame({
+            "true": [0.10, -0.20],
+            artifacts.HEADLINE: [8.0, -15.0],
+        }),
+    }]
+
+    per_rep, mean = artifacts.accuracy(records)
+
+    assert per_rep.iloc[0]["analyst_mae"] == pytest.approx(15.0)
+    assert per_rep.iloc[0]["method_mae"] == pytest.approx(3.5)
+    assert mean.iloc[0]["analyst_mae"] == pytest.approx(15.0)
+    assert mean.iloc[0]["method_mae"] == pytest.approx(3.5)
+
+
 def test_paper_renderers_write_html_and_latex(tmp_path, monkeypatch):
     figures = tmp_path / "figures"
     tables = tmp_path / "tables"
@@ -205,6 +224,8 @@ def test_paper_renderers_write_html_and_latex(tmp_path, monkeypatch):
     assert "Screening rationale" in (figures / "kalshi_screen_figure.html").read_text()
     assert "N/A" in (tables / "kalshi_baselines.tex").read_text()
     assert "three independent runs" in (tables / "kalshi_tool.tex").read_text()
+    for name in ("kalshi_synergy.tex", "kalshi_baselines.tex", "kalshi_tool.tex"):
+        assert "MAE" in (tables / name).read_text()
     assert "Latest-consensus revenue surprise" in (
         tables / "kalshi_full_grid.tex"
     ).read_text()
