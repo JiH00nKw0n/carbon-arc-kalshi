@@ -10,9 +10,10 @@ Generalizes factor1's ``prompt_versions._periods / _timeline_body / _tl_row / TL
 * earnings-call transcripts interleave (each call before the quarter it guided) only when
   ``"text"`` is in the arm's blocks.
 
-The body is deliberately Y-neutral: it shows the leakage-free EARLY consensus/surprise for every
-target, and the Y-specific ask is appended by the prompt variant. This keeps the (channel, arm)
-timeline byte-identical across the three Y targets and across BASE/TOOL (which share one prompt).
+Jihoon's main protocol keeps the timeline Y-neutral and always shows leakage-safe early
+consensus/surprise. The manuscript protocol preserves that layout for the two surprise targets but
+uses its dedicated revenue/YoY-only timeline for ``rev_yoy``. BASE and TOOL remain byte-identical
+within a fixed target and arm.
 """
 from __future__ import annotations
 
@@ -69,18 +70,22 @@ def _target_period(r) -> dict:
 
 # ---------- timeline body (arm-aware assembly) ----------
 def timeline_body(target, transcript_store, channel_spec, y_target,
-                  arm_blocks, n_calls: int, hist_rows: int = HIST_ROWS) -> str:
+                  arm_blocks, n_calls: int, hist_rows: int = HIST_ROWS,
+                  prompt_protocol: str = "jihoon_main") -> str:
     """Neutral header + interleaved TIMELINE table (call, then that quarter's row).
 
     ``arm_blocks`` (a set/frozenset over {fin, x, text}) drives what renders: x columns iff
     ``"x"`` in it, interleaved transcripts iff ``"text"`` in it; ``fin`` is always present.
-    ``y_target`` is accepted for a uniform block-builder signature but not branched on — the body
-    is Y-neutral (the variant appends the Y-specific ask).
+    Under ``jihoon_main`` the body is Y-neutral. Under ``paper``, ``rev_yoy`` uses the manuscript's
+    revenue/YoY-only columns while the surprise targets retain consensus/surprise columns.
     """
     if getattr(channel_spec, "kind", "scalar") == "ladder":
-        return _ladder_body(target, transcript_store, arm_blocks, n_calls, hist_rows)
+        return _ladder_body(
+            target, transcript_store, y_target, arm_blocks, n_calls, hist_rows, prompt_protocol
+        )
     ps = periods(target, hist_rows)
     show_x = "x" in arm_blocks
+    paper_yoy = _is_paper_yoy(y_target, prompt_protocol)
     calls = transcript_store.prior_calls(target.ticker, target.report, n_calls) \
         if "text" in arm_blocks else []
     guided = _assign_calls(calls, ps)
@@ -88,16 +93,17 @@ def timeline_body(target, transcript_store, channel_spec, y_target,
     lines = [_TITLE]
     if show_x:
         lines.append(f"[alt-data columns: {channel_spec.x_table_label}]")
-    lines.extend(_table_header(channel_spec, show_x))
+    lines.extend(_table_header(channel_spec, show_x, paper_yoy))
     for i, p in enumerate(ps):
         if i in guided:
             lines.append("\n" + _call_block(guided[i], transcript_store))
-        lines.append(_row(p, show_x))
+        lines.append(_row(p, show_x, paper_yoy))
     return _HEADER.format(tkr=target.ticker, q=target.fp) + "\n".join(lines)
 
 
-def _table_header(channel_spec, show_x: bool) -> list[str]:
-    cols = ["quarter", *(_x_headers(channel_spec) if show_x else ()), *_FIN_COLS]
+def _table_header(channel_spec, show_x: bool, paper_yoy: bool = False) -> list[str]:
+    fin_cols = ("revenue ($M)", "revenue YoY") if paper_yoy else _FIN_COLS
+    cols = ["quarter", *(_x_headers(channel_spec) if show_x else ()), *fin_cols]
     return ["| " + " | ".join(cols) + " |", "|---" * len(cols) + "|"]
 
 
@@ -107,10 +113,15 @@ def _x_headers(channel_spec) -> tuple[str, str]:
     return f"{base} (M)", channel_spec.x_unit
 
 
-def _row(p: dict, show_x: bool) -> str:
+def _row(p: dict, show_x: bool, paper_yoy: bool = False) -> str:
     cells = [f"{p['q']}"]
     if show_x:
         cells += [f"{p['x_m']:,.1f}", f"{p['x_yoy']:+.1f}%"]
+    if paper_yoy:
+        cells += ["???", "PREDICT <-"] if p["target"] else [
+            f"{p['rev_m']:,.0f}", _pct(p["rev_yoy"])
+        ]
+        return "| " + " | ".join(cells) + " |"
     if p["target"]:
         cells += ["???", "n/a", f"{p['cons_m']:,.0f}", "PREDICT ←"]
     else:
@@ -120,7 +131,8 @@ def _row(p: dict, show_x: bool) -> str:
 
 
 # ---------- ladder channel (Kalshi): fin timeline + a distribution block, not scalar x columns ----------
-def _ladder_body(target, transcript_store, arm_blocks, n_calls: int, hist_rows: int) -> str:
+def _ladder_body(target, transcript_store, y_target, arm_blocks, n_calls: int, hist_rows: int,
+                 prompt_protocol: str) -> str:
     """Chronological financial timeline with each quarter's raw ladder beside that quarter.
 
     The scalar path couples the history to a non-null x_yoy; a ladder channel's x_yoy is usually
@@ -131,13 +143,15 @@ def _ladder_body(target, transcript_store, arm_blocks, n_calls: int, hist_rows: 
     calls = transcript_store.prior_calls(target.ticker, target.report, n_calls) \
         if "text" in arm_blocks else []
     guided = _assign_calls(calls, ps)
+    paper_yoy = _is_paper_yoy(y_target, prompt_protocol)
+    fin_cols = ("revenue ($M)", "revenue YoY") if paper_yoy else _FIN_COLS
     lines = [_TITLE]
-    lines.append("| " + " | ".join(("quarter", *_FIN_COLS)) + " |")
-    lines.append("|---" * (len(_FIN_COLS) + 1) + "|")
+    lines.append("| " + " | ".join(("quarter", *fin_cols)) + " |")
+    lines.append("|---" * (len(fin_cols) + 1) + "|")
     for i, p in enumerate(ps):
         if i in guided:
             lines.append("\n" + _call_block(guided[i], transcript_store))
-        lines.append(_ladder_fin_row(p))
+        lines.append(_ladder_fin_row(p, paper_yoy))
         if "x" in arm_blocks and p["x_payload"]:
             lines.append(_ladder_block(p["x_payload"], f"quarter {p['q']}"))
     return _HEADER.format(tkr=target.ticker, q=target.fp) + "\n".join(lines)
@@ -158,7 +172,14 @@ def _ladder_periods(target, hist_rows: int) -> list[dict]:
     return rows
 
 
-def _ladder_fin_row(p: dict) -> str:
+def _ladder_fin_row(p: dict, paper_yoy: bool = False) -> str:
+    if paper_yoy:
+        cells = (
+            [f"{p['q']}", "???", "PREDICT <-"]
+            if p["target"]
+            else [f"{p['q']}", f"{p['rev_m']:,.0f}", _pct(p["rev_yoy"])]
+        )
+        return "| " + " | ".join(cells) + " |"
     if p["target"]:
         cells = [f"{p['q']}", "???", "n/a", f"{p['cons_m']:,.0f}", "PREDICT ←"]
     else:
@@ -237,3 +258,7 @@ def _number(value, decimals: int = 2) -> str:
     if abs(number) >= 1_000:
         return f"{number:,.6g}"
     return f"{number:.{decimals}f}"
+
+
+def _is_paper_yoy(y_target, prompt_protocol: str) -> bool:
+    return prompt_protocol == "paper" and getattr(y_target, "name", None) == "rev_yoy"

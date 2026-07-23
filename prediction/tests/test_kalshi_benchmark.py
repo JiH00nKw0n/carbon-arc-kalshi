@@ -71,6 +71,37 @@ def test_kalshi_config_matches_jihoon_main_protocol():
     assert kalshi.data.screen_csv == "kalshi/data/ticker_screen.csv"
 
 
+def test_kalshi_paper_config_changes_only_run_identity_and_repeats():
+    benchmark = load(str(ROOT / "prediction/configs/kalshi_full.yaml"))
+    paper = load(str(ROOT / "prediction/configs/kalshi_paper.yaml"))
+
+    assert paper.name != benchmark.name
+    assert paper.output_dir != benchmark.output_dir
+    assert paper.data.panel_out != benchmark.data.panel_out
+    assert paper.run.model_copy(update={
+        "concurrency": benchmark.run.concurrency,
+        "reps": benchmark.run.reps,
+        "prompt_protocol": benchmark.run.prompt_protocol,
+    }) == benchmark.run
+    assert paper.run.reps == 3
+    assert paper.run.prompt_protocol == "paper"
+    assert paper.seed == benchmark.seed
+    assert paper.llm == benchmark.llm
+    assert paper.grid == benchmark.grid
+    assert paper.evaluate == benchmark.evaluate
+
+
+def test_kalshi_smoke_covers_every_paper_prompt_target():
+    smoke = load(str(ROOT / "prediction/configs/kalshi_smoke.yaml"))
+    paper = load(str(ROOT / "prediction/configs/kalshi_paper.yaml"))
+
+    assert smoke.run.limit == 1
+    assert smoke.run.prompt_protocol == "paper"
+    assert smoke.grid.targets == paper.grid.targets
+    assert smoke.grid.variants == paper.grid.variants
+    assert smoke.grid.arms == paper.grid.arms
+
+
 def test_ladders_render_in_quarter_order_with_all_frozen_fields():
     old_payload = _ladder_payload("OLD", 100)
     target_payload = _ladder_payload("TARGET", 200)

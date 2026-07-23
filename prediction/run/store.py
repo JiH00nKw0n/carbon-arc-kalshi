@@ -33,16 +33,19 @@ class ResultStore:
         self._seed = seed
 
     def done(self, cell: Cell) -> bool:
-        """True once the cell's report has been written (the idempotent skip signal)."""
-        return self._report_file(cell).exists()
+        """True only when scores, report, and lossless per-call logs all exist."""
+        directory = self._root / self._slug(cell)
+        return all((directory / name).exists()
+                   for name in ("preds.csv", "calls.jsonl", "report.md"))
 
     def report_path(self, cell: Cell) -> Path:
         """Path to the cell's report, creating the cell directory if needed."""
         return self._cell_dir(cell) / "report.md"
 
-    def write_preds(self, cell: Cell, preds: pd.DataFrame) -> None:
-        """Persist the raw per-target arm predictions and the (target, arm) resume log."""
+    def write_preds(self, cell: Cell, preds: pd.DataFrame, calls: list[dict]) -> None:
+        """Persist compact scores, complete call logs, and the small resume index."""
         preds.to_csv(self._cell_dir(cell) / "preds.csv", index=False)
+        self._write_call_log(cell, calls)
         self._write_resume_log(cell, preds)
 
     def write_report(self, cell: Cell, result: EvalResult) -> None:
@@ -83,6 +86,12 @@ class ResultStore:
                              "tool_calls": _tool_calls(row.get(f"tool_calls__{arm}", ""))})
                  for _, row in preds.iterrows() for arm in arm_cols]
         (self._cell_dir(cell) / "resume.jsonl").write_text("\n".join(lines) + ("\n" if lines else ""))
+
+    def _write_call_log(self, cell: Cell, calls: list[dict]) -> None:
+        lines = [json.dumps(call, ensure_ascii=True, separators=(",", ":")) for call in calls]
+        (self._cell_dir(cell) / "calls.jsonl").write_text(
+            "\n".join(lines) + ("\n" if lines else "")
+        )
 
     def _cell_dir(self, cell: Cell) -> Path:
         directory = self._root / self._slug(cell)

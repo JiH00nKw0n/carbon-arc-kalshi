@@ -1,0 +1,38 @@
+[
+  {
+    "ticker": "TSLA",
+    "metric_label": "how many tesla deliveries will there be this quarter",
+    "impact": "O",
+    "strength": "strong",
+    "est_share": "~70-80%",
+    "reason": "Vehicle deliveries are the clean sold-volume driver for Tesla's dominant automotive sales revenue, with total revenue also including energy, services, leasing and other items.",
+    "company_name": "Tesla, Inc."
+  },
+  {
+    "ticker": "TSLA",
+    "metric_label": "tesla production",
+    "impact": "X",
+    "strength": "strong",
+    "est_share": "0% directly; monetization occurs on deliveries/sales",
+    "reason": "Production is a supply/output measure, not the sold-volume revenue trigger. Tesla monetizes vehicles primarily when delivered, making deliveries the cleaner revenue KPI.",
+    "company_name": "Tesla, Inc."
+  },
+  {
+    "ticker": "NFLX",
+    "metric_label": "netflix subscribers",
+    "impact": "O",
+    "strength": "strong",
+    "est_share": "~95%+",
+    "reason": "Netflix revenue is still overwhelmingly subscription/member based; paid subscribers/memberships, paired with ARM, are the clean dominant driver of total revenue, with advertising and other revenue still small.",
+    "company_name": "Netflix, Inc."
+  },
+  {
+    "ticker": "NFLX",
+    "metric_label": "netflix subscribers gain",
+    "impact": "X",
+    "strength": "strong",
+    "est_share": "N/A - net adds, not revenue base",
+    "reason": "Subscriber gain is a period-change metric, not the monetized subscriber base. Total paid subscribers/memberships is the cleaner metric for mapping to revenue dollars.",
+    "company_name": "Netflix, Inc."
+  }
+]

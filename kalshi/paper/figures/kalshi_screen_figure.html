@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Kalshi screening examples</title>
+<style>html,body{margin:0;background:#fff}.sfig{--ink:#1c1b19;--muted:#736c60;--blue:#29b9f2;
+--blue-tint:#dcf1fb;--gray:#737373;--gray-tint:#e7e3db;max-width:1058px;margin:8px auto;padding:6px 21px;
+font-family:"DejaVu Serif",Georgia,"Times New Roman",serif;color:var(--ink);line-height:1.45}.sfig *{box-sizing:border-box}
+.row{display:flex;gap:19px;align-items:stretch;padding:8px 0;border-top:1px solid var(--gray)}.row:last-child{border-bottom:1px solid var(--gray)}
+.tbl{flex:0 0 330px;min-width:0}.co{margin:0;font-size:14px;font-weight:700}.co span{color:var(--muted);font-weight:400}
+.meta{font-size:11px;letter-spacing:.05em;text-transform:uppercase;margin:0 0 7px;overflow-wrap:anywhere}.sfig table{width:100%;
+border-collapse:collapse}.sfig td{border-top:1px solid var(--gray);padding:6px 2px 3px;font-size:13px}.sfig td:last-child{text-align:right;
+font-size:15px;font-weight:700}.verdict.o td:last-child{color:var(--blue)}.verdict.x td:last-child{color:var(--muted)}
+.rat{flex:1;border:1px solid var(--gray);padding:8px 14px}.ratlab{font-size:11px;letter-spacing:.11em;text-transform:uppercase;
+margin:0 0 5px}.rat p:last-child{margin:0;font-size:13px;line-height:1.5}mark{color:var(--ink);padding:1px 2px}
+mark.o{background:var(--blue-tint)}mark.x{background:var(--gray-tint)}@media(max-width:720px){.row{flex-direction:column}.tbl{flex-basis:auto}}</style>
+</head><body><figure class="sfig"><div class="row"><div class="tbl">
+<p class="co">Tesla, Inc. <span>(TSLA)</span></p>
+<p class="meta">Kalshi KPI - how many tesla deliveries will there be this quarter</p>
+<table><tr class="verdict o"><td>Screen verdict</td><td>Included (O)</td></tr></table>
+</div><div class="rat"><p class="ratlab">Screening rationale</p><p><mark class="o">Vehicle deliveries are the clean sold-volume driver for Tesla&#x27;s dominant automotive sales revenue, with total revenue also including energy, services, leasing and other items.</mark></p></div></div>
+<div class="row"><div class="tbl">
+<p class="co">Tesla, Inc. <span>(TSLA)</span></p>
+<p class="meta">Kalshi KPI - tesla production</p>
+<table><tr class="verdict x"><td>Screen verdict</td><td>Excluded (X)</td></tr></table>
+</div><div class="rat"><p class="ratlab">Screening rationale</p><p><mark class="x">Production is a supply/output measure, not the sold-volume revenue trigger. Tesla monetizes vehicles primarily when delivered, making deliveries the cleaner revenue KPI.</mark></p></div></div>
+<div class="row"><div class="tbl">
+<p class="co">Netflix, Inc. <span>(NFLX)</span></p>
+<p class="meta">Kalshi KPI - netflix subscribers</p>
+<table><tr class="verdict o"><td>Screen verdict</td><td>Included (O)</td></tr></table>
+</div><div class="rat"><p class="ratlab">Screening rationale</p><p><mark class="o">Netflix revenue is still overwhelmingly subscription/member based; paid subscribers/memberships, paired with ARM, are the clean dominant driver of total revenue, with advertising and other revenue still small.</mark></p></div></div>
+<div class="row"><div class="tbl">
+<p class="co">Netflix, Inc. <span>(NFLX)</span></p>
+<p class="meta">Kalshi KPI - netflix subscribers gain</p>
+<table><tr class="verdict x"><td>Screen verdict</td><td>Excluded (X)</td></tr></table>
+</div><div class="rat"><p class="ratlab">Screening rationale</p><p><mark class="x">Subscriber gain is a period-change metric, not the monetized subscriber base. Total paid subscribers/memberships is the cleaner metric for mapping to revenue dollars.</mark></p></div></div></figure></body></html>

@@ -59,6 +59,13 @@ async def test_responses_tool_loop_carries_reasoning_and_records_usage():
 
     assert result.parsed == parsed
     assert result.tool_calls == ("get_company_profile",)
+    assert result.tool_trace == ({
+        "name": "get_company_profile",
+        "arguments": {},
+        "output": "profile text",
+    },)
+    assert result.input_tokens == 200
+    assert result.output_tokens == 40
     assert len(api.calls) == 2
     assert api.calls[0]["store"] is False
     assert api.calls[0]["include"] == ["reasoning.encrypted_content"]

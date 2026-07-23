@@ -30,6 +30,7 @@ class YTarget:
     anchor_col: str
     schema: type[BaseModel]
     ask_noun: str
+    paper_system_prompt: str
 
     def label(self, row) -> float:
         """True label as a fraction, read from the precomputed panel column."""
@@ -40,8 +41,15 @@ class YTarget:
         anchor = float(getattr(row, self.anchor_col))
         return (pred_rev - anchor) / anchor * 100.0
 
-    def ask_text(self, row) -> str:
+    def ask_text(self, row, prompt_protocol: str = "jihoon_main") -> str:
         """Trailing instruction: predict revenue $M, restate the anchor, derive the percent metric."""
+        if prompt_protocol == "paper" and self.name == "rev_yoy":
+            return (
+                "\n\nPredict the quarter's TOTAL REVENUE in $M for the row marked <- PREDICT - "
+                "your own estimate of the ACTUAL revenue. Then restate the SAME-QUARTER revenue "
+                "one year earlier and compute the implied YoY growth = "
+                "(your revenue - prior_year_revenue)/prior_year_revenue, in %."
+            )
         anchor = _ANCHOR_PHRASE[self.anchor_col]
         return ("\n\nPredict the quarter's TOTAL REVENUE in $M for the quarter marked <- PREDICT — "
                 "your own estimate of the ACTUAL revenue (it may differ from consensus). Then restate "
@@ -49,17 +57,37 @@ class YTarget:
                 f"(your revenue - {anchor})/{anchor}, in %.")
 
 
+SURPRISE_SYSTEM_PROMPT = (
+    "You are an equity revenue-surprise nowcaster. You only see information available BEFORE the "
+    "upcoming quarter's earnings report; you do NOT know the actual result. The target is the REVENUE "
+    "surprise = (actual - analyst consensus)/consensus, i.e. the part NOT already priced into estimates. "
+    "Score the deviation from consensus expectations, not absolute fundamentals. Be calibrated and "
+    "conservative. Output only the requested structured fields."
+)
+
+YOY_SYSTEM_PROMPT = (
+    "You are an equity revenue-growth nowcaster. You only see information available BEFORE the "
+    "upcoming quarter's earnings report; you do NOT know the actual result. The target is the REVENUE "
+    "year-over-year growth = (actual - prior-year revenue)/prior-year revenue. Estimate the quarter's "
+    "actual revenue and the implied YoY growth from the fundamentals and trends shown, not from "
+    "consensus expectations. Be calibrated and conservative. Output only the requested structured fields."
+)
+
+
 register_y_target(YTarget(
     name="surprise_early", true_col="surprise_early", anchor_col="cons_early",
-    schema=BPredictSurprise, ask_noun="SURPRISE"))
+    schema=BPredictSurprise, ask_noun="SURPRISE",
+    paper_system_prompt=SURPRISE_SYSTEM_PROMPT))
 
 register_y_target(YTarget(
     name="surprise_print", true_col="surprise_print", anchor_col="cons_print",
-    schema=BPredictSurprise, ask_noun="SURPRISE"))
+    schema=BPredictSurprise, ask_noun="SURPRISE",
+    paper_system_prompt=SURPRISE_SYSTEM_PROMPT))
 
 register_y_target(YTarget(
     name="rev_yoy", true_col="rev_yoy", anchor_col="prior_year_actual",
-    schema=BPredictYoY, ask_noun="YoY GROWTH"))
+    schema=BPredictYoY, ask_noun="YoY GROWTH",
+    paper_system_prompt=YOY_SYSTEM_PROMPT))
 
 
 def get_y_target(name: str) -> YTarget:

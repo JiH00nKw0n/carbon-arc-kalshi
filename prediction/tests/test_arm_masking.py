@@ -12,6 +12,8 @@ Markers used (robust to exact formatting):
 import pytest
 
 from prediction.arms.specs import get_arm
+from prediction.data.llm_client import SYS
+from prediction.prompts.variants import build_base
 from prediction.prompts.tools import TOOL_DEFS, make_tool_dispatch
 from prediction.prompts.variants import get_variant
 from prediction.targets.ytarget import get_y_target
@@ -75,3 +77,33 @@ def test_tool_dispatch_serves_profile_and_dataset(card_channel, descriptions):
     assert names == {"get_company_profile", "get_alt_data_description"}
     assert PROFILE_MARKER in dispatch("get_company_profile", {})
     assert DATASET_MARKER in dispatch("get_alt_data_description", {})
+
+
+def test_paper_protocol_uses_y_specific_prompt_wording(
+        prompt_target, card_channel, descriptions):
+    from prediction.tests.conftest import FakeTranscriptStore, _ChannelBoundDescriptions
+
+    transcripts = FakeTranscriptStore([])
+    provider = _ChannelBoundDescriptions(descriptions, card_channel.name)
+    arm = get_arm("fin+x")
+    surprise = get_y_target("surprise_early")
+    yoy = get_y_target("rev_yoy")
+
+    surprise_prompt = build_base(
+        prompt_target, transcripts, provider, card_channel, surprise,
+        arm.blocks, 2, 6, "paper",
+    )
+    yoy_prompt = build_base(
+        prompt_target, transcripts, provider, card_channel, yoy,
+        arm.blocks, 2, 6, "paper",
+    )
+
+    assert surprise.paper_system_prompt == SYS
+    assert "revenue-surprise nowcaster" in surprise.paper_system_prompt
+    assert "consensus ($M)" in surprise_prompt
+    assert "surprise %" in surprise_prompt
+    assert "revenue-growth nowcaster" in yoy.paper_system_prompt
+    assert "not from consensus expectations" in yoy.paper_system_prompt
+    assert "consensus ($M)" not in yoy_prompt
+    assert "surprise %" not in yoy_prompt
+    assert "SAME-QUARTER revenue one year earlier" in yoy_prompt

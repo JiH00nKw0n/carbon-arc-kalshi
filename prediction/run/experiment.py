@@ -172,15 +172,19 @@ async def _run_cell(experiment: Experiment, cell: Cell, seed: int, force: bool) 
         return
 
     print(f"[{cell.channel}·{cell.y}·{cell.variant}] {len(targets)} targets", flush=True)
-    rows = await predict_arms(targets, context.prompt_builder, context.tools, context.arms,
-                              context.y_target, context.channel, context.transcripts,
-                              context.descriptions, experiment.llm_client, cfg.run)
-    if not rows:
+    batch = await predict_arms(
+        targets, context.prompt_builder, context.tools, context.arms,
+        context.y_target, context.channel, context.transcripts,
+        context.descriptions, experiment.llm_client, cfg.run,
+        cell=cell, seed=seed, llm_cfg=cfg.llm,
+    )
+    if not batch.rows:
+        experiment.store.write_preds(cell, pd.DataFrame(), batch.calls)
         print(f"[{cell.channel}·{cell.y}·{cell.variant}] no predictions — skipped", flush=True)
         return
-    preds = pd.DataFrame(rows)
+    preds = pd.DataFrame(batch.rows)
+    experiment.store.write_preds(cell, preds, batch.calls)
     result = _evaluate_cell(cfg, cell, panel, preds, context, seed)
-    experiment.store.write_preds(cell, preds)
     experiment.store.write_report(cell, result)
 
 
@@ -226,7 +230,8 @@ def _render_cell(cell: Cell, targets, context: _CellContext, run_cfg, render_dir
     for arm in context.arms:
         prompt = context.prompt_builder(target, context.transcripts, context.descriptions,
                                         context.channel, context.y_target, arm.blocks,
-                                        run_cfg.n_calls, run_cfg.hist_rows)
+                                        run_cfg.n_calls, run_cfg.hist_rows,
+                                        run_cfg.prompt_protocol)
         name = f"PROMPT.{cell.channel}.{cell.y}.{cell.variant}.{arm.name}.txt".replace("+", "_")
         (render_dir / name).write_text(prompt)
     print(f"[render {cell.channel}·{cell.y}·{cell.variant}] {target.ticker} "

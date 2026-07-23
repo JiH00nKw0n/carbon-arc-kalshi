@@ -5,9 +5,10 @@ nowcasting benchmark. Carbon Arc data is not mixed into the Kalshi experiment. T
 Y definitions, financial H input, earnings-call Z input, prompt variants, arms, row matching and
 evaluation code live in `prediction/`; Kalshi contributes only a raw pre-publication KPI ladder X.
 
-The authoritative design, universe, ticker-quarter manifest, metrics and results are consolidated in
-[`BENCHMARK.md`](BENCHMARK.md). Generated cell artifacts and the machine-readable
-`evaluation_manifest.csv` are under `prediction/outputs/kalshi_benchmark/` and are git-ignored.
+The authoritative manuscript design, current three-repetition results, universe and audit summary
+are consolidated in [`PAPER_RESULTS.md`](PAPER_RESULTS.md). [`BENCHMARK.md`](BENCHMARK.md) is the
+archived one-run Jihoon-main reproduction that preceded the manuscript rerun. Raw cell artifacts,
+lossless call logs and evaluation manifests remain git-ignored under `prediction/outputs/`.
 
 ## Run
 
@@ -23,12 +24,34 @@ python3 kalshi/scripts/auto/s_ap_kalshi_revenue_screen.py --apply-panel
 python3 kalshi/scripts/auto/s_aq_kalshi_screening_agent.py --apply-panel --write-ticker-screen
 python3 kalshi/scripts/auto/s_ar_kalshi_transcript_index.py
 python3 kalshi/scripts/auto/s_at_kalshi_tool_context.py
-python3 -m prediction --config prediction/configs/kalshi_full.yaml --render
-python3 -m prediction --config prediction/configs/kalshi_full.yaml
-python3 kalshi/scripts/auto/s_au_kalshi_benchmark_report.py
+python3 -m prediction --config prediction/configs/kalshi_smoke.yaml
+python3 -m prediction --config prediction/configs/kalshi_paper.yaml --render
+python3 -m prediction --config prediction/configs/kalshi_paper.yaml
+python3 kalshi/scripts/auto/s_aw_kalshi_repair_calls.py
+python3 kalshi/scripts/auto/s_av_kalshi_paper_artifacts.py
 ```
 
-Use `prediction/configs/kalshi_smoke.yaml` for one-target BASE + TOOL integration testing.
+Use `prediction/configs/kalshi_smoke.yaml` for one target per Y under the manuscript prompt
+protocol (24 BASE + TOOL integration calls).
+
+Use `prediction/configs/kalshi_full.yaml` followed by
+`kalshi/scripts/auto/s_au_kalshi_benchmark_report.py` only to reproduce Jihoon's latest main
+configuration: one repetition and the shared main-branch prompt protocol.
+
+## Audit outputs
+
+- Screening calls: `kalshi/outputs/auto/kalshi_kpi_firm_screen_calls.jsonl`
+- Prediction calls: `prediction/outputs/kalshi_paper/<cell>/calls.jsonl`
+- Paper figures: `kalshi/paper/figures/`
+- Paper tables: `kalshi/paper/tables/`
+- Machine-readable paper data: `kalshi/paper/data/`
+
+Each prediction call records the exact system and user prompt, prompt hash, complete structured
+output, confidence, rationale, derived prediction, tool calls and returned text, token usage, cost,
+attempt count and error status. The paper artifact exporter refuses to generate outputs if any
+target/arm call or rationale is missing. The repair command is a no-op when all calls succeeded; if
+the configured retry budget was exhausted, it replays only the exact failed prompt and archives
+both records in that cell's `repairs.jsonl`.
 
 ## Data boundaries
 

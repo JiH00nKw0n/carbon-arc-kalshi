@@ -1,4 +1,8 @@
-# Kalshi Raw-Ladder Benchmark
+# Legacy Kalshi Raw-Ladder Benchmark
+
+> Archived one-run Jihoon-main reproduction. The authoritative manuscript run is
+> [`PAPER_RESULTS.md`](PAPER_RESULTS.md); counts and results below belong to the earlier frozen
+> screen.
 
 This is the authoritative design and result report for the Kalshi-only X substitution in the shared revenue-nowcasting paper framework.
 
@@ -33,6 +37,36 @@ The true labels apply the same formulas to FactSet actual revenue. Predictions a
 in percentage points. Structured output also contains confidence and rationale, but neither enters
 the metrics.
 
+### TOOL variant interface
+
+`BASE` and `TOOL` render the same system and user prompt. `BASE` exposes no functions. `TOOL`
+exposes the following two strict, no-argument functions to every arm:
+
+| Tool | Explicit model input | Context bound by the runner | Plain-text output |
+|---|---|---|---|
+| `get_company_profile` | `{}` | Current target ticker | Frozen FMP company description: business model, sector and revenue drivers |
+| `get_alt_data_description` | `{}` | Active `kalshi` channel | Frozen description of the Kalshi universe, pre-publication snapshot and ladder construction |
+
+The model does not choose or pass the ticker. The runner binds `target.ticker` and the active channel
+before dispatch. A tool round therefore has this shape:
+
+```text
+same BASE prompt + two function schemas
+    -> model emits get_company_profile({}) or get_alt_data_description({})
+    -> runner reads the target-bound string from kalshi/data/tool_context.json
+    -> model receives the string and returns the structured revenue prediction
+```
+
+The tools do not return a Kalshi ladder, financial history, target-quarter actual, label, or live
+search result. Raw ladder values are supplied directly in the prompt only for arms containing X.
+The local context contains 20 company profiles fetched once
+from Financial Modeling Prep stable/profile at `2026-07-22T13:28:07+00:00` plus one repository
+methodology description. "Frozen" means reproducible after retrieval; the FMP profile is not a
+historical point-in-time profile as of each target report.
+
+The model and prompt text remain fixed across variants, but the transport path is not identical:
+`BASE` uses Chat Completions structured parse, while `TOOL` uses the Responses API because the
+configured model does not accept reasoning plus function tools on the Chat Completions path.
 
 ## Data universe
 
@@ -42,26 +76,168 @@ response captured by this run; explicit issuer aliases map public companies. The
 unmapped series are non-public or non-company questions (Waymo, OpenAI/LLM rankings, subway
 ridership and aggregate EV share).
 
-| Stage | Rows / units | Distinct tickers | Rule |
-|---|---:|---:|---|
-| KPI series crawl | 193 series (186 mapped) | 89 | Public current + historical API pages |
-| Market inventory | 2254 contracts | 84 | Preserve raw contract metadata |
-| `kalshi_company_event_features.csv` | 271 events / 2217 numeric contracts | 84 | One metadata row per event with at least two numeric YES-threshold rungs; this file is not model input |
-| Direct FactSet panel | 2211 company-quarters | 84 | 84 FactSet IDs; actuals and point-in-time consensus from FE_V4 |
-| Exact fiscal join | 113 events / 100 quarters | 42 | Same ticker, fiscal year and fiscal quarter |
-| Valid pre-publication ladder | 98 quarters | 42 | At least two priced rungs before publication |
-| Metric screen | 51 O pairs | 42 | Remove non-revenue KPI types |
-| Firm revenue-driver screen | 22 O pairs | 20 | Screener + high-effort auditor against total revenue |
-| Firm-screened ladder panel | 46 quarters | 20 | Keep O `(ticker, metric)` ladders |
-| Strong-O benchmark candidates | - | 18 | Jihoon `main` primary tier |
-| Final matched evaluation | 22 company-quarters | 16 | Post-cutoff + ladder + >=3 financial rows + >=1 eligible transcript |
+### Counting units
 
-The metric screen is a deterministic wording rule that removes non-revenue KPI types. The 51
-surviving `(ticker, metric)` pairs then pass through `gpt-5.5-2026-04-23` at medium effort and an adversarial
-high-effort audit, in batches of eight with exact pair-key validation. `O` means the KPI is a
-dominant, clean driver of total revenue; `strength` is confidence in that verdict, not estimated
-revenue share. This follows the committed Carbon Arc screening CSV practice, which can retain a
-dominant clean driver below 50% share; it does not impose a hard revenue-share threshold.
+- **Series:** a recurring Kalshi market template, such as quarterly Tesla deliveries.
+- **Contract / rung:** one binary threshold market inside an event, such as
+  `P(deliveries > 400,000)`.
+- **Event / ladder:** one KPI for one stated period, containing at least two threshold rungs.
+- **Pair:** one distinct `(ticker, metric_label)` eligibility rule with no time dimension.
+- **Company-quarter:** one `(ticker, FE_FP_END)` observation. It can contain more than one event.
+- **Target:** a company-quarter that also passes the final model-evaluation rules.
+
+Counts only form a conventional funnel while the unit is unchanged. In particular, pair counts
+cannot be compared directly with quarter counts: one retained pair can recur across many quarters.
+
+### Ticker funnel
+
+```mermaid
+flowchart TB
+    A["89 mapped public-company tickers<br/>186 of 193 KPI series"]
+    B["84 tickers with valid numeric ladders"]
+    C["81 tickers with quarter-labelled events"]
+    D["42 tickers matched to FactSet quarters"]
+    E["20 tickers with at least one firm-screen O metric"]
+    F["18 strong-O benchmark tickers"]
+    G["16 final evaluation tickers"]
+
+    A -->|"5 mapped tickers returned no contracts"| B
+    B -->|"period must be Q1-Q4 plus year"| C
+    C -->|"exact fiscal key and date distance at most 60 days"| D
+    D -->|"firm total-revenue screen"| E
+    E -->|"ticker-level strength must be strong"| F
+    F -->|"post-cutoff target and coverage rules"| G
+```
+
+### Observation and pair flow
+
+```mermaid
+flowchart TB
+    A["271 numeric ladder events<br/>2,217 threshold rungs"]
+    B["211 quarter-labelled events"]
+    C["120 exact fiscal-key event matches"]
+    D["113 date-valid events<br/>100 company-quarters"]
+    FS["FactSet side input<br/>2,211 company-quarters / 84 tickers"]
+    E["109 price-covered event ladders<br/>98 company-quarters"]
+    P["52 distinct ticker-metric pairs"]
+    Q["51 metric-screen O pairs"]
+    R["107 retained event ladders<br/>97 company-quarters"]
+    S["22 firm-screen O pairs<br/>20 tickers"]
+    T["46 event ladders<br/>46 company-quarters"]
+    U["44 strong-tier ladder quarters<br/>18 tickers"]
+    V["22 final targets<br/>16 tickers"]
+
+    A -->|"valid feature date and Q1-Q4 year label"| B
+    B -->|"same ticker, fiscal year, fiscal quarter"| C
+    FS --> C
+    C -->|"nearest report must be within 60 days"| D
+    D -->|"publication cutoff and at least 2 priced rungs per event"| E
+    D -->|"deduplicate by ticker and metric label"| P
+    P -->|"deterministic wording screen"| Q
+    E -->|"time observations"| R
+    Q -->|"allowed pair keys"| R
+    Q -->|"medium screener plus high-effort audit"| S
+    R -->|"time observations"| T
+    S -->|"allowed pair keys"| T
+    T -->|"strong_only: true"| U
+    U -->|"report date after 2025-12-01; label, history, transcript checks"| V
+```
+
+The FactSet panel is a side input to the fiscal join, not another Kalshi attrition stage. It contains
+2,211 revenue company-quarters for 84 FactSet IDs, with actuals and
+point-in-time consensus from FE_V4.
+
+### Exact filter rules
+
+1. **Issuer and market availability.** Of 193 KPI-tagged series, 186 map to
+   89 public-company tickers. Current and historical market pages
+   return 2,254 contracts across 281 events; restricting to
+   mapped issuers leaves 2,238 contracts across 276 events and
+   84 tickers. The mapped tickers with no returned
+   contracts are `2330, DKNG, HLT, RKLB, V`.
+2. **Numeric ladder validity.** A contract survives only when its YES side means `above` or
+   `at least`, its numeric strike parses, and its `market_ticker` is unique. An event survives only
+   with at least two such rungs. This removes 5 mapped events
+   and leaves 271 events / 2,217 rungs.
+3. **Quarter identity.** `period_label` must fully match `Q[1-4] YYYY`, and `feature_date` must parse.
+   `feature_date` is the earliest available occurrence, close, or expiration timestamp. Of the
+   60 events removed here, 46 have no period,
+   14 are annual-only or otherwise non-quarter labels, and
+   0 have a quarter label but no parseable date. This leaves
+   211 events. The event then needs the same ticker, fiscal year, and fiscal
+   quarter in FactSet: 120 events pass and
+   91 do not. If more than one FactSet row is possible,
+   the nearest report is selected, and absolute `feature_date - REPORT_DATE` must be <=60 days;
+   7 more events fail that tolerance, leaving 113 events
+   / 100 company-quarters.
+4. **Leakage-safe price coverage.** The quote cutoff is `published_at - 1 minute`. A rung's market
+   must already be open, and the latest daily candle between market open and cutoff must have a
+   usable probability. A valid YES book with spread <=0.20 uses its midpoint; otherwise the code
+   falls back to last trade, then previous trade. Each event still needs at least two priced rungs,
+   and each quarter needs at least one surviving event. This leaves
+   109 events / 98 quarters /
+   746 rungs. The uncovered quarters are
+   `SOFI 2024-03-31`, `HOOD 2025-09-30`.
+5. **Metric wording screen.** The key is `(ticker, metric_label)`, so repeated quarters collapse to
+   one pair. Employee/headcount metrics are X. Sold units, deliveries, volume, orders, trips,
+   subscribers, bookings, passengers and similar revenue bases are O-strong. Accounts and
+   engagement are O-moderate; an unmatched KPI defaults to O-moderate. The result is
+   51 O and 1 X pair out of 52.
+   The only X pair in this run is `META / headcount`, covering 2
+   matched events.
+   Applying those keys changes the time panel from 98 to 97
+   quarters and from 109 to
+   107 event ladders.
+6. **Firm total-revenue screen.** The 51 O pairs enter `gpt-5.5-2026-04-23` at medium
+   effort in validated batches of eight, followed by an adversarial high-effort audit. O requires
+   a dominant, clean driver of the firm's total revenue. X covers a minority segment, an indirect
+   or wrong measure, or a metric redundant with a cleaner one. This retains 22
+   pairs and rejects 29; applying them leaves 46
+   company-quarters across 20 tickers. As in the committed Carbon Arc screen, the
+   largest clean driver can remain O around 20-45% of revenue; there is no hard 50% threshold.
+7. **Primary strong tier.** `strength` is confidence in the O/X verdict, not estimated revenue
+   share. The ticker-level screen takes the highest-confidence O verdict per ticker, and
+   `strong_only: true` keeps 18 strong tickers / 44 ladder quarters.
+   `DPZ` and `MTN` are O-moderate and are excluded.
+8. **Evaluation target.** A target must have `REPORT_DATE > 2025-12-01`, a target-quarter
+   ladder payload, a non-missing active Y, at least three strictly prior financial quarters, and at
+   least one readable corrected earnings call dated no later than report minus 31 days. Up to six
+   financial quarters and two calls are shown; the second call is optional. The date guard reduces
+   44 strong-tier ladder quarters to 22. The later label,
+   history, and transcript checks remove 0 additional rows, leaving
+   22 matched targets across 16 tickers.
+
+The deterministic metric screen uses the following ordered map; first match wins. The exact source
+of truth is `kalshi/scripts/auto/s_ap_kalshi_revenue_screen.py`.
+
+| Result | Matching metric wording |
+|---|---|
+| X | `headcount`, `employees`, `staff`, `workforce` |
+| O-strong | deliveries/production/unit sales/shipments/vehicles; volume; orders/trips/rides; subscribers/payers/memberships; bookings/nights/passengers/seats/fares/rooms/homes/skier visits/restaurants/stores |
+| O-moderate | gold subscribers, funded accounts/accounts; users, MAU/DAU, unique users, hours, streaming, engagement |
+| O-moderate | no listed wording matches (default) |
+
+The cutoff does not delete older Kalshi or financial observations. It only prevents them from
+becoming evaluation Y rows; eligible earlier observations can still appear as H or prior-X context.
+
+### Final evaluation contraction
+
+| Step | Company-quarters | Tickers | Removed at this step |
+|---|---:|---:|---|
+| Firm-screen O panel | 46 | 20 | Starting time panel after pair filters |
+| `strong_only: true` | 44 | 18 | 2 quarters: `DPZ`, `MTN` |
+| `REPORT_DATE > 2025-12-01` | 22 | 16 | 22 pre-cutoff quarters; `NFLX`, `SPOT` lose all target rows |
+| Label, history and transcript coverage | 22 | 16 | 0 additional quarters |
+
+### Why pairs and quarters differ
+
+The firm screen makes one keep/drop decision per `(ticker, metric_label)` and reuses that decision
+at every date. For example, the TSLA deliveries metric is one pair-level decision but occurs in nine
+matched quarterly events. There are 22 pairs but 20 tickers because BA
+has `deliveries` and `commercial deliveries`, while COIN has `coinbase volume` and
+`total trading volume`. Consequently, those 22 pair definitions expand to
+46 retained company-quarter observations. After firm screening, this run has one
+retained event ladder per retained company-quarter.
 
 **84 numeric-ladder candidates:** AAPL, ABNB, ACDVF, AMZN, ATZ, BA, BULL, CAVA, CCL, CDNTF, CMG, COIN, COST, CVNA, DASH, DIS, DLMAF, DPZ, EBAY, F, FDX, FIG, FSLR, FUTU, GOOGL, GRAB, HD, HIMS, HOOD, INTC, KLAR, L, LOW, LULU, LUV, LYFT, MAR, MCD, MELI, META, MO, MTCH, MTN, NCLH, NFLX, NU, NVDA, NYT, ORCL, PETR4, PLNT, PLTR, PM, PSKY, RACE, RBLX, RDDT, RIVN, ROKU, SBUX, SCHW, SE, SG, SHOP, SNAP, SNOW, SOFI, SPOT, STZ, TGT, TLN, TOL, TOST, TSLA, UAL, UBER, ULTA, URBN, WEN, WH, WING, WMT, YOU, ZETA.
 
@@ -73,18 +249,22 @@ dominant clean driver below 50% share; it does not impose a hard revenue-share t
 
 **16 final benchmark tickers:** ABNB, BA, COIN, CVNA, DASH, HIMS, LYFT, MO, MTCH, PLNT, RACE, STZ, TOL, TSLA, UAL, UBER.
 
-### Attrition accounting
-
-- **84 -> 42:** 42 numeric-ladder tickers had no exact `(ticker, fiscal year, fiscal quarter)`
-  match to the direct FactSet panel.
-- **42 -> 20:** the firm-level total-revenue screen rejected every surviving metric for 22 tickers.
-- **20 -> 18:** `DPZ` and `MTN` are O-moderate and are excluded by `strong_only: true`.
-- **18 -> 16:** `NFLX` and `SPOT` have valid ladders only for reports on or before the
-  `2025-12-01` knowledge cutoff, so they have no evaluation target.
+At the ticker level, the largest reductions are 84 ->
+42 at the quarter/FactSet match and 42 ->
+20 at the firm revenue-driver screen. `NFLX` and `SPOT` survive the strong screen but have
+no ladder report after the knowledge cutoff, producing the final 18 -> 16
+ticker change.
 
 ### Final ticker-quarters
 
 All three Y definitions use the same 22 target rows.
+
+- **H quarters shown:** number of prior financial quarters included in the prompt, capped at six;
+  the target quarter is not counted.
+- **Prior X ladder quarters shown:** number of those prior quarters that also include an eligible
+  Kalshi ladder; the target-quarter ladder is not counted.
+- **Prior calls:** number of corrected earnings-call transcripts supplied to text arms, capped at
+  two and restricted to calls dated at least 31 days before the target report.
 
 | Ticker | Target fiscal quarters | Targets | H quarters shown | Prior X ladder quarters shown | Prior calls |
 |---|---|---:|---|---|---|
@@ -105,7 +285,6 @@ All three Y definitions use the same 22 target rows.
 | UAL | 2026-03-31, 2026-06-30 | 2 | 6, 6 | 0, 1 | 2, 2 |
 | UBER | 2025-12-31, 2026-03-31 | 2 | 6, 6 | 0, 1 | 2, 2 |
 
-
 ## Kalshi X construction
 
 For each company-quarter, every eligible KPI event is retained. Each event is an ordered ladder of
@@ -123,7 +302,6 @@ A valid YES bid/ask with spread <= 0.20 uses the midpoint. Invalid or wider book
 probability, price source, bid, ask, last, previous, spread, candle timestamp, daily volume and open
 interest for every rung. It receives no settled result, smoothing, interpolation or implied scalar.
 
-
 ## Evaluation
 
 - **RMSE:** square root of mean squared percentage-point error; lower is better.
@@ -137,10 +315,41 @@ interest for every rung. It receives no settled result, smoothing, interpolation
   the combined prediction tracks firm-specific outcomes rather than a common scale effect; it does
   not prove that Kalshi X itself is firm-specific and is not an X-shuffle test.
 
-N0 (company historical mean) and N2 (call sentiment) remain available. N1/N3/N4/N3b/N4b/N5 require
-a dense, comparable scalar X and are reported N/A because Kalshi X is a sparse, firm-specific raw
-ladder distribution. Fabricating a scalar zero would make those baselines misleading.
+### Why classical baselines are N/A
 
+The Carbon Arc baseline family assumes one comparable scalar `x_yoy` for every company-quarter.
+Kalshi X is instead preserved as a variable-length `x_payload` containing raw
+`(threshold, probability)` rungs. KPI units, thresholds and rung counts differ across companies and
+quarters, so this benchmark does not define `x_abs`, `x_yoy`, or `x_yoy_3m`; those scalar fields are
+set to missing by construction.
+
+Baseline feature definitions:
+
+- `x_yoy`: scalar alternative-data year-over-year growth.
+- `sent`: Loughran-McDonald sentiment from the most recent eligible prior call.
+- `lag_y`: one-quarter lag of the active Y.
+- `x_sent`: `x_yoy * sent`.
+
+| Baseline | Estimator and features | Status | Exact reason |
+|---|---|---|---|
+| N0 | Company historical mean | Available | Does not use X |
+| N1 | OLS: `x_yoy` | N/A | `x_yoy` is undefined for a raw ladder |
+| N2 | OLS: `sent` | Available | Does not use X |
+| N3 | OLS: `x_yoy`, `sent` | N/A | Requires undefined `x_yoy` |
+| N4 | OLS: `x_yoy`, `sent`, `x_sent` | N/A | Requires undefined `x_yoy` and its interaction |
+| N3b | OLS: `x_yoy`, `sent`, `lag_y` | N/A | `sent` and `lag_y` exist, but `x_yoy` does not |
+| N4b | OLS: `x_yoy`, `sent`, `lag_y`, `x_sent` | N/A | Requires undefined `x_yoy` and its interaction |
+| N5 | Gradient-boosted trees: `x_yoy`, `sent`, `lag_y` | N/A | Its feature matrix requires undefined `x_yoy` |
+
+For a ladder channel, the evaluator skips any baseline whose feature list contains `x_yoy` and
+marks it unavailable before fitting. N/A therefore means **not applicable under the raw-ladder
+representation**. It does not mean API failure, insufficient sample size, failed convergence, or
+missing target rows. Replacing missing `x_yoy` with zero would falsely encode zero KPI growth and
+collapse economically different ladders to the same value.
+
+Producing numeric N1/N3/N4/N3b/N4b/N5 results would require a pre-specified ladder-to-scalar
+transformation, followed by a comparable within-company or within-metric YoY calculation. That
+would be a separate scalarized-Kalshi experiment, not this raw-ladder benchmark.
 
 ## Results
 

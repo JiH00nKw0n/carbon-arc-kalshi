@@ -45,13 +45,14 @@ from pydantic import BaseModel, Field
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
 
-from prediction.data.llm_client import make_openai_client
+from prediction.data.llm_client import gpt5_cost, make_openai_client
 
 KALSHI_ROOT = ROOT / "kalshi"
 SCREEN_IN = KALSHI_ROOT / "outputs" / "auto" / "kalshi_kpi_revenue_screen.csv"
 EVENTS = KALSHI_ROOT / "outputs" / "auto" / "kalshi_x_revsurprise_events.csv"
 LADDER_PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_prereport_ladder_panel_screened.csv"
 OUT_SCREEN = KALSHI_ROOT / "outputs" / "auto" / "kalshi_kpi_firm_screen.csv"
+OUT_LOG = KALSHI_ROOT / "outputs" / "auto" / "kalshi_kpi_firm_screen_calls.jsonl"
 OUT_PANEL = KALSHI_ROOT / "outputs" / "auto" / "kalshi_prereport_ladder_panel_firmscreened.csv"
 TICKER_SCREEN = KALSHI_ROOT / "data" / "ticker_screen.csv"
 MODEL = "gpt-5.5-2026-04-23"
@@ -113,7 +114,8 @@ def candidates():
     return o[["ticker", "stock_name", "metric_label"]].to_dict("records")
 
 
-async def run_agent(client, model, system, user, effort, expected):
+async def run_agent(client, model, system, user, effort, expected, stage, batch_number):
+    errors = []
     for attempt in range(6):
         try:
             completion = await client.beta.chat.completions.parse(
@@ -129,8 +131,30 @@ async def run_agent(client, model, system, user, effort, expected):
                     f"screen row mismatch: missing={sorted(expected - actual)} "
                     f"extra={sorted(actual - expected)}"
                 )
-            return parsed
+            usage = completion.usage
+            details = getattr(usage, "prompt_tokens_details", None)
+            return parsed, {
+                "schema_version": 1,
+                "status": "ok",
+                "stage": stage,
+                "batch": batch_number,
+                "model": model,
+                "reasoning_effort": effort,
+                "system_prompt": system,
+                "user_prompt": user,
+                "expected_pairs": sorted([list(pair) for pair in expected]),
+                "parsed_output": parsed.model_dump(mode="json"),
+                "input_tokens": int(getattr(usage, "prompt_tokens", 0) or 0),
+                "cached_input_tokens": int(
+                    (getattr(details, "cached_tokens", 0) or 0) if details is not None else 0
+                ),
+                "output_tokens": int(getattr(usage, "completion_tokens", 0) or 0),
+                "cost_usd": gpt5_cost(usage),
+                "attempts": attempt + 1,
+                "retry_errors": errors,
+            }
         except Exception as exc:
+            errors.append(f"{type(exc).__name__}: {exc}")
             if attempt == 5:
                 raise
             delay = 2 ** attempt
@@ -148,16 +172,21 @@ async def screen_batch(client, model, batch, number, no_audit):
         f"return exactly one verdict row and preserve ticker and metric_label verbatim.\n\n{listing}"
     )
     print(f"[screener {number}] {len(batch)} pairs -> effort=medium", flush=True)
-    draft = await run_agent(client, model, SCREENER_SYS, user, "medium", expected)
+    draft, draft_log = await run_agent(
+        client, model, SCREENER_SYS, user, "medium", expected, "screener", number
+    )
     if no_audit:
-        return draft.verdicts
+        return draft.verdicts, [draft_log]
     audit_user = (
         "Draft verdicts to audit. Return exactly one corrected row per pair and preserve ticker and "
         "metric_label verbatim:\n\n"
         + json.dumps([row.model_dump() for row in draft.verdicts], indent=1)
     )
     print(f"[auditor {number}] {len(batch)} pairs -> effort=high", flush=True)
-    return (await run_agent(client, model, AUDITOR_SYS, audit_user, "high", expected)).verdicts
+    audited, audit_log = await run_agent(
+        client, model, AUDITOR_SYS, audit_user, "high", expected, "auditor", number
+    )
+    return audited.verdicts, [draft_log, audit_log]
 
 
 async def main_async(args):
@@ -167,11 +196,18 @@ async def main_async(args):
     cand = candidates()
     print(f"[screen] {len(cand)} candidate pairs -> model={model} batch={args.batch_size}", flush=True)
     verdicts = []
+    args.log.parent.mkdir(parents=True, exist_ok=True)
+    partial_log = args.log.with_suffix(args.log.suffix + ".partial")
+    partial_log.write_text("")
     for offset in range(0, len(cand), args.batch_size):
-        verdicts.extend(await screen_batch(
+        batch_verdicts, logs = await screen_batch(
             client, model, cand[offset:offset + args.batch_size],
             offset // args.batch_size + 1, args.no_audit,
-        ))
+        )
+        verdicts.extend(batch_verdicts)
+        with partial_log.open("a") as handle:
+            for record in logs:
+                handle.write(json.dumps(record, ensure_ascii=True, separators=(",", ":")) + "\n")
 
     rows = [verdict.model_dump() for verdict in verdicts]
     df = pd.DataFrame(rows)
@@ -180,6 +216,7 @@ async def main_async(args):
     df = df.sort_values(["impact", "ticker"])
     args.out_screen.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(args.out_screen, index=False)
+    partial_log.replace(args.log)
 
     keep_df = df[df["impact"] == "O"]
     drop_df = df[df["impact"] == "X"]
@@ -188,6 +225,7 @@ async def main_async(args):
     for r in drop_df.itertuples():
         print(f"   X {r.ticker:<6} {r.metric_label[:38]:<40} {r.est_share:<9} {r.reason}")
     print(f"[written] {args.out_screen}")
+    print(f"[written] {args.log}")
 
     if args.write_ticker_screen:
         write_ticker_screen(df, args.ticker_screen)
@@ -254,6 +292,8 @@ def _ascii_cell(value):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-screen", type=Path, default=OUT_SCREEN)
+    ap.add_argument("--log", type=Path, default=OUT_LOG,
+                    help="Lossless JSONL log of screener and auditor prompts and rationales.")
     ap.add_argument("--no-audit", action="store_true", help="Skip the adversarial auditor pass.")
     ap.add_argument("--batch-size", type=int, default=8,
                     help="Candidate pairs per structured LLM call (default: 8).")

@@ -15,7 +15,7 @@ import asyncio
 import json
 import os
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Callable, Optional, Protocol
 
 import httpx
@@ -36,10 +36,9 @@ PRICING = {"short": {"in": 5.0, "cached": 0.5, "out": 30.0},
            "long":  {"in": 10.0, "cached": 1.0, "out": 45.0}}
 LONG_CTX_THRESHOLD = 272_000
 
-# Per-request timeout (s). Real calls finish in 4-40s even under concurrency; without a timeout a
-# single hung gateway connection blocks the whole asyncio.gather forever (a stalled cell). On timeout
-# the retry loop re-issues the call, so a rare hang costs one retry instead of the entire run.
-_REQUEST_TIMEOUT = 120.0
+# Per-request timeout (s). Transcript-bearing paper prompts can take several minutes at the gateway;
+# keep a finite ceiling for genuinely stalled requests without aborting valid long-context reasoning.
+_REQUEST_TIMEOUT = 600.0
 
 
 def _http_client() -> httpx.AsyncClient:
@@ -106,10 +105,16 @@ class LLMRequest:
 
 @dataclass(frozen=True)
 class LLMResult:
-    """Parsed output, cost, and names of lookup tools actually used by the model."""
+    """Parsed output plus the complete request telemetry needed for experiment audit logs."""
     parsed: Optional[BaseModel]
     cost_usd: float
     tool_calls: tuple[str, ...] = ()
+    tool_trace: tuple[dict[str, Any], ...] = ()
+    input_tokens: int = 0
+    cached_input_tokens: int = 0
+    output_tokens: int = 0
+    attempts: int = 1
+    error: Optional[str] = None
 
 
 class LLMClient(Protocol):
@@ -169,14 +174,49 @@ class OpenAIStructuredClient:
             return await self._parse_with_retry(request)
 
     async def _parse_with_retry(self, request: LLMRequest) -> LLMResult:
+        total_cost = 0.0
+        total_input = 0
+        total_cached = 0
+        total_output = 0
+        all_calls: list[str] = []
+        all_trace: list[dict[str, Any]] = []
+        last_error: Optional[str] = None
         for attempt in range(self._config.max_retries):
             try:
-                return await self._parse_once(request)
-            except Exception:  # transient API/parse failure — back off and retry, as in f1_llm.acall
-                if attempt == self._config.max_retries - 1:
-                    return LLMResult(parsed=None, cost_usd=0.0)
+                result = await self._parse_once(request)
+                total_cost += result.cost_usd
+                total_input += result.input_tokens
+                total_cached += result.cached_input_tokens
+                total_output += result.output_tokens
+                all_calls.extend(result.tool_calls)
+                all_trace.extend({"attempt": attempt + 1, **item} for item in result.tool_trace)
+                if result.parsed is not None:
+                    return replace(
+                        result,
+                        cost_usd=total_cost,
+                        tool_calls=tuple(all_calls),
+                        tool_trace=tuple(all_trace),
+                        input_tokens=total_input,
+                        cached_input_tokens=total_cached,
+                        output_tokens=total_output,
+                        attempts=attempt + 1,
+                    )
+                last_error = result.error or "structured output was not returned"
+            except Exception as exc:  # transient API/parse failure
+                last_error = f"{type(exc).__name__}: {exc}"
+            if attempt < self._config.max_retries - 1:
                 await asyncio.sleep(2 ** attempt)
-        return LLMResult(parsed=None, cost_usd=0.0)
+        return LLMResult(
+            parsed=None,
+            cost_usd=total_cost,
+            tool_calls=tuple(all_calls),
+            tool_trace=tuple(all_trace),
+            input_tokens=total_input,
+            cached_input_tokens=total_cached,
+            output_tokens=total_output,
+            attempts=self._config.max_retries,
+            error=last_error,
+        )
 
     async def _parse_once(self, request: LLMRequest) -> LLMResult:
         """One structured parse. BASE (no tools) uses chat.completions; the TOOL variant routes to the
@@ -188,7 +228,15 @@ class OpenAIStructuredClient:
         completion = await self._parse_call(request, messages)
         cost = gpt5_cost(completion.usage)
         parsed = completion.choices[0].message.parsed
-        return LLMResult(parsed=parsed, cost_usd=cost)
+        pin, cached, pout = _usage_counts(completion.usage, responses=False)
+        return LLMResult(
+            parsed=parsed,
+            cost_usd=cost,
+            input_tokens=pin,
+            cached_input_tokens=cached,
+            output_tokens=pout,
+            error=None if parsed is not None else "chat completion did not contain parsed output",
+        )
 
     async def _parse_once_responses(self, request: LLMRequest) -> LLMResult:
         """TOOL variant on /v1/responses: loop function_call -> function_call_output before the parse.
@@ -198,24 +246,52 @@ class OpenAIStructuredClient:
         forward explicitly with the function outputs. The prompt remains byte-identical to BASE."""
         input_items: list[Any] = [{"role": "user", "content": request.user}]
         cost = 0.0
+        input_tokens = 0
+        cached_input_tokens = 0
+        output_tokens = 0
         called: list[str] = []
+        trace: list[dict[str, Any]] = []
         for _ in range(self._config.max_tool_rounds):
             resp = await self._client.responses.parse(
                 model=self._config.model, instructions=request.system, input=input_items,
                 text_format=request.schema, reasoning={"effort": self._config.effort},
                 tools=request.tools, store=False, include=["reasoning.encrypted_content"])
             cost += gpt5_cost_responses(resp.usage)
+            pin, cached, pout = _usage_counts(resp.usage, responses=True)
+            input_tokens += pin
+            cached_input_tokens += cached
+            output_tokens += pout
             if resp.output_parsed is not None:
-                return LLMResult(parsed=resp.output_parsed, cost_usd=cost, tool_calls=tuple(called))
+                return LLMResult(
+                    parsed=resp.output_parsed,
+                    cost_usd=cost,
+                    tool_calls=tuple(called),
+                    tool_trace=tuple(trace),
+                    input_tokens=input_tokens,
+                    cached_input_tokens=cached_input_tokens,
+                    output_tokens=output_tokens,
+                )
             calls = [it for it in resp.output if getattr(it, "type", None) == "function_call"]
             if not calls or request.dispatch is None:
                 break
             input_items.extend(resp.output)
             for c in calls:
+                args = json.loads(c.arguments or "{}")
+                output = str(request.dispatch(c.name, args))
                 called.append(c.name)
+                trace.append({"name": c.name, "arguments": args, "output": output})
                 input_items.append({"type": "function_call_output", "call_id": c.call_id,
-                                    "output": str(request.dispatch(c.name, json.loads(c.arguments or "{}")))})
-        return LLMResult(parsed=None, cost_usd=cost, tool_calls=tuple(called))
+                                    "output": output})
+        return LLMResult(
+            parsed=None,
+            cost_usd=cost,
+            tool_calls=tuple(called),
+            tool_trace=tuple(trace),
+            input_tokens=input_tokens,
+            cached_input_tokens=cached_input_tokens,
+            output_tokens=output_tokens,
+            error="responses tool loop ended without parsed output",
+        )
 
     async def _parse_call(self, request: LLMRequest, messages: list[dict]):
         params: dict[str, Any] = dict(
@@ -239,3 +315,15 @@ def _append_tool_exchange(messages: list[dict], message, dispatch: Callable[[str
         args = json.loads(call.function.arguments or "{}")
         result = dispatch(call.function.name, args)
         messages.append({"role": "tool", "tool_call_id": call.id, "content": str(result)})
+
+
+def _usage_counts(usage, responses: bool) -> tuple[int, int, int]:
+    """Normalize Chat Completions and Responses token counters."""
+    input_name = "input_tokens" if responses else "prompt_tokens"
+    output_name = "output_tokens" if responses else "completion_tokens"
+    details_name = "input_tokens_details" if responses else "prompt_tokens_details"
+    pin = int(getattr(usage, input_name, 0) or 0)
+    pout = int(getattr(usage, output_name, 0) or 0)
+    details = getattr(usage, details_name, None)
+    cached = int((getattr(details, "cached_tokens", 0) or 0) if details is not None else 0)
+    return pin, cached, pout

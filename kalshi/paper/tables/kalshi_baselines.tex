@@ -1,0 +1,22 @@
+\begin{table}[t]
+\centering
+\caption{\textbf{Kalshi revenue-YoY baselines.}
+N/A denotes a baseline that requires a dense scalar $X$; Kalshi is supplied as a raw
+variable-length probability ladder and is not scalarized. Point estimates average three runs.}
+\label{tab:kalshi_baselines}
+\begin{tabular}{lcc}
+\toprule
+Method & $R^2$ & $\rho$ \\
+\midrule
+Historical Avg. & -0.682 & 0.140 \\
+OLS: X only & N/A & N/A \\
+OLS: call sentiment & -0.199 & 0.290 \\
+OLS: X + sentiment & N/A & N/A \\
+OLS: X + sentiment + interaction & N/A & N/A \\
+OLS: X + sentiment + lag & N/A & N/A \\
+OLS: full interaction & N/A & N/A \\
+Gradient-boosted trees & N/A & N/A \\
+Our Method & 0.913 & 0.967 \\
+\bottomrule
+\end{tabular}
+\end{table}

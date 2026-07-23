@@ -1,8 +1,10 @@
 """Prompt builder (BASE) + variant specs (BASE / TOOL) — the tool toggle lives here.
 
-There is now ONE prompt: BASE — the channel/Y-neutral ``timeline_body`` closed by the Y's ask
-(generalized from factor1's ``ASK_DECOMP`` via ``YTarget.ask_text``). The retired DESC variant, which
-front-loaded the FMP company profile + Carbon Arc dataset blurb into the prompt, is gone.
+There is now ONE prompt builder: BASE. It composes ``timeline_body`` with the Y-specific ask
+(generalized from factor1's ``ASK_DECOMP`` via ``YTarget.ask_text``). The configured prompt protocol
+chooses either Jihoon's shared surprise layout or the manuscript's dedicated YoY wording. The
+retired DESC variant, which front-loaded the FMP company profile + Carbon Arc dataset blurb into the
+prompt, is gone.
 
 Whether the model gets those two facts is now a CONFIG choice, expressed as a variant spec rather
 than a second prompt:
@@ -31,11 +33,12 @@ __all__ = ["build_base", "VariantSpec", "get_variant"]
 
 @register_prompt("BASE")
 def build_base(target, transcript_store, description_provider, channel_spec, y_target,
-               arm_blocks, n_calls: int, hist_rows: int = HIST_ROWS) -> str:
+               arm_blocks, n_calls: int, hist_rows: int = HIST_ROWS,
+               prompt_protocol: str = "jihoon_main") -> str:
     """Neutral timeline body + the Y-specific ask. (``description_provider`` unused by the prompt.)"""
     body = timeline_body(target, transcript_store, channel_spec, y_target,
-                         arm_blocks, n_calls, hist_rows)
-    return body + y_target.ask_text(target.row)
+                         arm_blocks, n_calls, hist_rows, prompt_protocol)
+    return body + y_target.ask_text(target.row, prompt_protocol)
 
 
 @dataclass(frozen=True)

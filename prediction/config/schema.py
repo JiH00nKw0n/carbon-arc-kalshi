@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -21,6 +22,7 @@ class RunCfg(_Strict):
     n_calls: int = 2
     hist_rows: int = 6
     max_transcript_chars: int = 48000
+    prompt_protocol: Literal["jihoon_main", "paper"] = "jihoon_main"
 
 
 class LlmCfg(_Strict):

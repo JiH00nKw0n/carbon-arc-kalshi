@@ -1,11 +1,11 @@
-name: kalshi_tool_smoke
+name: kalshi_revenue_surprise_paper_v1
 seed: 2026
-output_dir: prediction/outputs/kalshi_smoke
+output_dir: prediction/outputs/kalshi_paper
 
 run:
-  concurrency: 4
-  reps: 1
-  limit: 1
+  concurrency: 48              # transport-only: avoids gateway connection storms; no prompt change
+  reps: 3                    # manuscript protocol: three independent calls per arm and target
+  limit: 0
   strong_only: true
   drop_outlier_pct: 0
   render_only: false
@@ -13,12 +13,12 @@ run:
   n_calls: 2
   hist_rows: 6
   max_transcript_chars: 48000
-  prompt_protocol: paper
+  prompt_protocol: paper      # Y-specific system/timeline wording shown in the manuscript appendix
 
 llm: {model: gpt-5.5-2026-04-23, effort: medium, max_retries: 6}
 
 data:
-  panel_out: prediction/outputs/kalshi_smoke/panels
+  panel_out: prediction/outputs/kalshi_paper/panels
   screen_csv: kalshi/data/ticker_screen.csv
   sentiment_json: lm_sentiment.json
 
