@@ -39,9 +39,10 @@ subset of those rows; the complete six-cell grid is reported under `Complete Six
 | Prediction rationales and qualitative cases | Complete | Rationale saved for every call; two cases selected by a fixed rule |
 | Screening decisions and rationale figure | Complete | Every candidate pair has screener and auditor logs |
 | Classical baseline table | Partial by design | N0 and N2 available; six X-dependent models are N/A because no scalar X is defined |
+| Exact-two-call coverage sensitivity | Complete | 19 matched rows; existing predictions re-evaluated with no new LLM calls |
 | Quantitative pre/post-screen X-Y correlation | Not run | The paper's diagnostic requires a scalar X; a raw probability ladder has no pre-specified scalar equivalent |
 | A/C/B architecture sensitivity | Not run | Auxiliary experiment in Jihoon's research runner; requires additional prompt schemas and calls |
-| One-call versus two-call Z-depth sensitivity | Not run | Auxiliary experiment in Jihoon's research runner; requires additional calls |
+| Controlled one-call versus two-call Z-depth sensitivity | Not run | Requires new calls with Z depth varied on the same target rows |
 
 Therefore, the 1,512-call paper prediction grid is complete, but this is not a complete replication
 of every auxiliary experiment in Jihoon's repository. `kalshi_screening.tex` is explicitly a
@@ -153,6 +154,44 @@ Synergy compares the observed full model with the additive expectation
 `(H+X improvement) + (H+Z improvement)`. Both intervals are below zero in this run, so the
 Kalshi-plus-transcript combination is sub-additive; this is evidence against a positive synergy
 claim, not evidence that Kalshi X alone has no value.
+
+## Exact-Two-Call Coverage Sensitivity
+
+This sensitivity requires `earnings_call_count == 2` after the 31-day embargo. It excludes
+BA 2025-12-31 (1 eligible call), TSLA 2025-12-31 (1 eligible call) from every arm, variant, Y definition and repetition, leaving 19
+company-quarters / 16 firms. It reuses the existing predictions and
+makes zero new LLM calls.
+
+This is a matched-sample coverage check: it asks whether the conclusions persist after removing
+targets with only one eligible call. It is not a causal one-call-versus-two-call Z-depth test,
+because the remaining predictions were originally generated with two calls and the excluded
+predictions were generated with one.
+
+| Consensus snapshot | Analyst RMSE | Method RMSE | Analyst MAE | Method MAE | Win rate |
+|---|---:|---:|---:|---:|---:|
+| Early | 4.520 | 3.495 | 2.916 | 2.328 | 54.4% |
+| Latest pre-report | 3.874 | 3.589 | 2.634 | 2.351 | 54.4% |
+
+Revenue-YoY / TOOL:
+
+| Sources | RMSE | OOS R-squared | Calibrated R-squared | Correlation | MAE |
+|---|---:|---:|---:|---:|---:|
+| H | 9.051 | 0.730 | 0.676 | 0.855 | 6.691 |
+| H+X | 5.353 | 0.905 | 0.893 | 0.959 | 4.082 |
+| H+Z | 6.137 | 0.876 | 0.866 | 0.953 | 4.165 |
+| H+X+Z | 5.991 | 0.881 | 0.901 | 0.962 | 4.110 |
+
+- Correlation synergy: -0.110,
+  95% pooled-bootstrap CI [-0.352,
+  +0.005]
+- MSE-skill synergy: -0.198,
+  95% pooled-bootstrap CI [-0.574,
+  +0.006]
+
+H+X remains the best Revenue-YoY arm by both RMSE and MAE; removing the two one-call rows does not
+rescue a positive synergy result. The complete six-cell sensitivity, including MAE for every
+available model, is stored in `exact_two_call_metrics_mean.csv` and
+`kalshi_exact_two_call_full_grid.tex`.
 
 ## Complete Six-Cell Results
 
@@ -321,4 +360,15 @@ Selected cases: TSLA (surprise_early, seed 2028), COIN (surprise_print, seed 202
 - `kalshi/paper/tables/kalshi_tool.tex`
 - `kalshi/paper/tables/kalshi_tickers.tex`
 - `kalshi/paper/tables/kalshi_full_grid.tex`
+- `kalshi/paper/tables/kalshi_exact_two_call.tex`
+- `kalshi/paper/tables/kalshi_exact_two_call_full_grid.tex`
+- `kalshi/paper/data/exact_two_call_evaluation_manifest.csv`
+- `kalshi/paper/data/exact_two_call_metrics_by_rep.csv`
+- `kalshi/paper/data/exact_two_call_metrics_mean.csv`
+- `kalshi/paper/data/exact_two_call_accuracy_by_rep.csv`
+- `kalshi/paper/data/exact_two_call_accuracy_mean.csv`
+- `kalshi/paper/data/exact_two_call_synergy_by_rep.csv`
+- `kalshi/paper/data/exact_two_call_synergy_pooled.csv`
+- `kalshi/paper/data/exact_two_call_surrogate_by_rep.csv`
+- `kalshi/paper/data/exact_two_call_audit.json`
 - Supporting CSV/JSON files under `kalshi/paper/data/`

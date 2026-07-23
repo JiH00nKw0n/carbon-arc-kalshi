@@ -230,6 +230,7 @@ def load_run():
                     "variant": variant,
                     "preds": preds,
                     "calls": calls,
+                    "context": context,
                     "result": result,
                     "metrics": metrics,
                 }
@@ -251,6 +252,87 @@ def load_run():
                     })
     validate_variant_prompt_identity(records)
     return cfg, seeds, manifest, panel, records, pd.DataFrame(metric_rows), all_calls
+
+
+def exact_two_call_manifest(manifest: pd.DataFrame) -> pd.DataFrame:
+    """Return one matched target set whose Z input contains exactly two calls."""
+    if "earnings_call_count" not in manifest:
+        raise RuntimeError("evaluation manifest lacks earnings_call_count")
+    selected = manifest[manifest["earnings_call_count"].eq(2)].copy()
+    target_sets = [
+        set(zip(group["ticker"], group["FE_FP_END"].astype(str)))
+        for _, group in selected.groupby("y")
+    ]
+    if len(target_sets) != len(TARGET_LABELS) or any(
+        targets != target_sets[0] for targets in target_sets[1:]
+    ):
+        raise RuntimeError("exact-two-call sensitivity does not have matched Y target sets")
+    if not target_sets or not target_sets[0]:
+        raise RuntimeError("exact-two-call sensitivity has no eligible targets")
+    return selected.sort_values(["y", "ticker", "FE_FP_END"]).reset_index(drop=True)
+
+
+def reevaluate_exact_two_call(cfg, manifest: pd.DataFrame, panel: pd.DataFrame,
+                              records: list[dict]) -> tuple[pd.DataFrame, list[dict],
+                                                            pd.DataFrame]:
+    """Re-evaluate existing predictions after applying the same two-call row filter to every arm."""
+    selected = exact_two_call_manifest(manifest)
+    keys_by_y = {
+        y: set(zip(group["ticker"], group["FE_FP_END"].astype(str)))
+        for y, group in selected.groupby("y")
+    }
+    sensitivity_records = []
+    metric_rows = []
+    for record in records:
+        expected = keys_by_y[record["y"]]
+        preds = record["preds"].copy()
+        keys = list(zip(preds["tkr"], preds["fp"].astype(str)))
+        preds = preds[[key in expected for key in keys]].reset_index(drop=True)
+        actual = set(zip(preds["tkr"], preds["fp"].astype(str)))
+        if actual != expected or len(preds) != len(expected):
+            raise RuntimeError(
+                "exact-two-call prediction/manifest mismatch "
+                f"seed={record['seed']} {record['y']}/{record['variant']}"
+            )
+        filtered_calls = [
+            call for call in record["calls"]
+            if (call["ticker"], str(call["fiscal_period_end"])) in expected
+        ]
+        result = _evaluate_cell(
+            cfg,
+            Cell(channel="kalshi", y=record["y"], variant=record["variant"]),
+            panel,
+            preds,
+            record["context"],
+            record["seed"],
+        )
+        metrics = metric_map(result)
+        sensitivity_record = {
+            "seed": record["seed"],
+            "y": record["y"],
+            "variant": record["variant"],
+            "preds": preds,
+            "calls": filtered_calls,
+            "context": record["context"],
+            "result": result,
+            "metrics": metrics,
+        }
+        sensitivity_records.append(sensitivity_record)
+        for model, values in metrics.items():
+            metric_rows.append({
+                "seed": record["seed"],
+                "y": record["y"],
+                "variant": record["variant"],
+                "model": model,
+                "available": values.get("available", True),
+                "rmse": values.get("rmse"),
+                "r2": values.get("r2"),
+                "calib_r2": values.get("calib_r2"),
+                "corr": values.get("corr"),
+                "mae": values.get("mae"),
+                "sign": values.get("sign"),
+            })
+    return selected, sensitivity_records, pd.DataFrame(metric_rows)
 
 
 def aggregate_metrics(metric_rows: pd.DataFrame) -> pd.DataFrame:
@@ -558,6 +640,56 @@ def write_data(cfg, seeds, manifest, metrics, accuracy_rep, accuracy_mean,
     (DATA / "run_audit.json").write_text(json.dumps(audit, indent=2) + "\n")
 
 
+def write_exact_two_call_data(full_manifest: pd.DataFrame, manifest: pd.DataFrame,
+                              records: list[dict], metrics: pd.DataFrame,
+                              accuracy_rep: pd.DataFrame, accuracy_mean: pd.DataFrame,
+                              synergy_by_cell: dict, synergy_by_rep: pd.DataFrame,
+                              synergy_pooled: pd.DataFrame,
+                              surrogate_by_rep: pd.DataFrame) -> None:
+    DATA.mkdir(parents=True, exist_ok=True)
+    prefix = "exact_two_call"
+    metrics.to_csv(DATA / f"{prefix}_metrics_by_rep.csv", index=False)
+    aggregate_metrics(metrics).to_csv(DATA / f"{prefix}_metrics_mean.csv", index=False)
+    accuracy_rep.to_csv(DATA / f"{prefix}_accuracy_by_rep.csv", index=False)
+    accuracy_mean.to_csv(DATA / f"{prefix}_accuracy_mean.csv", index=False)
+    synergy_by_rep.to_csv(DATA / f"{prefix}_synergy_by_rep.csv", index=False)
+    synergy_pooled.to_csv(DATA / f"{prefix}_synergy_pooled.csv", index=False)
+    surrogate_by_rep.to_csv(DATA / f"{prefix}_surrogate_by_rep.csv", index=False)
+    manifest.to_csv(DATA / f"{prefix}_evaluation_manifest.csv", index=False)
+
+    reference_y = next(iter(TARGET_LABELS))
+    full = full_manifest[full_manifest["y"].eq(reference_y)]
+    kept = manifest[manifest["y"].eq(reference_y)]
+    kept_keys = set(zip(kept["ticker"], kept["FE_FP_END"].astype(str)))
+    excluded = [
+        {
+            "ticker": row.ticker,
+            "FE_FP_END": str(row.FE_FP_END),
+            "earnings_call_count": int(row.earnings_call_count),
+        }
+        for row in full.itertuples()
+        if (row.ticker, str(row.FE_FP_END)) not in kept_keys
+    ]
+    audit = {
+        "analysis": "exact-two-call coverage sensitivity",
+        "selection_rule": "earnings_call_count == 2 after the 31-day embargo",
+        "interpretation": (
+            "Matched-sample coverage sensitivity; not a causal comparison of one-call "
+            "versus two-call Z depth."
+        ),
+        "new_llm_calls": 0,
+        "existing_arm_predictions_reused": int(sum(
+            len(record["preds"]) * len(ARMS) for record in records
+        )),
+        "target_rows_per_y": int(len(kept)),
+        "firms": int(kept["ticker"].nunique()),
+        "excluded_targets": excluded,
+        "row_matching": "The same target rows are used by every arm, variant, Y, and repetition.",
+        "synergy": nested_synergy(synergy_by_cell),
+    }
+    (DATA / f"{prefix}_audit.json").write_text(json.dumps(audit, indent=2) + "\n")
+
+
 def render_accuracy(accuracy_mean: pd.DataFrame) -> None:
     data = {}
     for target, key in (("surprise_early", "early"), ("surprise_print", "print")):
@@ -789,7 +921,10 @@ def markdown_full_results(mean_metrics: pd.DataFrame, synergy_by_cell: dict,
     return "\n\n".join(sections)
 
 
-def render_full_grid_latex(mean_metrics: pd.DataFrame) -> None:
+def render_full_grid_latex(mean_metrics: pd.DataFrame,
+                           filename: str = "kalshi_full_grid.tex",
+                           caption_prefix: str = "Kalshi full-grid results",
+                           label_prefix: str = "kalshi_full") -> None:
     arm_labels = {
         "fin": r"$H$",
         "fin+x": r"$H+X$",
@@ -818,9 +953,9 @@ def render_full_grid_latex(mean_metrics: pd.DataFrame) -> None:
             slug = f"{y}_{variant.lower()}"
             tables.append(r"""\begin{table*}[p]
 \centering
-\caption{\textbf{Kalshi full-grid results: """ + title + " / " + variant + r""".}
+\caption{\textbf{""" + caption_prefix + ": " + title + " / " + variant + r""".}
 Point estimates average three independent runs.}
-\label{tab:kalshi_full_""" + slug + r"""}
+\label{tab:""" + label_prefix + "_" + slug + r"""}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrrrr}
 \toprule
@@ -831,7 +966,56 @@ Model & RMSE & $R^2$ & $R^2$ (Calib.) & $\rho$ & MAE & Sign \\
 \end{tabular}}
 \end{table*}
 """)
-    (TABLES / "kalshi_full_grid.tex").write_text("\n".join(tables))
+    (TABLES / filename).write_text("\n".join(tables))
+
+
+def render_exact_two_call_tables(mean_metrics: pd.DataFrame, synergy_by_cell: dict,
+                                 target_rows: int) -> None:
+    TABLES.mkdir(parents=True, exist_ok=True)
+    rows = []
+    for model, label in (
+        ("fin", r"$H$"),
+        ("fin+x", r"$H+X$"),
+        ("fin+text", r"$H+Z$"),
+        ("fin+x+text", r"$H+X+Z$"),
+    ):
+        row = metric_lookup(mean_metrics, "rev_yoy", "TOOL", model)
+        rows.append(
+            f"{label} & {row['rmse']:.3f} & {row['r2']:.3f} & "
+            f"{row['calib_r2']:.3f} & {row['corr']:.3f} & {row['mae']:.3f} \\\\"
+        )
+    synergy = synergy_by_cell[("rev_yoy", "TOOL")]
+    corr = synergy["syn_corr"]
+    skill = synergy["syn_skill"]
+    table = r"""\begin{table*}[t]
+\centering
+\caption{\textbf{Kalshi exact-two-call coverage sensitivity on revenue-YoY prediction.}
+The matched sample contains """ + str(target_rows) + r""" company-quarters. Existing predictions
+are re-evaluated after requiring exactly two eligible calls; no new LLM calls are made.}
+\label{tab:kalshi_exact_two_call}
+\begin{tabular}{lccccc}
+\toprule
+Sources & RMSE & $R^2$ & $R^2$ (Calib.) & $\rho$ & MAE \\
+\midrule
+""" + "\n".join(rows) + r"""
+\midrule
+Corr. synergy & \multicolumn{5}{c}{""" + (
+        f"{corr['mean']:+.3f} [{corr['ci_low']:+.3f}, {corr['ci_high']:+.3f}]"
+    ) + r"""} \\
+MSE-skill synergy & \multicolumn{5}{c}{""" + (
+        f"{skill['mean']:+.3f} [{skill['ci_low']:+.3f}, {skill['ci_high']:+.3f}]"
+    ) + r"""} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+"""
+    (TABLES / "kalshi_exact_two_call.tex").write_text(table)
+    render_full_grid_latex(
+        mean_metrics,
+        filename="kalshi_exact_two_call_full_grid.tex",
+        caption_prefix="Kalshi exact-two-call sensitivity",
+        label_prefix="kalshi_exact_two_call",
+    )
 
 
 def render_tables(mean_metrics: pd.DataFrame, synergy_by_cell: dict, screen: pd.DataFrame,
@@ -989,7 +1173,8 @@ Kalshi KPI markets & \texttt{""" + latex_escape(", ".join(tickers)) + r"""} \\
 
 
 def render_report(cfg, seeds, manifest, calls, accuracy_mean, synergy_by_cell, cases,
-                  metric_rows, mean_metrics, surrogate_by_rep, screen, screen_logs) -> None:
+                  metric_rows, mean_metrics, surrogate_by_rep, screen, screen_logs,
+                  exact_two_call: dict) -> None:
     synergy = synergy_by_cell[("rev_yoy", "TOOL")]
     early = accuracy_mean[accuracy_mean["target"].eq("surprise_early")].iloc[0]
     latest = accuracy_mean[accuracy_mean["target"].eq("surprise_print")].iloc[0]
@@ -1042,6 +1227,35 @@ def render_report(cfg, seeds, manifest, calls, accuracy_mean, synergy_by_cell, c
     full_results = markdown_full_results(
         mean_metrics, synergy_by_cell, surrogate_by_rep
     )
+    two_manifest = exact_two_call["manifest"]
+    two_sample = two_manifest[two_manifest["y"].eq("surprise_early")]
+    two_mean_metrics = exact_two_call["mean_metrics"]
+    two_accuracy = exact_two_call["accuracy_mean"]
+    two_early = two_accuracy[two_accuracy["target"].eq("surprise_early")].iloc[0]
+    two_latest = two_accuracy[two_accuracy["target"].eq("surprise_print")].iloc[0]
+    two_synergy = exact_two_call["synergy_by_cell"][("rev_yoy", "TOOL")]
+    two_rev_tool = two_mean_metrics[
+        two_mean_metrics["y"].eq("rev_yoy")
+        & two_mean_metrics["variant"].eq("TOOL")
+        & two_mean_metrics["model"].isin(ARMS)
+    ].set_index("model")
+    two_metric_table = "\n".join([
+        f"| {arm_labels[arm]} | {two_rev_tool.loc[arm, 'rmse']:.3f} | "
+        f"{two_rev_tool.loc[arm, 'r2']:.3f} | "
+        f"{two_rev_tool.loc[arm, 'calib_r2']:.3f} | "
+        f"{two_rev_tool.loc[arm, 'corr']:.3f} | "
+        f"{two_rev_tool.loc[arm, 'mae']:.3f} |"
+        for arm in ARMS
+    ])
+    two_keys = set(zip(two_sample["ticker"], two_sample["FE_FP_END"].astype(str)))
+    excluded_rows = [
+        row for row in sample.itertuples()
+        if (row.ticker, str(row.FE_FP_END)) not in two_keys
+    ]
+    excluded_text = ", ".join(
+        f"{row.ticker} {row.FE_FP_END} ({int(row.earnings_call_count)} eligible call)"
+        for row in excluded_rows
+    )
     numeric_result_rows = int(metric_rows["available"].ne(False).sum())
     unavailable_result_rows = int(metric_rows["available"].eq(False).sum())
     report = f"""# Kalshi Paper Experiment
@@ -1085,9 +1299,10 @@ subset of those rows; the complete six-cell grid is reported under `Complete Six
 | Prediction rationales and qualitative cases | Complete | Rationale saved for every call; two cases selected by a fixed rule |
 | Screening decisions and rationale figure | Complete | Every candidate pair has screener and auditor logs |
 | Classical baseline table | Partial by design | N0 and N2 available; six X-dependent models are N/A because no scalar X is defined |
+| Exact-two-call coverage sensitivity | Complete | {len(two_sample)} matched rows; existing predictions re-evaluated with no new LLM calls |
 | Quantitative pre/post-screen X-Y correlation | Not run | The paper's diagnostic requires a scalar X; a raw probability ladder has no pre-specified scalar equivalent |
 | A/C/B architecture sensitivity | Not run | Auxiliary experiment in Jihoon's research runner; requires additional prompt schemas and calls |
-| One-call versus two-call Z-depth sensitivity | Not run | Auxiliary experiment in Jihoon's research runner; requires additional calls |
+| Controlled one-call versus two-call Z-depth sensitivity | Not run | Requires new calls with Z depth varied on the same target rows |
 
 Therefore, the 1,512-call paper prediction grid is complete, but this is not a complete replication
 of every auxiliary experiment in Jihoon's repository. `kalshi_screening.tex` is explicitly a
@@ -1182,6 +1397,41 @@ Synergy compares the observed full model with the additive expectation
 Kalshi-plus-transcript combination is sub-additive; this is evidence against a positive synergy
 claim, not evidence that Kalshi X alone has no value.
 
+## Exact-Two-Call Coverage Sensitivity
+
+This sensitivity requires `earnings_call_count == 2` after the 31-day embargo. It excludes
+{excluded_text} from every arm, variant, Y definition and repetition, leaving {len(two_sample)}
+company-quarters / {two_sample['ticker'].nunique()} firms. It reuses the existing predictions and
+makes zero new LLM calls.
+
+This is a matched-sample coverage check: it asks whether the conclusions persist after removing
+targets with only one eligible call. It is not a causal one-call-versus-two-call Z-depth test,
+because the remaining predictions were originally generated with two calls and the excluded
+predictions were generated with one.
+
+| Consensus snapshot | Analyst RMSE | Method RMSE | Analyst MAE | Method MAE | Win rate |
+|---|---:|---:|---:|---:|---:|
+| Early | {two_early.analyst_rmse:.3f} | {two_early.method_rmse:.3f} | {two_early.analyst_mae:.3f} | {two_early.method_mae:.3f} | {two_early.win_rate_pct:.1f}% |
+| Latest pre-report | {two_latest.analyst_rmse:.3f} | {two_latest.method_rmse:.3f} | {two_latest.analyst_mae:.3f} | {two_latest.method_mae:.3f} | {two_latest.win_rate_pct:.1f}% |
+
+Revenue-YoY / TOOL:
+
+| Sources | RMSE | OOS R-squared | Calibrated R-squared | Correlation | MAE |
+|---|---:|---:|---:|---:|---:|
+{two_metric_table}
+
+- Correlation synergy: {two_synergy['syn_corr']['mean']:+.3f},
+  95% pooled-bootstrap CI [{two_synergy['syn_corr']['ci_low']:+.3f},
+  {two_synergy['syn_corr']['ci_high']:+.3f}]
+- MSE-skill synergy: {two_synergy['syn_skill']['mean']:+.3f},
+  95% pooled-bootstrap CI [{two_synergy['syn_skill']['ci_low']:+.3f},
+  {two_synergy['syn_skill']['ci_high']:+.3f}]
+
+H+X remains the best Revenue-YoY arm by both RMSE and MAE; removing the two one-call rows does not
+rescue a positive synergy result. The complete six-cell sensitivity, including MAE for every
+available model, is stored in `exact_two_call_metrics_mean.csv` and
+`kalshi_exact_two_call_full_grid.tex`.
+
 ## Complete Six-Cell Results
 
 All point estimates below are arithmetic means of three independent runs. The pooled-bootstrap
@@ -1213,6 +1463,17 @@ Selected cases: {", ".join(f"{case['ticker']} ({case['target']}, seed {case['rep
 - `kalshi/paper/tables/kalshi_tool.tex`
 - `kalshi/paper/tables/kalshi_tickers.tex`
 - `kalshi/paper/tables/kalshi_full_grid.tex`
+- `kalshi/paper/tables/kalshi_exact_two_call.tex`
+- `kalshi/paper/tables/kalshi_exact_two_call_full_grid.tex`
+- `kalshi/paper/data/exact_two_call_evaluation_manifest.csv`
+- `kalshi/paper/data/exact_two_call_metrics_by_rep.csv`
+- `kalshi/paper/data/exact_two_call_metrics_mean.csv`
+- `kalshi/paper/data/exact_two_call_accuracy_by_rep.csv`
+- `kalshi/paper/data/exact_two_call_accuracy_mean.csv`
+- `kalshi/paper/data/exact_two_call_synergy_by_rep.csv`
+- `kalshi/paper/data/exact_two_call_synergy_pooled.csv`
+- `kalshi/paper/data/exact_two_call_surrogate_by_rep.csv`
+- `kalshi/paper/data/exact_two_call_audit.json`
 - Supporting CSV/JSON files under `kalshi/paper/data/`
 """
     REPORT.write_text(report)
@@ -1230,6 +1491,29 @@ def main() -> None:
     synergy_by_cell, synergy_by_rep, synergy_pooled, surrogate_by_rep = (
         evaluation_statistics(records)
     )
+    two_manifest, two_records, two_metric_rows = reevaluate_exact_two_call(
+        cfg, manifest, panel, records
+    )
+    two_mean_metrics = aggregate_metrics(two_metric_rows)
+    two_accuracy_rep, two_accuracy_mean = accuracy(two_records)
+    (
+        two_synergy_by_cell,
+        two_synergy_by_rep,
+        two_synergy_pooled,
+        two_surrogate_by_rep,
+    ) = evaluation_statistics(two_records)
+    exact_two_call = {
+        "manifest": two_manifest,
+        "records": two_records,
+        "metric_rows": two_metric_rows,
+        "mean_metrics": two_mean_metrics,
+        "accuracy_rep": two_accuracy_rep,
+        "accuracy_mean": two_accuracy_mean,
+        "synergy_by_cell": two_synergy_by_cell,
+        "synergy_by_rep": two_synergy_by_rep,
+        "synergy_pooled": two_synergy_pooled,
+        "surrogate_by_rep": two_surrogate_by_rep,
+    }
 
     FIGURES.mkdir(parents=True, exist_ok=True)
     write_data(
@@ -1237,13 +1521,24 @@ def main() -> None:
         cases, screens, calls, screen_logs, synergy_by_cell,
         synergy_by_rep, synergy_pooled, surrogate_by_rep,
     )
+    write_exact_two_call_data(
+        manifest, two_manifest, two_records, two_metric_rows,
+        two_accuracy_rep, two_accuracy_mean, two_synergy_by_cell,
+        two_synergy_by_rep, two_synergy_pooled, two_surrogate_by_rep,
+    )
     render_accuracy(accuracy_mean)
     render_qualitative(cases)
     render_screen(screens)
     render_tables(mean_metrics, synergy_by_cell, screen, manifest)
+    render_exact_two_call_tables(
+        two_mean_metrics,
+        two_synergy_by_cell,
+        len(two_manifest[two_manifest["y"].eq("surprise_early")]),
+    )
     render_report(
         cfg, seeds, manifest, calls, accuracy_mean, synergy_by_cell, cases,
         metric_rows, mean_metrics, surrogate_by_rep, screen, screen_logs,
+        exact_two_call,
     )
     print(f"[written] {PAPER}")
     print(f"[written] {REPORT}")

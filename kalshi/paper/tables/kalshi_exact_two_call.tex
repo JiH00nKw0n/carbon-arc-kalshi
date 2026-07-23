@@ -1,0 +1,20 @@
+\begin{table*}[t]
+\centering
+\caption{\textbf{Kalshi exact-two-call coverage sensitivity on revenue-YoY prediction.}
+The matched sample contains 19 company-quarters. Existing predictions
+are re-evaluated after requiring exactly two eligible calls; no new LLM calls are made.}
+\label{tab:kalshi_exact_two_call}
+\begin{tabular}{lccccc}
+\toprule
+Sources & RMSE & $R^2$ & $R^2$ (Calib.) & $\rho$ & MAE \\
+\midrule
+$H$ & 9.051 & 0.730 & 0.676 & 0.855 & 6.691 \\
+$H+X$ & 5.353 & 0.905 & 0.893 & 0.959 & 4.082 \\
+$H+Z$ & 6.137 & 0.876 & 0.866 & 0.953 & 4.165 \\
+$H+X+Z$ & 5.991 & 0.881 & 0.901 & 0.962 & 4.110 \\
+\midrule
+Corr. synergy & \multicolumn{5}{c}{-0.110 [-0.352, +0.005]} \\
+MSE-skill synergy & \multicolumn{5}{c}{-0.198 [-0.574, +0.006]} \\
+\bottomrule
+\end{tabular}
+\end{table*}

@@ -139,6 +139,32 @@ def test_accuracy_reports_analyst_and_method_mae():
     assert mean.iloc[0]["method_mae"] == pytest.approx(3.5)
 
 
+def test_exact_two_call_manifest_keeps_one_matched_target_set():
+    rows = []
+    for y in artifacts.TARGET_LABELS:
+        rows.extend([
+            {
+                "y": y,
+                "ticker": "AAA",
+                "FE_FP_END": "2026-03-31",
+                "earnings_call_count": 2,
+            },
+            {
+                "y": y,
+                "ticker": "BBB",
+                "FE_FP_END": "2025-12-31",
+                "earnings_call_count": 1,
+            },
+        ])
+
+    selected = artifacts.exact_two_call_manifest(pd.DataFrame(rows))
+
+    assert len(selected) == 3
+    assert set(selected["ticker"]) == {"AAA"}
+    assert selected.groupby("y").size().eq(1).all()
+    assert selected["earnings_call_count"].eq(2).all()
+
+
 def test_paper_renderers_write_html_and_latex(tmp_path, monkeypatch):
     figures = tmp_path / "figures"
     tables = tmp_path / "tables"
@@ -218,6 +244,9 @@ def test_paper_renderers_write_html_and_latex(tmp_path, monkeypatch):
     artifacts.render_tables(
         pd.DataFrame(rows), {("rev_yoy", "TOOL"): synergy}, screen, manifest
     )
+    artifacts.render_exact_two_call_tables(
+        pd.DataFrame(rows), {("rev_yoy", "TOOL"): synergy}, 19
+    )
 
     assert "Kalshi" in (figures / "kalshi_accuracy_chart.html").read_text()
     assert "Model rationale" in (figures / "kalshi_qualitative_figure.html").read_text()
@@ -228,4 +257,8 @@ def test_paper_renderers_write_html_and_latex(tmp_path, monkeypatch):
         assert "MAE" in (tables / name).read_text()
     assert "Latest-consensus revenue surprise" in (
         tables / "kalshi_full_grid.tex"
+    ).read_text()
+    assert "MAE" in (tables / "kalshi_exact_two_call.tex").read_text()
+    assert "exact-two-call sensitivity" in (
+        tables / "kalshi_exact_two_call_full_grid.tex"
     ).read_text()
