@@ -4,6 +4,10 @@ This directory contains the Kalshi-only X substitution for Jihoon's latest `main
 nowcasting benchmark. Carbon Arc data is not mixed into the Kalshi experiment. The shared model,
 Y definitions, financial H input, earnings-call Z input, prompt variants, arms, row matching and
 evaluation code live in `prediction/`; Kalshi contributes only a raw pre-publication KPI ladder X.
+For Table 1, the paper exporter reports source-ablation and tool-use FVU/MAE with
+company-clustered bootstrap error bars and writes paste-ready Overleaf row blocks.
+For the manuscript's classical Table 2 comparison only, the paper exporter derives a separate
+unitless survival-curve AUC scalar without changing the LLM input.
 
 The authoritative manuscript design, current three-repetition results, universe and audit summary
 are consolidated in [`PAPER_RESULTS.md`](PAPER_RESULTS.md). [`BENCHMARK.md`](BENCHMARK.md) is the
@@ -45,6 +49,9 @@ configuration: one repetition and the shared main-branch prompt protocol.
 - Paper figures: `kalshi/paper/figures/`
 - Paper tables: `kalshi/paper/tables/`
 - Machine-readable paper data: `kalshi/paper/data/`
+- Table 1 source-ablation audit: `kalshi/paper/data/table1_audit.json`
+- Table 1 tool-use audit: `kalshi/paper/data/table1_tool_audit.json`
+- Table 2 audit: `kalshi/paper/data/table2_audit.json`
 
 Each prediction call records the exact system and user prompt, prompt hash, complete structured
 output, confidence, rationale, derived prediction, tool calls and returned text, token usage, cost,

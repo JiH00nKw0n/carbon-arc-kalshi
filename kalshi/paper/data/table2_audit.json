@@ -1,0 +1,128 @@
+{
+  "analysis": "Kalshi Revenue-YoY Table 2 baselines",
+  "new_llm_calls": 0,
+  "llm_input": "Unchanged raw variable-length Kalshi ladder",
+  "classical_x": {
+    "name": "normalized survival-curve AUC",
+    "formula": "integral P(KPI > strike) d(normalized strike)",
+    "rationale": "a frozen unit-invariant scalar that makes heterogeneous KPI ladders usable by OLS and GBT without changing the raw-ladder LLM input",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "monotonic_smoothing": false,
+    "uses_realized_kpi_or_target_label": false,
+    "events_per_company_quarter": 1
+  },
+  "classical_z": {
+    "name": "Loughran-McDonald net tone",
+    "formula": "(positive_hits - negative_hits) / (positive_hits + negative_hits)",
+    "source_call": "most recent corrected call satisfying the 31-day embargo",
+    "transcript_truncation": "none for the sentiment baseline"
+  },
+  "classical_h": "one-quarter lag of Revenue YoY",
+  "missing_value_policy": {
+    "sent_without_eligible_call": 0.0,
+    "lag_y": "pre-cutoff mean Revenue YoY; no selected train or test row required it"
+  },
+  "ensemble_llm": "arithmetic mean of H, H+X, and H+Z predictions for each target and run",
+  "our_method": "H+X+Z",
+  "samples": {
+    "full_21": {
+      "rows": 21,
+      "firms": 16
+    },
+    "exact_two_call_19": {
+      "rows": 19,
+      "firms": 16
+    }
+  },
+  "metrics": {
+    "fvu": "SSE / SST = 1 - OOS R-squared",
+    "mae": "mean absolute error in Revenue-YoY percentage points",
+    "reported_uncertainty": "full-sample point estimate plus or minus company-clustered bootstrap SD"
+  },
+  "bootstrap": {
+    "repetitions": 5000,
+    "seed_full": 2026,
+    "seed_exact_two_call": 2027,
+    "llm_repetitions": "three predictions are averaged by target before company-clustered resampling"
+  },
+  "runtime_lexicon": {
+    "path": "lm_sentiment.json",
+    "sha256": "490958b3820dae2060ef9f72779390e728f1719759602d7ecd41a78e8bcf2075",
+    "positive_words": 347,
+    "negative_words": 2345
+  },
+  "provided_csv_validation": {
+    "source_name": "lm_master_dictionary.csv",
+    "sha256": "e2d1328682bab7d2187684fb9f5420bb730401c9eefc00daf835edd203f4859d",
+    "rows": 86553,
+    "positive_words": 347,
+    "negative_words": 2345,
+    "positive_and_negative_sets_match_runtime_lexicon": true
+  },
+  "model_fit": {
+    "training_rows": 22,
+    "training_firms": 4,
+    "training_tickers": [
+      "COIN",
+      "NFLX",
+      "SPOT",
+      "TSLA"
+    ],
+    "training_rows_with_eligible_call": 1,
+    "all_pre_cutoff_financial_rows": 378,
+    "test_rows": 21,
+    "test_firms": 16,
+    "test_rows_with_eligible_call": 21,
+    "lag_fill_fraction": 0.1910096468320826,
+    "ols_coefficients": {
+      "intercept": -18.145313522701112,
+      "kalshi_x_auc": 43.30280533483878,
+      "sent": 262.2021295646986,
+      "lag_y": 79.18274193816828
+    },
+    "ols_design_condition_number": 26.376878837437086,
+    "feature_support": {
+      "kalshi_x_auc": {
+        "train_min": 0.054852941176470583,
+        "train_max": 0.9825,
+        "test_min": 0.17700000000000002,
+        "test_max": 0.9546276595744679
+      },
+      "sent": {
+        "train_min": 0.0,
+        "train_max": 0.21739130434782608,
+        "test_min": 0.08550185873605948,
+        "test_max": 0.47692307692307695
+      },
+      "lag_y": {
+        "train_min": -0.1178039215686274,
+        "train_max": 1.3816511933906135,
+        "test_min": -0.21591674968425434,
+        "test_max": 0.579644770228362
+      }
+    },
+    "prediction_ranges_pct": {
+      "historical_average": {
+        "min": 0.44311564200059395,
+        "max": 76.74301680566788
+      },
+      "ols": {
+        "min": 24.55085333026422,
+        "max": 190.05975422048732
+      },
+      "gbt": {
+        "min": -3.3740695581071525,
+        "max": 122.10542285177115
+      }
+    },
+    "gbt_parameters": {
+      "n_estimators": 150,
+      "max_depth": 2,
+      "learning_rate": 0.05,
+      "random_state": 2026
+    }
+  }
+}

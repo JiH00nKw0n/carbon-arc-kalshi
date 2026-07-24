@@ -552,6 +552,13 @@ collapse economically different ladders to the same value.
 Producing numeric N1/N3/N4/N3b/N4b/N5 results would require a pre-specified ladder-to-scalar
 transformation, followed by a comparable within-company or within-metric YoY calculation. That
 would be a separate scalarized-Kalshi experiment, not this raw-ladder benchmark.
+
+The paper's supplemental Table 2 comparison now performs that separate experiment with one frozen,
+unitless scalar: the area under the raw survival ladder after normalizing its strike range to
+`[0, 1]`. It leaves every raw-ladder LLM input and the N/A rows above unchanged. Results and the
+feature-support audit are in `kalshi/PAPER_RESULTS.md` and `kalshi/paper/data/table2_audit.json`.
+The paper exporter also writes Table 1 source-ablation and tool-use FVU/MAE error bars from 5,000
+company-clustered bootstrap draws, without making new LLM calls.
 """
 
 

@@ -1,22 +1,19 @@
 \begin{table}[t]
 \centering
-\caption{\textbf{Kalshi revenue-YoY baselines.}
-N/A denotes a baseline that requires a dense scalar $X$; Kalshi is supplied as a raw
-variable-length probability ladder and is not scalarized. Point estimates average three runs.}
+\caption{\textbf{Kalshi Revenue-YoY prediction versus classical supervised baselines.}
+FVU and MAE are full-sample point estimates; parentheses report company-clustered
+bootstrap standard deviations (5,000 draws). LLM predictions are averaged across three
+independent runs before resampling. The matched sample contains 21 company-quarters / 16 firms.}
 \label{tab:kalshi_baselines}
-\begin{tabular}{lccc}
+\begin{tabular}{lcc}
 \toprule
-Method & $R^2$ & $\rho$ & MAE \\
+Method & FVU ($\downarrow$) & MAE ($\downarrow$) \\
 \midrule
-Historical Avg. & -0.682 & 0.140 & 16.679 \\
-OLS: X only & N/A & N/A & N/A \\
-OLS: call sentiment & -0.199 & 0.290 & 17.848 \\
-OLS: X + sentiment & N/A & N/A & N/A \\
-OLS: X + sentiment + interaction & N/A & N/A & N/A \\
-OLS: X + sentiment + lag & N/A & N/A & N/A \\
-OLS: full interaction & N/A & N/A & N/A \\
-Gradient-boosted trees & N/A & N/A & N/A \\
-Our Method & 0.913 & 0.967 & 3.910 \\
+Historical Avg. & 1.682 ($\pm$1.327) & 16.68 ($\pm$4.23) \\
+OLS & 21.795 ($\pm$11.057) & 82.53 ($\pm$9.16) \\
+GBT & 6.270 ($\pm$2.824) & 44.11 ($\pm$3.79) \\
+Ensembled LLM & \textbf{0.060 ($\pm$0.042)} & 3.78 ($\pm$0.67) \\
+Our Method & 0.084 ($\pm$0.062) & \textbf{3.77 ($\pm$0.95)} \\
 \bottomrule
 \end{tabular}
 \end{table}

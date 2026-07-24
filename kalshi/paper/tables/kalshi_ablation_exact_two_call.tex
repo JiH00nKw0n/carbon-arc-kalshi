@@ -1,0 +1,19 @@
+\begin{table}[t]
+\centering
+\caption{\textbf{Kalshi exact-two-call source-ablation sensitivity.}
+FVU and MAE are full-sample point estimates; error bars are company-clustered bootstrap
+standard deviations from 5,000 draws. Predictions are averaged across three independent runs
+by target before resampling. The matched sample contains 19 company-quarters / 16 firms.}
+\label{tab:kalshi_ablation_exact_two_call}
+\setlength{\tabcolsep}{15pt}
+\begin{tabular}{lcc}
+\toprule
+Sources & FVU ($\downarrow$) & MAE ($\downarrow$) \\
+\midrule
+\quad $H$ & 0.267 {\footnotesize($\pm$0.182)} & 6.69 {\footnotesize($\pm$1.46)} \\
+\quad $H+X$ & \textbf{0.079 {\footnotesize($\pm$0.084)}} & \textbf{3.81 {\footnotesize($\pm$0.72)}} \\
+\quad $H+Z$ & 0.122 {\footnotesize($\pm$0.100)} & 4.09 {\footnotesize($\pm$1.09)} \\
+\quad $H+X+Z$ & 0.116 {\footnotesize($\pm$0.090)} & 3.96 {\footnotesize($\pm$1.05)} \\
+\bottomrule
+\end{tabular}
+\end{table}

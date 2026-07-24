@@ -1,0 +1,19 @@
+\begin{table}[t]
+\centering
+\caption{\textbf{Kalshi source ablation on Revenue-YoY prediction.}
+FVU and MAE are full-sample point estimates; error bars are company-clustered bootstrap
+standard deviations from 5,000 draws. Predictions are averaged across three independent runs
+by target before resampling. The matched sample contains 21 company-quarters / 16 firms.}
+\label{tab:kalshi_ablation}
+\setlength{\tabcolsep}{15pt}
+\begin{tabular}{lcc}
+\toprule
+Sources & FVU ($\downarrow$) & MAE ($\downarrow$) \\
+\midrule
+\quad $H$ & 0.206 {\footnotesize($\pm$0.124)} & 6.74 {\footnotesize($\pm$1.34)} \\
+\quad $H+X$ & \textbf{0.059 {\footnotesize($\pm$0.049)}} & \textbf{3.65 {\footnotesize($\pm$0.68)}} \\
+\quad $H+Z$ & 0.094 {\footnotesize($\pm$0.070)} & 4.11 {\footnotesize($\pm$1.00)} \\
+\quad $H+X+Z$ & 0.084 {\footnotesize($\pm$0.062)} & 3.77 {\footnotesize($\pm$0.95)} \\
+\bottomrule
+\end{tabular}
+\end{table}

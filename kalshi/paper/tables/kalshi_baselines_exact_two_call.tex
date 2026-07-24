@@ -1,0 +1,19 @@
+\begin{table}[t]
+\centering
+\caption{\textbf{Kalshi exact-two-call Revenue-YoY baseline sensitivity.}
+FVU and MAE are full-sample point estimates; parentheses report company-clustered
+bootstrap standard deviations (5,000 draws). LLM predictions are averaged across three
+independent runs before resampling. The matched sample contains 19 company-quarters / 16 firms.}
+\label{tab:kalshi_baselines_exact_two_call}
+\begin{tabular}{lcc}
+\toprule
+Method & FVU ($\downarrow$) & MAE ($\downarrow$) \\
+\midrule
+Historical Avg. & 1.636 ($\pm$2.259) & 13.83 ($\pm$4.17) \\
+OLS & 28.579 ($\pm$25.137) & 83.93 ($\pm$9.93) \\
+GBT & 8.217 ($\pm$7.015) & 45.81 ($\pm$4.96) \\
+Ensembled LLM & \textbf{0.081 ($\pm$0.068)} & \textbf{3.90 ($\pm$0.72)} \\
+Our Method & 0.116 ($\pm$0.090) & 3.96 ($\pm$1.05) \\
+\bottomrule
+\end{tabular}
+\end{table}

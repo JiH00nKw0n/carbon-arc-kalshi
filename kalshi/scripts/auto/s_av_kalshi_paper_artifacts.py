@@ -28,6 +28,21 @@ from prediction.data.transcripts import TranscriptStore
 from prediction.run.experiment import PanelCache, _Transcripts, _evaluate_cell, _select_strong
 from prediction.run.grid import Cell
 from prediction.targets.ytarget import get_y_target
+from kalshi.scripts.auto.s_ax_kalshi_table2_baselines import (
+    evaluate_table2,
+    markdown_table as table2_markdown,
+    render_table2_latex,
+    write_table2_data,
+)
+from kalshi.scripts.auto.s_ay_kalshi_table1_ablation import (
+    evaluate_table1,
+    evaluate_tool_use,
+    markdown_table as table1_markdown,
+    render_table1_latex,
+    render_tool_use_latex,
+    write_table1_data,
+    write_tool_use_data,
+)
 
 CONFIG = ROOT / "prediction" / "configs" / "kalshi_paper.yaml"
 AUTO = ROOT / "kalshi" / "outputs" / "auto"
@@ -1061,43 +1076,6 @@ MSE-skill synergy & \multicolumn{4}{c}{""" + skill_text + r"""} \\
 """
     (TABLES / "kalshi_synergy.tex").write_text(synergy_tex)
 
-    baseline_labels = [
-        ("N0", "Historical Avg."), ("N1", "OLS: X only"), ("N2", "OLS: call sentiment"),
-        ("N3", "OLS: X + sentiment"), ("N4", "OLS: X + sentiment + interaction"),
-        ("N3b", "OLS: X + sentiment + lag"), ("N4b", "OLS: full interaction"),
-        ("N5", "Gradient-boosted trees"), (HEADLINE, "Our Method"),
-    ]
-    baseline_rows = []
-    for model, label in baseline_labels:
-        available = mean_metrics[
-            mean_metrics["y"].eq("rev_yoy")
-            & mean_metrics["variant"].eq("TOOL")
-            & mean_metrics["model"].eq(model)
-        ]
-        if len(available):
-            row = available.iloc[0]
-            baseline_rows.append(
-                f"{label} & {row['r2']:.3f} & {row['corr']:.3f} & {row['mae']:.3f} \\\\"
-            )
-        else:
-            baseline_rows.append(f"{label} & N/A & N/A & N/A \\\\")
-    baselines_tex = r"""\begin{table}[t]
-\centering
-\caption{\textbf{Kalshi revenue-YoY baselines.}
-N/A denotes a baseline that requires a dense scalar $X$; Kalshi is supplied as a raw
-variable-length probability ladder and is not scalarized. Point estimates average three runs.}
-\label{tab:kalshi_baselines}
-\begin{tabular}{lccc}
-\toprule
-Method & $R^2$ & $\rho$ & MAE \\
-\midrule
-""" + "\n".join(baseline_rows) + r"""
-\bottomrule
-\end{tabular}
-\end{table}
-"""
-    (TABLES / "kalshi_baselines.tex").write_text(baselines_tex)
-
     base = metric_lookup(mean_metrics, "rev_yoy", "BASE", HEADLINE)
     tool = metric_lookup(mean_metrics, "rev_yoy", "TOOL", HEADLINE)
     tool_rows = (
@@ -1174,7 +1152,8 @@ Kalshi KPI markets & \texttt{""" + latex_escape(", ".join(tickers)) + r"""} \\
 
 def render_report(cfg, seeds, manifest, calls, accuracy_mean, synergy_by_cell, cases,
                   metric_rows, mean_metrics, surrogate_by_rep, screen, screen_logs,
-                  exact_two_call: dict) -> None:
+                  exact_two_call: dict, table1: dict, table1_tool: dict,
+                  table2: dict) -> None:
     synergy = synergy_by_cell[("rev_yoy", "TOOL")]
     early = accuracy_mean[accuracy_mean["target"].eq("surprise_early")].iloc[0]
     latest = accuracy_mean[accuracy_mean["target"].eq("surprise_print")].iloc[0]
@@ -1256,6 +1235,18 @@ def render_report(cfg, seeds, manifest, calls, accuracy_mean, synergy_by_cell, c
         f"{row.ticker} {row.FE_FP_END} ({int(row.earnings_call_count)} eligible call)"
         for row in excluded_rows
     )
+    table2_summary = table2["summary"]
+    table2_full = table2_markdown(table2_summary, "full_21")
+    table2_exact = table2_markdown(table2_summary, "exact_two_call_19")
+    table2_fit = table2["audit"]["model_fit"]
+    table1_summary = table1["summary"]
+    table1_full = table1_markdown(table1_summary, "full_21")
+    table1_exact = table1_markdown(table1_summary, "exact_two_call_19")
+    table1_tool_full = table1_markdown(
+        table1_tool["summary"],
+        "full_21",
+        first_column="Setting",
+    )
     numeric_result_rows = int(metric_rows["available"].ne(False).sum())
     unavailable_result_rows = int(metric_rows["available"].eq(False).sum())
     report = f"""# Kalshi Paper Experiment
@@ -1298,7 +1289,8 @@ subset of those rows; the complete six-cell grid is reported under `Complete Six
 | Tool ablation | Complete | BASE versus TOOL on matched prompts |
 | Prediction rationales and qualitative cases | Complete | Rationale saved for every call; two cases selected by a fixed rule |
 | Screening decisions and rationale figure | Complete | Every candidate pair has screener and auditor logs |
-| Classical baseline table | Partial by design | N0 and N2 available; six X-dependent models are N/A because no scalar X is defined |
+| Table 1 error bars | Complete | Source-ablation and tool-use FVU/MAE plus 5,000-draw company-bootstrap SD |
+| Table 2 classical baseline comparison | Complete | Historical average, OLS, GBT, Ensembled LLM and Our Method for both 21- and 19-row samples |
 | Exact-two-call coverage sensitivity | Complete | {len(two_sample)} matched rows; existing predictions re-evaluated with no new LLM calls |
 | Quantitative pre/post-screen X-Y correlation | Not run | The paper's diagnostic requires a scalar X; a raw probability ladder has no pre-specified scalar equivalent |
 | A/C/B architecture sensitivity | Not run | Auxiliary experiment in Jihoon's research runner; requires additional prompt schemas and calls |
@@ -1359,9 +1351,88 @@ BASE receives no tools. TOOL receives two no-argument functions:
 `get_alt_data_description` returns the frozen Kalshi ladder methodology description. Their
 returned text and full call order are stored in each call's `tool_trace`.
 
-Classical baselines N1, N3, N4, N3b, N4b and N5 are N/A because they require a dense scalar X.
-Kalshi X is intentionally kept as a raw ladder. N0 (historical average) and N2 (call sentiment)
-remain available because they do not require scalarizing X.
+The complete six-cell raw-ladder grid continues to mark X-dependent N1/N3/N4/N3b/N4b/N5 rows
+N/A: the LLM experiment never replaces the ladder with a scalar. The separate Table 2 comparison
+below defines one frozen scalar representation solely for classical OLS/GBT baselines.
+
+## Table 1 Source Ablation with Error Bars
+
+The paper's Table 1 uncertainty uses the same matched Revenue-YoY targets as the headline
+experiment. Predictions from the three independent runs are averaged by target and source arm
+before evaluation. Each reported error bar is the standard deviation from 5,000
+company-clustered bootstrap draws. Lower FVU and MAE are better.
+
+### Full 21-Row Primary Sample
+
+{table1_full}
+
+### Exact-Two-Call 19-Row Sensitivity
+
+{table1_exact}
+
+The full-sample Overleaf-ready table, exact-two-call sensitivity and paste-ready Kalshi row block
+are saved under `kalshi/paper/tables/`. These calculations reuse existing predictions and make zero
+new LLM calls.
+
+### Current Overleaf Tool-Use Layout
+
+The supplied Overleaf snapshot currently stores a tool-use FVU/MAE table in
+`tables/ablation.tex`. The matching Kalshi block with error bars is:
+
+{table1_tool_full}
+
+The snapshot also labels both `tables/ablation.tex` and `tables/tool.tex` as `tab:tool_use`, while
+the Results text references `tab:ablation`. This duplicate-label and missing-label issue must be
+resolved before inserting either Kalshi row block. Both interpretations are therefore exported:
+`kalshi_ablation_overleaf_rows.tex` for the four source arms and
+`kalshi_tool_fvu_mae_overleaf_rows.tex` for the current tool-use layout.
+
+## Table 2 Baselines
+
+For the classical comparison only, Kalshi X is the area under each event's raw survival ladder
+after normalizing its strike range to `[0, 1]`. This unitless transformation uses no realized KPI,
+revenue label, monotonic smoothing or post-publication value. OLS and GBT receive the same three
+numeric inputs: normalized ladder AUC (`X`), Loughran-McDonald net tone from the most recent
+31-day-embargoed corrected call (`Z`), and one-quarter-lagged Revenue YoY (`H`).
+
+The supplied `lm_master_dictionary.csv` contains 86,553 rows. Its 347 positive and 2,345 negative
+members exactly match the checked-in `lm_sentiment.json`. Sentiment uses the full corrected
+transcript and is `(positive_hits - negative_hits) / (positive_hits + negative_hits)`.
+
+`Ensembled LLM` is the target-level arithmetic mean of `H`, `H+X`, and `H+Z`. `Our Method` is
+`H+X+Z`. The three independent LLM repetitions are averaged by target before evaluation. FVU is
+`SSE / SST = 1 - OOS R-squared`; MAE is in Revenue-YoY percentage points. Parentheses report the
+standard deviation from 5,000 company-clustered bootstrap draws.
+
+The scalarized classical training set contains {table2_fit['training_rows']} pre-cutoff
+company-quarters / {table2_fit['training_firms']} firms
+(`{", ".join(table2_fit['training_tickers'])}`). This is substantially smaller and narrower than
+the 21-row / 16-firm test set, so both OLS and GBT should be read as sparse, cross-firm baselines
+rather than well-powered production models.
+
+Only {table2_fit['training_rows_with_eligible_call']} of the
+{table2_fit['training_rows']} scalar-X training rows has an eligible prior call, versus
+{table2_fit['test_rows_with_eligible_call']} of {table2_fit['test_rows']} test rows. Consequently,
+the remaining training-row sentiment values are set to `0.0`, matching the Carbon Arc baseline
+implementation. The unregularized OLS sentiment coefficient is weakly identified and
+extrapolates sharply
+(design condition number {table2_fit['ols_design_condition_number']:.1f}; test prediction range
+{table2_fit['prediction_ranges_pct']['ols']['min']:+.1f}% to
+{table2_fit['prediction_ranges_pct']['ols']['max']:+.1f}%). The requested OLS/GBT values are
+reported for completeness, but their poor performance must not be interpreted as a clean,
+well-powered estimate of classical-model limits.
+
+### Full 21-Row Primary Sample
+
+{table2_full}
+
+### Exact-Two-Call 19-Row Sensitivity
+
+{table2_exact}
+
+The 19-row table applies the same BA/TSLA exclusion to every method; it does not replace the
+21-row primary table. All Table 2 values reuse existing LLM predictions, so this analysis makes
+zero new LLM calls.
 
 ## Analyst Accuracy
 
@@ -1458,7 +1529,14 @@ Selected cases: {", ".join(f"{case['ticker']} ({case['target']}, seed {case['rep
 - `kalshi/paper/figures/kalshi_qualitative_figure.html`
 - `kalshi/paper/figures/kalshi_accuracy_chart.html`
 - `kalshi/paper/tables/kalshi_synergy.tex`
+- `kalshi/paper/tables/kalshi_ablation.tex`
+- `kalshi/paper/tables/kalshi_ablation_exact_two_call.tex`
+- `kalshi/paper/tables/kalshi_ablation_overleaf_rows.tex`
+- `kalshi/paper/tables/kalshi_tool_fvu_mae.tex`
+- `kalshi/paper/tables/kalshi_tool_fvu_mae_exact_two_call.tex`
+- `kalshi/paper/tables/kalshi_tool_fvu_mae_overleaf_rows.tex`
 - `kalshi/paper/tables/kalshi_baselines.tex`
+- `kalshi/paper/tables/kalshi_baselines_exact_two_call.tex`
 - `kalshi/paper/tables/kalshi_screening.tex`
 - `kalshi/paper/tables/kalshi_tool.tex`
 - `kalshi/paper/tables/kalshi_tickers.tex`
@@ -1474,6 +1552,21 @@ Selected cases: {", ".join(f"{case['ticker']} ({case['target']}, seed {case['rep
 - `kalshi/paper/data/exact_two_call_synergy_pooled.csv`
 - `kalshi/paper/data/exact_two_call_surrogate_by_rep.csv`
 - `kalshi/paper/data/exact_two_call_audit.json`
+- `kalshi/paper/data/table1_predictions_ensemble_first.csv`
+- `kalshi/paper/data/table1_company_bootstrap.csv`
+- `kalshi/paper/data/table1_metrics_summary.csv`
+- `kalshi/paper/data/table1_audit.json`
+- `kalshi/paper/data/table1_tool_predictions_ensemble_first.csv`
+- `kalshi/paper/data/table1_tool_company_bootstrap.csv`
+- `kalshi/paper/data/table1_tool_metrics_summary.csv`
+- `kalshi/paper/data/table1_tool_audit.json`
+- `kalshi/paper/data/table2_feature_audit.csv`
+- `kalshi/paper/data/table2_predictions_by_rep.csv`
+- `kalshi/paper/data/table2_predictions_ensemble_first.csv`
+- `kalshi/paper/data/table2_metrics_by_rep.csv`
+- `kalshi/paper/data/table2_company_bootstrap.csv`
+- `kalshi/paper/data/table2_metrics_summary.csv`
+- `kalshi/paper/data/table2_audit.json`
 - Supporting CSV/JSON files under `kalshi/paper/data/`
 """
     REPORT.write_text(report)
@@ -1514,6 +1607,15 @@ def main() -> None:
         "synergy_pooled": two_synergy_pooled,
         "surrogate_by_rep": two_surrogate_by_rep,
     }
+    table2 = evaluate_table2(
+        cfg,
+        panel,
+        records,
+        manifest,
+        two_manifest,
+    )
+    table1 = evaluate_table1(table2["predictions"], cfg.run.reps)
+    table1_tool = evaluate_tool_use(records, table2["predictions"], cfg.run.reps)
 
     FIGURES.mkdir(parents=True, exist_ok=True)
     write_data(
@@ -1526,6 +1628,9 @@ def main() -> None:
         two_accuracy_rep, two_accuracy_mean, two_synergy_by_cell,
         two_synergy_by_rep, two_synergy_pooled, two_surrogate_by_rep,
     )
+    write_table2_data(table2, DATA)
+    write_table1_data(table1, DATA)
+    write_tool_use_data(table1_tool, DATA)
     render_accuracy(accuracy_mean)
     render_qualitative(cases)
     render_screen(screens)
@@ -1535,10 +1640,13 @@ def main() -> None:
         two_synergy_by_cell,
         len(two_manifest[two_manifest["y"].eq("surprise_early")]),
     )
+    render_table2_latex(table2["summary"], TABLES)
+    render_table1_latex(table1["summary"], TABLES)
+    render_tool_use_latex(table1_tool["summary"], TABLES)
     render_report(
         cfg, seeds, manifest, calls, accuracy_mean, synergy_by_cell, cases,
         metric_rows, mean_metrics, surrogate_by_rep, screen, screen_logs,
-        exact_two_call,
+        exact_two_call, table1, table1_tool, table2,
     )
     print(f"[written] {PAPER}")
     print(f"[written] {REPORT}")

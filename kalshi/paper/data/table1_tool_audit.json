@@ -1,0 +1,34 @@
+{
+  "analysis": "Kalshi Revenue-YoY tool-use error bars",
+  "new_llm_calls": 0,
+  "headline_arm": "H+X+Z",
+  "settings": {
+    "BASE": "no tools",
+    "TOOL": "company and alternative-data description tools enabled"
+  },
+  "samples": {
+    "full_21": {
+      "rows": 21,
+      "firms": 16
+    },
+    "exact_two_call_19": {
+      "rows": 19,
+      "firms": 16
+    }
+  },
+  "metrics": {
+    "fvu": "SSE / SST = 1 - OOS R-squared",
+    "mae": "mean absolute error in Revenue-YoY percentage points",
+    "reported_uncertainty": "full-sample point estimate plus or minus company-clustered bootstrap SD"
+  },
+  "llm_repetitions": {
+    "count": 3,
+    "aggregation": "arithmetic mean by target and setting before evaluation"
+  },
+  "bootstrap": {
+    "repetitions": 5000,
+    "seed_full": 2026,
+    "seed_exact_two_call": 2027,
+    "cluster": "ticker"
+  }
+}

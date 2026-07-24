@@ -38,7 +38,8 @@ subset of those rows; the complete six-cell grid is reported under `Complete Six
 | Tool ablation | Complete | BASE versus TOOL on matched prompts |
 | Prediction rationales and qualitative cases | Complete | Rationale saved for every call; two cases selected by a fixed rule |
 | Screening decisions and rationale figure | Complete | Every candidate pair has screener and auditor logs |
-| Classical baseline table | Partial by design | N0 and N2 available; six X-dependent models are N/A because no scalar X is defined |
+| Table 1 error bars | Complete | Source-ablation and tool-use FVU/MAE plus 5,000-draw company-bootstrap SD |
+| Table 2 classical baseline comparison | Complete | Historical average, OLS, GBT, Ensembled LLM and Our Method for both 21- and 19-row samples |
 | Exact-two-call coverage sensitivity | Complete | 19 matched rows; existing predictions re-evaluated with no new LLM calls |
 | Quantitative pre/post-screen X-Y correlation | Not run | The paper's diagnostic requires a scalar X; a raw probability ladder has no pre-specified scalar equivalent |
 | A/C/B architecture sensitivity | Not run | Auxiliary experiment in Jihoon's research runner; requires additional prompt schemas and calls |
@@ -114,9 +115,113 @@ BASE receives no tools. TOOL receives two no-argument functions:
 `get_alt_data_description` returns the frozen Kalshi ladder methodology description. Their
 returned text and full call order are stored in each call's `tool_trace`.
 
-Classical baselines N1, N3, N4, N3b, N4b and N5 are N/A because they require a dense scalar X.
-Kalshi X is intentionally kept as a raw ladder. N0 (historical average) and N2 (call sentiment)
-remain available because they do not require scalarizing X.
+The complete six-cell raw-ladder grid continues to mark X-dependent N1/N3/N4/N3b/N4b/N5 rows
+N/A: the LLM experiment never replaces the ladder with a scalar. The separate Table 2 comparison
+below defines one frozen scalar representation solely for classical OLS/GBT baselines.
+
+## Table 1 Source Ablation with Error Bars
+
+The paper's Table 1 uncertainty uses the same matched Revenue-YoY targets as the headline
+experiment. Predictions from the three independent runs are averaged by target and source arm
+before evaluation. Each reported error bar is the standard deviation from 5,000
+company-clustered bootstrap draws. Lower FVU and MAE are better.
+
+### Full 21-Row Primary Sample
+
+| Sources | FVU (lower is better) | MAE (pp, lower is better) |
+|---|---:|---:|
+| H | 0.206 (+/- 0.124) | 6.74 (+/- 1.34) |
+| H+X | 0.059 (+/- 0.049) | 3.65 (+/- 0.68) |
+| H+Z | 0.094 (+/- 0.070) | 4.11 (+/- 1.00) |
+| H+X+Z | 0.084 (+/- 0.062) | 3.77 (+/- 0.95) |
+
+### Exact-Two-Call 19-Row Sensitivity
+
+| Sources | FVU (lower is better) | MAE (pp, lower is better) |
+|---|---:|---:|
+| H | 0.267 (+/- 0.182) | 6.69 (+/- 1.46) |
+| H+X | 0.079 (+/- 0.084) | 3.81 (+/- 0.72) |
+| H+Z | 0.122 (+/- 0.100) | 4.09 (+/- 1.09) |
+| H+X+Z | 0.116 (+/- 0.090) | 3.96 (+/- 1.05) |
+
+The full-sample Overleaf-ready table, exact-two-call sensitivity and paste-ready Kalshi row block
+are saved under `kalshi/paper/tables/`. These calculations reuse existing predictions and make zero
+new LLM calls.
+
+### Current Overleaf Tool-Use Layout
+
+The supplied Overleaf snapshot currently stores a tool-use FVU/MAE table in
+`tables/ablation.tex`. The matching Kalshi block with error bars is:
+
+| Setting | FVU (lower is better) | MAE (pp, lower is better) |
+|---|---:|---:|
+| Without tool use | 0.086 (+/- 0.065) | 3.81 (+/- 0.91) |
+| With tool use | 0.084 (+/- 0.062) | 3.77 (+/- 0.95) |
+
+The snapshot also labels both `tables/ablation.tex` and `tables/tool.tex` as `tab:tool_use`, while
+the Results text references `tab:ablation`. This duplicate-label and missing-label issue must be
+resolved before inserting either Kalshi row block. Both interpretations are therefore exported:
+`kalshi_ablation_overleaf_rows.tex` for the four source arms and
+`kalshi_tool_fvu_mae_overleaf_rows.tex` for the current tool-use layout.
+
+## Table 2 Baselines
+
+For the classical comparison only, Kalshi X is the area under each event's raw survival ladder
+after normalizing its strike range to `[0, 1]`. This unitless transformation uses no realized KPI,
+revenue label, monotonic smoothing or post-publication value. OLS and GBT receive the same three
+numeric inputs: normalized ladder AUC (`X`), Loughran-McDonald net tone from the most recent
+31-day-embargoed corrected call (`Z`), and one-quarter-lagged Revenue YoY (`H`).
+
+The supplied `lm_master_dictionary.csv` contains 86,553 rows. Its 347 positive and 2,345 negative
+members exactly match the checked-in `lm_sentiment.json`. Sentiment uses the full corrected
+transcript and is `(positive_hits - negative_hits) / (positive_hits + negative_hits)`.
+
+`Ensembled LLM` is the target-level arithmetic mean of `H`, `H+X`, and `H+Z`. `Our Method` is
+`H+X+Z`. The three independent LLM repetitions are averaged by target before evaluation. FVU is
+`SSE / SST = 1 - OOS R-squared`; MAE is in Revenue-YoY percentage points. Parentheses report the
+standard deviation from 5,000 company-clustered bootstrap draws.
+
+The scalarized classical training set contains 22 pre-cutoff
+company-quarters / 4 firms
+(`COIN, NFLX, SPOT, TSLA`). This is substantially smaller and narrower than
+the 21-row / 16-firm test set, so both OLS and GBT should be read as sparse, cross-firm baselines
+rather than well-powered production models.
+
+Only 1 of the
+22 scalar-X training rows has an eligible prior call, versus
+21 of 21 test rows. Consequently,
+the remaining training-row sentiment values are set to `0.0`, matching the Carbon Arc baseline
+implementation. The unregularized OLS sentiment coefficient is weakly identified and
+extrapolates sharply
+(design condition number 26.4; test prediction range
++24.6% to
++190.1%). The requested OLS/GBT values are
+reported for completeness, but their poor performance must not be interpreted as a clean,
+well-powered estimate of classical-model limits.
+
+### Full 21-Row Primary Sample
+
+| Method | FVU (lower is better) | MAE (pp, lower is better) |
+|---|---:|---:|
+| Historical Avg. | 1.682 (+/- 1.327) | 16.68 (+/- 4.23) |
+| OLS | 21.795 (+/- 11.057) | 82.53 (+/- 9.16) |
+| GBT | 6.270 (+/- 2.824) | 44.11 (+/- 3.79) |
+| Ensembled LLM | 0.060 (+/- 0.042) | 3.78 (+/- 0.67) |
+| Our Method | 0.084 (+/- 0.062) | 3.77 (+/- 0.95) |
+
+### Exact-Two-Call 19-Row Sensitivity
+
+| Method | FVU (lower is better) | MAE (pp, lower is better) |
+|---|---:|---:|
+| Historical Avg. | 1.636 (+/- 2.259) | 13.83 (+/- 4.17) |
+| OLS | 28.579 (+/- 25.137) | 83.93 (+/- 9.93) |
+| GBT | 8.217 (+/- 7.015) | 45.81 (+/- 4.96) |
+| Ensembled LLM | 0.081 (+/- 0.068) | 3.90 (+/- 0.72) |
+| Our Method | 0.116 (+/- 0.090) | 3.96 (+/- 1.05) |
+
+The 19-row table applies the same BA/TSLA exclusion to every method; it does not replace the
+21-row primary table. All Table 2 values reuse existing LLM predictions, so this analysis makes
+zero new LLM calls.
 
 ## Analyst Accuracy
 
@@ -355,7 +460,14 @@ Selected cases: TSLA (surprise_early, seed 2028), COIN (surprise_print, seed 202
 - `kalshi/paper/figures/kalshi_qualitative_figure.html`
 - `kalshi/paper/figures/kalshi_accuracy_chart.html`
 - `kalshi/paper/tables/kalshi_synergy.tex`
+- `kalshi/paper/tables/kalshi_ablation.tex`
+- `kalshi/paper/tables/kalshi_ablation_exact_two_call.tex`
+- `kalshi/paper/tables/kalshi_ablation_overleaf_rows.tex`
+- `kalshi/paper/tables/kalshi_tool_fvu_mae.tex`
+- `kalshi/paper/tables/kalshi_tool_fvu_mae_exact_two_call.tex`
+- `kalshi/paper/tables/kalshi_tool_fvu_mae_overleaf_rows.tex`
 - `kalshi/paper/tables/kalshi_baselines.tex`
+- `kalshi/paper/tables/kalshi_baselines_exact_two_call.tex`
 - `kalshi/paper/tables/kalshi_screening.tex`
 - `kalshi/paper/tables/kalshi_tool.tex`
 - `kalshi/paper/tables/kalshi_tickers.tex`
@@ -371,4 +483,19 @@ Selected cases: TSLA (surprise_early, seed 2028), COIN (surprise_print, seed 202
 - `kalshi/paper/data/exact_two_call_synergy_pooled.csv`
 - `kalshi/paper/data/exact_two_call_surrogate_by_rep.csv`
 - `kalshi/paper/data/exact_two_call_audit.json`
+- `kalshi/paper/data/table1_predictions_ensemble_first.csv`
+- `kalshi/paper/data/table1_company_bootstrap.csv`
+- `kalshi/paper/data/table1_metrics_summary.csv`
+- `kalshi/paper/data/table1_audit.json`
+- `kalshi/paper/data/table1_tool_predictions_ensemble_first.csv`
+- `kalshi/paper/data/table1_tool_company_bootstrap.csv`
+- `kalshi/paper/data/table1_tool_metrics_summary.csv`
+- `kalshi/paper/data/table1_tool_audit.json`
+- `kalshi/paper/data/table2_feature_audit.csv`
+- `kalshi/paper/data/table2_predictions_by_rep.csv`
+- `kalshi/paper/data/table2_predictions_ensemble_first.csv`
+- `kalshi/paper/data/table2_metrics_by_rep.csv`
+- `kalshi/paper/data/table2_company_bootstrap.csv`
+- `kalshi/paper/data/table2_metrics_summary.csv`
+- `kalshi/paper/data/table2_audit.json`
 - Supporting CSV/JSON files under `kalshi/paper/data/`

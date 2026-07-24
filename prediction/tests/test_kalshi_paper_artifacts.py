@@ -244,6 +244,27 @@ def test_paper_renderers_write_html_and_latex(tmp_path, monkeypatch):
     artifacts.render_tables(
         pd.DataFrame(rows), {("rev_yoy", "TOOL"): synergy}, screen, manifest
     )
+    table2_rows = []
+    for sample_name, n in (("full_21", 21), ("exact_two_call_19", 19)):
+        for index, (method, label) in enumerate((
+            ("historical_average", "Historical Avg."),
+            ("ols", "OLS"),
+            ("gbt", "GBT"),
+            ("ensembled_llm", "Ensembled LLM"),
+            ("our_method", "Our Method"),
+        )):
+            table2_rows.append({
+                "sample": sample_name,
+                "method": method,
+                "label": label,
+                "n": n,
+                "firms": 16,
+                "fvu": 0.5 - index / 20,
+                "fvu_bootstrap_sd": 0.05,
+                "mae": 5.0 - index / 2,
+                "mae_bootstrap_sd": 0.5,
+            })
+    artifacts.render_table2_latex(pd.DataFrame(table2_rows), tables)
     artifacts.render_exact_two_call_tables(
         pd.DataFrame(rows), {("rev_yoy", "TOOL"): synergy}, 19
     )
@@ -251,7 +272,11 @@ def test_paper_renderers_write_html_and_latex(tmp_path, monkeypatch):
     assert "Kalshi" in (figures / "kalshi_accuracy_chart.html").read_text()
     assert "Model rationale" in (figures / "kalshi_qualitative_figure.html").read_text()
     assert "Screening rationale" in (figures / "kalshi_screen_figure.html").read_text()
-    assert "N/A" in (tables / "kalshi_baselines.tex").read_text()
+    assert "Ensembled LLM" in (tables / "kalshi_baselines.tex").read_text()
+    assert "FVU" in (tables / "kalshi_baselines.tex").read_text()
+    assert "19 company-quarters" in (
+        tables / "kalshi_baselines_exact_two_call.tex"
+    ).read_text()
     assert "three independent runs" in (tables / "kalshi_tool.tex").read_text()
     for name in ("kalshi_synergy.tex", "kalshi_baselines.tex", "kalshi_tool.tex"):
         assert "MAE" in (tables / name).read_text()
